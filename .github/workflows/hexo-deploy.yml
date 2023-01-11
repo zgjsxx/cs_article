@@ -1,4 +1,4 @@
-name: deploying Hexo project to GitHub pages
+name: deploy
 on:
   push:
     branches:
