@@ -99,6 +99,9 @@ ignore:
 ## Themes: https://hexo.io/themes/
 theme: hexo-theme-keep
 
+toc:
+  maxDepth: 3
+
 # Deployment
 ## Docs: https://hexo.io/docs/one-command-deployment
 deploy:
