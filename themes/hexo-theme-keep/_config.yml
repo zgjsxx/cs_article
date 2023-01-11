@@ -11,10 +11,12 @@
 # ---------------------------------------------------------------------------------------
 base_info:
   # Your blog website title
-  title: Code Building
+  title: Code building
 
   # Your blog website author name
   author: zgjsxx
+
+  url: https://zgjsxx.github.io
 
 # ---------------------------------------------------------------------------------------
 # Theme style settings
