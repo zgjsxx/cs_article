@@ -1,7 +1,8 @@
 ---
 title: 关机时，如何控制systemd服务的关闭顺序?
 date: 2023-01-11 11:38:40
-tags:
+categories: 
+- Linux
 ---
 
 # 关机时，如何控制systemd服务的关闭顺序?
