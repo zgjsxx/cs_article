@@ -1,6 +1,8 @@
 ---
-title: Hello World
+title: Hexo常用命令
 ---
+
+<!--  # Hexo常用命令 -->
 Welcome to [Hexo](https://hexo.io/)! This is your very first post. Check [documentation](https://hexo.io/docs/) for more info. If you get any problems when using Hexo, you can find the answer in [troubleshooting](https://hexo.io/docs/troubleshooting.html) or you can ask me on [GitHub](https://github.com/hexojs/hexo/issues).
 
 ## Quick Start
@@ -36,3 +38,14 @@ $ hexo deploy
 ```
 
 More info: [Deployment](https://hexo.io/docs/one-command-deployment.html)
+
+
+### create draft
+``` bash
+hexo new draft "My draft"
+```
+
+### Hexo show draft
+``` bash
+hexo server --draft
+```
