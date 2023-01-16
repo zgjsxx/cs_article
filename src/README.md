@@ -4,9 +4,9 @@ layout: BlogHome
 icon: home
 title: 博客主页
 heroImage: /logo.svg
-heroText: 你博客的名称
+heroText: CodeBuilding
 heroFullScreen: true
-tagline: 你可以在这里放置你的口号与标语
+tagline: code不是一下子build出来的
 projects:
   - icon: project
     name: 项目名称
@@ -14,9 +14,9 @@ projects:
     link: https://你的项目链接
 
   - icon: link
-    name: 链接名称
-    desc: 链接详细描述
-    link: https://链接地址
+    name: Understanding Linux kernel
+    desc: 理解Linux内核英文版
+    link: http://gauss.ececs.uc.edu/Courses/e4022/code/memory/understanding.pdf
 
   - icon: book
     name: 书籍名称
@@ -48,3 +48,4 @@ footer: 自定义你的页脚文字
 相关配置文档请见 [博客主页](https://theme-hope.vuejs.press/zh/guide/blog/home/)。
 ok
 
+<iframe frameborder="no" border="0" marginwidth="0" marginheight="0" width="100%" height="100" src="//music.163.com/outchain/player?type=0&id=7808063075&auto=1&height=90"></iframe>
