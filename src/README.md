@@ -6,6 +6,7 @@ title: 博客主页
 heroImage: /logo.svg
 heroText: CodeBuilding
 heroFullScreen: true
+bgImage: https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/xinjiang.jpg
 tagline: code不是一下子build出来的
 projects:
   - icon: project
