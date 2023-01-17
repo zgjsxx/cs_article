@@ -1,12 +1,11 @@
 ---
-title: Fork之前创建的互斥锁，Fork之后是否可以保护临界区？
 category: 
 - Linux
 tags:
 - interview
 ---
 
-<!-- # Fork之前创建了互斥锁，Fork之后是否可以保护临界区？-->
+# Fork之前创建了互斥锁，Fork之后是否可以保护临界区？
 这是一道某数通公司的面试题。
 
 这个问题按照我的理解意思是，在fork之前创建一把互斥锁，在fork之后，如果子进程使用该锁lock住一段临界区，那么父进程是否需要等待子进程unlock该锁才可以进入临界区?
@@ -40,12 +39,10 @@ void print(std::string name)
 }
 int main(void)
 {
-    
     int i;
     pid_t pid;
     pthread_mutex_t mutex;
     pthread_mutex_init(&mutex, NULL);
-    int num;
     
     pid = fork();
     if( pid == 0 )
@@ -68,6 +65,7 @@ int main(void)
 }
 ```
 执行之前，我们先定性分析一下，父进程在其地址空间中创建了一把互斥锁进而调用了fork函数，我们知道fork函数拥有copy-on-write机制，当子进程或者父进程对锁进行lock时，父子进程的内存空间分离，也就是说父子进程的锁的作用范围就被限制在了各自的进程空间中，互不干扰。 所以理论上将父子进程在进入临界区时使用的是各自内存空间中的互斥锁， 应该是互不影响的，不能控制父子进程进入临界区。
+
 
 那么是不是如此呢？我们执行一下。
 
