@@ -156,7 +156,7 @@ $$
 
 ## 布局
 
-![Logo](/logo.svg)
+![Logo](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/logo/logo-blog.png)
 
 <!-- .element: class="r-stretch" -->
 

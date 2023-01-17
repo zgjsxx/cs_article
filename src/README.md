@@ -4,13 +4,13 @@ layout: BlogHome
 icon: home
 title: 博客主页
 heroImage: /logo.svg
-heroText: CodeBuilding
+heroText: Code Building
 heroFullScreen: true
-bgImage: https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/xinjiang.jpg
+bgImage: /bg.jpg
 tagline: code不是一下子build出来的
 projects:
   - icon: project
-    name: 项目名称
+    name: 项目名称1
     desc: 项目详细描述
     link: https://你的项目链接
 
