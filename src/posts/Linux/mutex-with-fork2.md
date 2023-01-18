@@ -5,7 +5,7 @@ tags:
 - interview
 ---
 
-# Fork中要警惕死锁问题
+# Fork之前创建了互斥锁，要警惕死锁问题
 
 下面的这段代码会导致子进程出现死锁问题，您看出来了吗？
 
@@ -318,9 +318,11 @@ before get lock
 原因在于可重入锁解锁必须是相同的线程。子进程中的主线程并非加锁线程，因此无法解锁。
 
 查看glibc中的相关实现：
+
 https://github.com/lattera/glibc/blob/master/nptl/pthread_mutex_unlock.c
 
-![img](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/recursive.png)
+
+![glic-pthread-unlock](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/recursive.png)
 
 可以看到可重入锁解锁时，确实会有owner的检查。并且会返回EPERM的errno， EPERM=1， 这与我们打印出来的ret=1是相一致的。
 
