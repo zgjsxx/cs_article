@@ -60,7 +60,7 @@ int main()
 call operator new
 call Stu class constructor
 ```
-可以看到重载的operator new被调用，类A的构造函数也被调用，验证了上述的描述。
+可以看到重载的operator new被调用，类Stu的构造函数也被调用，验证了上述的描述。
 
 要注意到的是new是一个关键字，和sizeof一样，我们不能修改其具体功能。
 
@@ -146,7 +146,7 @@ call Stu class constructor
 
 # placement new
 
-placement new是operator new的一种重载形式， 起作用是可以在指定的内存地址创建对象。
+placement new是operator new的一种重载形式， 其作用是可以在指定的内存地址创建对象。
 
 placement new返回值必须是void*。第一个参数必须是size_t， 第二个参数是void*
 ```cpp
@@ -216,19 +216,19 @@ void construct(Ty* ptr, Args&&... args)
 
 **new**：
 
-new是一个关键字，不能被重载。它先调用operator new分配内存，然后调用构造函数初始化那段内存。
+new是一个关键字，不能被重载。
 
-new 操作符的执行过程：
+new 操作符的执行过程如下：
 1. 调用operator new分配内存 ；
 2. 调用构造函数生成类对象；
 3. 返回相应指针。
 
 **operator new**：
 
-operator new就像operator + 一样，是可以重载的。如果类中没有重载operator new，那么调用的就是全局的::operator new来完成堆的分配。同理，operator new[]、operator delete、operator delete[]也是可以重载的。
+operator new就像operator + 一样，是**可以重载**的。如果类中没有重载operator new，那么调用的就是**全局的::operator new**来完成堆的分配。同理，operator new[]、operator delete、operator delete[]也是可以重载的。
 
 **placement new**：
 
-只是operator new重载的一个版本。它并不分配内存，只是返回指向已经分配好的某段内存的一个指针。因此不能删除它，但需要调用对象的析构函数。
+**只是operator new重载的一个版本**。它并不分配内存，只是返回指向已经分配好的某段内存的一个指针。因此不能删除它，但需要调用对象的析构函数。
 
 如果你想在**已经分配的内存**中创建一个对象，使用new时行不通的。也就是说placement new允许你在一个已经分配好的内存中（栈或者堆中）构造一个新的对象。原型中void* p实际上就是指向一个已经分配好的内存缓冲区的的首地址。

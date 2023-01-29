@@ -164,16 +164,14 @@ $2 = {__data = {__lock = 1, __count = 0, __owner = 167076, __nusers = 1, __kind 
 # 如何解决该问题？
 使用pthread_atfork函数在fork子进程之前清理一下锁的状态。
 ```cpp
-SYNOPSIS         top
-       #include <pthread.h>
+#include <pthread.h>
 
-       int pthread_atfork(void (*prepare)(void), void (*parent)(void),
-                          void (*child)(void));
-
-       Link with -pthread.
+int pthread_atfork(void (*prepare)(void), void (*parent)(void),
+                    void (*child)(void));
 ```
 https://man7.org/linux/man-pages/man3/pthread_atfork.3.html
 
+pthread_atfork()在fork()之前调用，当调用fork时，内部创建子进程前在父进程中会调用prepare，内部创建子进程成功后，父进程会调用parent ，子进程会调用child。
 
 修改之后，代码如下：
 
