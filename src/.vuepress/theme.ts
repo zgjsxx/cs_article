@@ -66,7 +66,7 @@ export default hopeTheme({
       // sidebar
       sidebar: zhSidebar,
 
-      footer: "Default footer",
+      footer: "Code Building",
 
       displayFooter: true,
 
