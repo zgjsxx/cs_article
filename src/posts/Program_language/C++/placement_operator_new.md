@@ -2,6 +2,7 @@
 title: C++中的new、operator new与placement new
 category: 
 - C++
+- 面试
 ---
 
 # new operator
@@ -146,7 +147,7 @@ call Stu class constructor
 
 # placement new
 
-placement new是operator new的一种重载形式， 其作用是可以在指定的内存地址创建对象。
+placement new是operator new的一种重载形式，其作用是可以在指定的内存地址创建对象。
 
 placement new返回值必须是void*。第一个参数必须是size_t， 第二个参数是void*
 ```cpp
@@ -229,6 +230,8 @@ operator new就像operator + 一样，是**可以重载**的。如果类中没�
 
 **placement new**：
 
-**只是operator new重载的一个版本**。它并不分配内存，只是返回指向已经分配好的某段内存的一个指针。因此不能删除它，但需要调用对象的析构函数。
+**placement new和operator new并没有本质区别**。它们都是operator new操作符的重载，只是参数不相同。
+
+placement并不分配内存，只是返回指向已经分配好的某段内存的一个指针。因此不能删除它，但需要调用对象的析构函数。
 
 如果你想在**已经分配的内存**中创建一个对象，使用new时行不通的。也就是说placement new允许你在一个已经分配好的内存中（栈或者堆中）构造一个新的对象。原型中void* p实际上就是指向一个已经分配好的内存缓冲区的的首地址。

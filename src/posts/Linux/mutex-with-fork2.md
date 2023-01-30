@@ -2,7 +2,7 @@
 category: 
 - Linux
 tags:
-- interview
+- 面试
 ---
 
 # Fork之前创建了互斥锁，要警惕死锁问题
