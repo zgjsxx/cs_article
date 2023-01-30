@@ -7,7 +7,7 @@ heroImage: /logo.svg
 heroText: Code Building
 heroFullScreen: true
 bgImage: /bg.jpg
-tagline: code不是一下子build出来的
+tagline: code needs building, man needs training
 projects:
   - icon: project
     name: 项目名称1
