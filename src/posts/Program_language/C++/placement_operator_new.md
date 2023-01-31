@@ -170,6 +170,10 @@ public:
         name_ = name;
         age_ = age;
     };
+    ~Stu()
+    {
+        cout << "call destructor"  << endl;
+    }
 public:
     void print() const
     {
@@ -187,9 +191,11 @@ private:
 };
 int main()
 {
-    void* stu1 = (Stu*)malloc(sizeof(Stu));
-    new (stu1) Stu("stu1", 10);
-    ((Stu*)stu1)->print();
+    char* buff = (char*)malloc(sizeof(Stu));
+    Stu *stu = new (buff) Stu("stu1", 10);
+    stu->print();
+    stu->~Stu();
+    free(buff);
 }
 ```
 
@@ -198,11 +204,14 @@ int main()
 placement new
 name = stu1
 age = 10
+call destructor
 ```
 
 由于placement new可以在一个指定的位置创建对象，因此在STL中有很广泛的运用， 例子vector容器初始化的时候，会使用allocator申请一定的内存，当使用push_back放入对象时， 就可以使用placement new在申请的位置创建对象。
 
 这里以MyTinySTL中创建对象的函数为例，[construct.h](https://github.com/Alinshans/MyTinySTL/blob/master/MyTinySTL/construct.h)， 可以看出construct函数就是使用了全局的placement new方法在指定地址创建对象。
+
+但是需要注意的是， placement new只是在指定的内存地址上构建对象，在对象使用完毕之后，需要**手动调用析构函数**做资源的析构。
 
 ```cpp
 template <class Ty, class... Args>
@@ -211,6 +220,54 @@ void construct(Ty* ptr, Args&&... args)
   ::new ((void*)ptr) Ty(mystl::forward<Args>(args)...);
 }
 ```
+
+我们另外讨论一个问题， placement new可以在栈上构建对象吗？
+
+答案是肯定的。
+
+```cpp
+#include <iostream>
+#include <string>
+#include <malloc.h>
+using namespace std;
+
+//student class
+class Stu
+{
+public:
+    Stu(string name, int age)
+    {
+        name_ = name;
+        age_ = age;
+    };
+    ~Stu()
+    {
+        cout << "call destructor"  << endl;
+    }
+public:
+    void print() const
+    {
+        cout << "name = " << name_ << std::endl;
+        cout<< "age = " << age_ << std::endl;
+    };
+    void* operator new(size_t size, void* p)
+    {
+        std::cout << "placement new" << std::endl;
+        return p;
+    };    
+private:
+    string name_;
+    int age_;
+};
+int main()
+{
+    char buff[4096];
+    Stu *stu = new (buff) Stu("stu1", 10);
+    stu->print();
+    stu->~Stu();
+}
+```
+与在堆上调用placement new一样， 同样需要手动调用析构函数做资源的释放。但是由于内存是在栈上的， 因此不需要手动释放。
 
 # 结论
 对于new， operator new 和 placement new三者的区别， 我们总结如下：
