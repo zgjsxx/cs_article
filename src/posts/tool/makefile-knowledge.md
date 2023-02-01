@@ -4,23 +4,82 @@ category:
 - Makefile
 ---
 # makefile简介
+Makefile 是一个管理项目的配置文件，它主要有 2 个作用：
+
+- 组织工程文件，编译成复杂的程序
+- 安装及卸载程序
 
 # makefile规则
+Makefile的格式通常有如下两种：
+
+格式一：
 ```makefile
 targets : prerequisites
     command
     ...
 ```
-或者
+
+格式二：
 ```makefile
 targets : prerequisites ; command
     command
     ...
 ```
 
-command是命令行，如果其不与“target:prerequisites”在一行，那么，必须以 Tab 键开头，如果和prerequisites在一行，那么可以用分号做为分隔
+格式一，command是命令行，其不与"target:prerequisites"在一行，必须以Tab键开头
 
-# 使用$@ $< $^ 简化书写
+格式二如果和prerequisites在一行，那么可以用分号做为分隔。
+
+通常情况下， 一般使用格式一。
+
+下面我们用过一些demo，一步一步的深入Makefile。
+# demo1：第一个Makefile
+demo1的目录结构如下所示：
+
+```text
+.
+├── main.cpp
+└── Makefile
+```
+
+其中main.cpp如下：
+```cpp
+#include <iostream>
+using namespace std;
+int main () {
+    cout << "Hello World" << endl;
+}
+```
+
+为其编写的Makefile如下：
+```makefile
+main:main.o
+        g++ main.o -o main
+main.o:main.cpp
+        g++ -c main.cpp main.o
+.PHONY clean:
+        rm -rf *.o main
+```
+首先看构建main对象，main对象依赖于main.o对象```main:main.o```， 因此需要完成main.o对象的构建。
+
+接着看到main.o对象依赖于main.cpp文件， 该文件存在与当前目录中， 因此执行相应的command```g++ -c main.cpp```
+```makefile
+main.o:main.cpp
+        g++ -c main.cpp
+```
+如此之后， main.o对象构建成功，这样就可以构建main对象，于是执行了main对象的command，```g++ main.o -o main```
+
+至此main对象的构建完毕。
+
+makefile的最后一部分是一个clean对象， 用于清理生成的文件， 使用make clean即可构建clean对象。 关于关键字```.PHONY```将在下面的例子中讲解。
+```make
+.PHONY clean:
+        rm -rf *.o main
+```
+
+# demo2：使用$@ $< $^ 简化书写
+在Makefile中， 可以使用$@ $< $^来简化书写，其含义如下所示：
+
 $@  表示目标文件
 
 $^  表示所有的依赖文件
@@ -32,10 +91,10 @@ main: main.cpp add.cpp
 
 $@指的就是main，$<指的就是main.cpp, $^指的就是main.cpp add.cpp
 
+下面我们就使用它们来改动demo1中的makefile
 文件结构如下所示：
 ```text
 .
-├── main
 ├── main.cpp
 └── Makefile
 ```
@@ -51,14 +110,20 @@ int main () {
 
 Makefile内容如下:
 ```makefile
-main:main.cpp
+main:main.o
         g++ $< -o $@
+main.o:main.cpp
+        g++ -c $< -o $@
 .PHONY clean:
-        rm -rf main
+        rm -rf *.o main
 ```
 
+首先看main目标的command，```g++ $< -o $@```, $<代表第一个依赖项，即main.o， $@代表构建目标，即main， 因此该语句可以翻译成```g++ main.o -o main```
 
-# 使用vpath和VPATH指定依赖文件搜索路径
+main.o可以以此类推。
+
+# demo3：使用vpath和VPATH指定依赖文件搜索路径
+demo3的文件目录结构如下所示：
 ```
 .
 ├── inc
@@ -114,7 +179,7 @@ clean:
         rm -rf *.o main
 ```
 
-组合使用VPATH和$<之后， makefile自动推导出了语句，在main.cpp前加上了src前缀 
+组合使用VPATH和$<之后， makefile自动推导出了语句，在main.cpp前加上了src前缀。
 
 ```shell
 g++ -c src/main.cpp -I inc/
@@ -122,8 +187,9 @@ g++ -c src/add.cpp -I inc/
 g++ -o main main.o add.o
 ```
 
+需要注意的是**VPATH必须要和$<, $^等结合使用**才可以完成自动推导。
 
-# wildcard，patsubst
+# demo4:使用wildcard，patsubst等函数
 $(wildcard *.c) 可以获取工作目录下的所有.c文件列表
 
 ```makefile
@@ -182,26 +248,16 @@ g++ -c main.cpp -o main.o
 ```
 
 
-# makefile自动生成依赖
-
-
-
-# makefile打印日志
-$(info Hello world)
-
-
-
-# makefile中的@和-
-1、如果makefile执行的命令前面加了@符号，则不显示命令本身而只显示结果。
-
-2、通常make执行的命令出错（该命令的退出状态非0）就立刻终止，不再执行后续命令，但是如果命令前面加上“-”，即使这条命令出错，makefile也会继续执行后续命令的。
+# demo4: makefile自动生成依赖
 
 
 
 
 
 
-# 综合运用上述技巧
+
+
+# demo5: 综合运用上述技巧
 
 在最后的这个例子中， 我们将综合运用上述的一些技巧去完成模块的构建。
 
@@ -397,3 +453,14 @@ clean:
 ```
 最后这个模块用于清除生成的文件。
 
+
+
+# makefile打印日志
+$(info Hello world)
+
+
+
+# makefile中的@和-
+1、如果makefile执行的命令前面加了@符号，则不显示命令本身而只显示结果。
+
+2、通常make执行的命令出错（该命令的退出状态非0）就立刻终止，不再执行后续命令，但是如果命令前面加上“-”，即使这条命令出错，makefile也会继续执行后续命令的。
