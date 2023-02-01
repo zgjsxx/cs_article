@@ -53,7 +53,7 @@ int main()
     Stu* stu1 = new Stu("a", 10);
 }
 ```
-在上述代码中，我们重载了Stu类的operator new操作符，用来验证上述的结论。
+在上述代码中，我们重载了Stu类的operator new操作符，用来验证上述对于new关键字的描述。
 
 上述代码的执行结果如下所示：
 
@@ -101,6 +101,10 @@ public:
         name_ = name;
         age_ = age;
     };
+    ~Stu()
+    {
+        cout << "call destructor"  << endl;
+    }
 public:
     void print() const
     {
@@ -131,6 +135,9 @@ int main()
     Stu* stu1 = new Stu("a", 10);
     Stu* stu2 = new(1) Stu("a", 10);
     Stu* stu3 = new('c') Stu("a", 10);
+    delete stu1;
+    delete stu2;
+    delete stu3;
 }
 ```
 
@@ -142,12 +149,15 @@ call operator new with int
 call Stu class constructor
 call operator new with char
 call Stu class constructor
+call destructor
+call destructor
+call destructor
 ```
 
-
+可以看到重载的三个operator new被成功调用。
 # placement new
 
-placement new是operator new的一种重载形式，其作用是可以在指定的内存地址创建对象。
+placement new是operator new的一种重载形式，其作用是可以**在指定的内存地址创建对象**。
 
 placement new返回值必须是void*。第一个参数必须是size_t， 第二个参数是void*
 ```cpp
