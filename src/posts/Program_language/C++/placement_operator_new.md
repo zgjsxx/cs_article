@@ -12,7 +12,7 @@ category:
 A* a = new A;
 ```
 实际上这样简单的一行语句， 背后做了以下三件事情：
-1. 分配内存,如果类A重载了operator new，那么将调用A::operator new(size_t )来完成，如果没有重载，就调用::operator new(size_t )，即全局new操作符来完成
+1. 分配内存,如果类A重载了operator new，那么将调用A::operator new(size_t )来完成，如果没有重载，就调用::operator new(size_t )，即全局new操作符来完成。
 2. 调用构造函数生成类对象；
 3. 返回相应指针。
 
@@ -211,8 +211,6 @@ call destructor
 
 这里以MyTinySTL中创建对象的函数为例，[construct.h](https://github.com/Alinshans/MyTinySTL/blob/master/MyTinySTL/construct.h)， 可以看出construct函数就是使用了全局的placement new方法在指定地址创建对象。
 
-但是需要注意的是， placement new只是在指定的内存地址上构建对象，在对象使用完毕之后，需要**手动调用析构函数**做资源的析构。
-
 ```cpp
 template <class Ty, class... Args>
 void construct(Ty* ptr, Args&&... args)
@@ -221,7 +219,21 @@ void construct(Ty* ptr, Args&&... args)
 }
 ```
 
-我们另外讨论一个问题， placement new可以在栈上构建对象吗？
+需要注意的是， placement new只是在指定的内存地址上构建对象，在对象使用完毕之后，需要**手动调用析构函数**做资源的析构。
+```cpp
+char* buff = (char*)malloc(4096);
+Stu *stu = new (buff) Stu("stu1", 10);
+stu->print();
+stu->~Stu();
+free(buff);
+```
+为什么需要这样呢？
+
+我们知道，使用delete关键字去释放一个对象时，首先会调用析构函数，然后再调用operator delete释放内存。
+
+但是由于内存的申请并不是通过new对象而申请的，而是通过malloc申请到的一块内存空间，placement new只有"借用"了该内存空间去构建了对象， 因此是不能使用delete关键字去直接释放该对象的。由于不能直接调用```delete stu```，这就会导致对象的析构函数不会被自动调用，因此我们需要手动调用对象的析构函数做对象的析构```stu->~Stu()```，最后使用与malloc配套的free释放申请到的内存空间。
+
+此外，我们讨论另外一个问题， placement new可以在栈上构建对象吗？
 
 答案是肯定的。
 
@@ -289,6 +301,6 @@ operator new就像operator + 一样，是**可以重载**的。如果类中没�
 
 **placement new和operator new并没有本质区别**。它们都是operator new操作符的重载，只是参数不相同。
 
-placement并不分配内存，只是返回指向已经分配好的某段内存的一个指针。因此不能删除它，但需要调用对象的析构函数。
+placement并不分配内存，只是返回指向已经分配好的某段内存的一个指针。因此不能使用delete关键字删除它，需要手动调用对象的析构函数。
 
 如果你想在**已经分配的内存**中创建一个对象，使用new时行不通的。也就是说placement new允许你在一个已经分配好的内存中（栈或者堆中）构造一个新的对象。原型中void* p实际上就是指向一个已经分配好的内存缓冲区的的首地址。
