@@ -4,6 +4,8 @@ category:
 - Makefile
 ---
 # makefile简介
+很多时候， 我们在git clone完一个project之后， 就会让我们使用```make```命令进行项目的构建。 这个make命令的背后就是按照了Makefile文件定义的格式去完成项目构建。
+
 Makefile 是一个管理项目的配置文件，它主要有 2 个作用：
 
 - 组织工程文件，编译成复杂的程序
@@ -33,6 +35,8 @@ targets : prerequisites ; command
 通常情况下， 一般使用格式一。
 
 下面我们用过一些demo，一步一步的深入Makefile。
+
+下面是demo1， 通过demo1来熟悉makefile的基本语法。
 # demo1：第一个Makefile
 demo1的目录结构如下所示：
 
@@ -77,7 +81,7 @@ makefile的最后一部分是一个clean对象， 用于清理生成的文件，
         rm -rf *.o main
 ```
 
-# $@ $< $^
+# 使用$@ $< $^符号简化编写
 在Makefile中， 可以使用$@ $< $^来简化书写，其含义如下所示：
 
 $@  表示目标文件
@@ -89,7 +93,7 @@ $<  表示第一个依赖文件
 例如：
 main: main.cpp add.cpp
 
-$@指的就是main，$<指的就是main.cpp, $^指的就是main.cpp add.cpp
+```$@```指的就是main，```$<```指的就是main.cpp, ```$^```指的就是main.cpp add.cpp
 
 下面我们就使用它们来改动demo1中的makefile
 
@@ -125,7 +129,28 @@ main.o:main.cpp
 main.o可以以此类推。
 
 # vpath和VPATH
-vpath和VPATH主要作用是通过指定文件的搜索路径自动寻找源文件， 但是这种自动推导需要你将vpath/VPATH与$<,$^结合使用。
+vpath和VPATH主要作用是通过指定文件的搜索路径自动寻找源文件， 但是这种自动推导需要你将vpath/VPATH与```$<```,```$^```结合使用。
+
+VPATH和vpath的区别是：
+
+VPATH是变量，更具体的说是环境变量，Makefile 中的一种特殊变量，使用时需要指定文件的路径；
+
+vpath 是关键字，按照模式搜索，也可以说成是选择搜索。搜索的时候不仅需要加上文件的路径，还需要加上相应限制的条件。
+
+
+
+vpath的格式：
+vpath <pattern> <directories>
+为符合模式<pattern>的文件指定搜索目录<directories>。
+
+vpath <pattern>
+清除符合模式<pattern>的文件的搜索目录。
+
+vpath
+清除所有已被设置好了的文件搜索目录。
+
+
+vpath %.h ../headers
 
 看下面的一个目录结构,
 ```text
