@@ -77,7 +77,7 @@ makefile的最后一部分是一个clean对象， 用于清理生成的文件，
         rm -rf *.o main
 ```
 
-# demo2：使用$@ $< $^ 简化书写
+# $@ $< $^
 在Makefile中， 可以使用$@ $< $^来简化书写，其含义如下所示：
 
 $@  表示目标文件
@@ -92,6 +92,8 @@ main: main.cpp add.cpp
 $@指的就是main，$<指的就是main.cpp, $^指的就是main.cpp add.cpp
 
 下面我们就使用它们来改动demo1中的makefile
+
+# demo2：使用$@ $< $^ 简化书写
 文件结构如下所示：
 ```text
 .
@@ -122,7 +124,7 @@ main.o:main.cpp
 
 main.o可以以此类推。
 
-# demo3：使用vpath和VPATH指定依赖文件搜索路径
+# vpath和VPATH
 vpath和VPATH主要作用是通过指定文件的搜索路径自动寻找源文件， 但是这种自动推导需要你将vpath/VPATH与$<,$^结合使用。
 
 看下面的一个目录结构,
@@ -152,7 +154,10 @@ compilation terminated
 
 因此**VPATH想要生效，需要与\$<,\$^配合**， 当搜索相应的目录找到对应的文件时， Makefile就会将$<,$^替换为文件的相对路径。
 
-下面看demo3案例：
+下面看demo3案例
+
+# demo3：使用vpath和VPATH指定依赖文件搜索路径
+
 
 demo3的文件目录结构如下所示：
 ```
@@ -219,20 +224,55 @@ g++ -o main main.o add.o
 ```
 
 
-# demo4:使用wildcard，patsubst等函数
-$(wildcard *.c) 可以获取工作目录下的所有.c文件列表
+# 使用内置函数wildcard，patsubst， foreach， notdir等函数快速寻找到所有要构建的源文件
+
+可以获取工作目录下的所有.c文件列表
+```makefile
+objects = $(wildcard *.c) 
+```
+
+首先使用"wildcard"函数获取工作目录下的.c文件列表；之后将列表中所有文件名的后缀.c替换为.o。这样我们就可以得到在当前目录可生成的.o文件列表。
 
 ```makefile
 $(patsubst %.c,%.o,$(wildcard *.c))
 ```
-首先使用“wildcard”函数获取工作目录下的.c文件列表；之后将列表中所有文件名的后缀.c替换为.o。这样我们就可以得到在当前目录可生成的.o文件列表。
+
+notdir用于去掉文件的绝对路径，只保留文件名。
+```makefile
+file=$(notdir $(wildcard ./sub/*.c)),
+```
+
+foreach实际上是一种循环， 常用于遍历文件夹下的所有文件。
+
+foreach函数的工作过程是：把LIST中使用空格分割的单词依次取出并赋值给变量ITEM，然后执行TEXT表达式。重复这个过程，直到遍历完LIST中的最后一个单词。函数的返回值是TEXT多次计算的结果。
+
+```makefile
+$(foreach ITEM, LIST, TEXT)
+```
+
+例如
+```makefile
+dirs = src src/math
+srcs = $(foreach dir, $(dirs), $(wildcard $(dir)/*.cpp))
+```
+这段makefile就取出了src和src/math目录下所有的cpp文件
+
+
 
 # 静态模式
+
+静态模式可以更加容易地定义多目标的规则，可以让我们的规则变得更加的有弹性和灵活。我们还是先来看一下语法：
+
 ```makefile
 <targets ...> : <target-pattern> : <prereq-patterns ...>
     <commands>
     ...
 ```
+targets定义了一系列的目标文件，可以有通配符。是目标的一个集合。
+
+target-pattern是指明了targets的模式，也就是的目标集模式。
+
+prereq-patterns是目标的依赖模式，它对target-pattern形成的模式再进行一次依赖目标的定义。
 
 
 ```makefile
@@ -252,42 +292,86 @@ bar.o : bar.c
 ```
 
 
-目录结构
+# makefile自动生成依赖
+
+在Makefile中，我们的依赖关系可能会需要包含一系列的头文件，比如，如果我们的main.c中有一句 #include "defs.h" ，那么我们的依赖关系应该是：
+
+main.o : main.c defs.h
+但是，如果是一个比较大型的工程，你必需清楚哪些C文件包含了哪些头文件，并且，你在加入或删除头文件时，也需要小心地修改Makefile，这是一个很没有维护性的工作。为了避免这种繁重而又容易出错的事情，我们可以使用C/C++编译的一个功能。大多数的C/C++编译器都支持一个“-M”的选项，即自动找寻源文件中包含的头文件，并生成一个依赖关系。例如，如果我们执行下面的命令:
+
+cc -M main.c
+其输出是：
+
+main.o : main.c defs.h
+于是由编译器自动生成的依赖关系，这样一来，你就不必再手动书写若干文件的依赖关系，而由编译器自动生成了。需要提醒一句的是，如果你使用GNU的C/C++编译器，你得用 -MM 参数，不然， -M 参数会把一些标准库的头文件也包含进来。
+
+gcc -M main.c的输出是:
+```text
+main.o: main.c defs.h /usr/include/stdio.h /usr/include/features.h \
+    /usr/include/sys/cdefs.h /usr/include/gnu/stubs.h \
+    /usr/lib/gcc-lib/i486-suse-linux/2.95.3/include/stddef.h \
+    /usr/include/bits/types.h /usr/include/bits/pthreadtypes.h \
+    /usr/include/bits/sched.h /usr/include/libio.h \
+    /usr/include/_G_config.h /usr/include/wchar.h \
+    /usr/include/bits/wchar.h /usr/include/gconv.h \
+    /usr/lib/gcc-lib/i486-suse-linux/2.95.3/include/stdarg.h \
+    /usr/include/bits/stdio_lim.h
 ```
-.
-├── add.cpp
-├── main.cpp
-└── Makefile
-```
+gcc -MM main.c的输出则是:
 
-我们使用wildcard，patsubst函数以及静态模式来书写makefile
-
-```makefile
-OBJS = $(patsubst %.cpp,%.o,$(wildcard *.cpp))
-
-all: $(OBJS)
-
-$(OBJS): %o : %cpp
-        g++ -c $< -o $@
-```
+main.o: main.c defs.h
 
 
-```
-g++ -c add.cpp -o add.o
-g++ -c main.cpp -o main.o
-```
+# 伪目标
+伪目标¶
+最早先的一个例子中，我们提到过一个“clean”的目标，这是一个“伪目标”，
+
+clean:
+    rm *.o temp
+正像我们前面例子中的“clean”一样，既然我们生成了许多文件编译文件，我们也应该提供一个清除它们的“目标”以备完整地重编译而用。 （以“make clean”来使用该目标）
+
+因为，我们并不生成“clean”这个文件。“伪目标”并不是一个文件，只是一个标签，由于“伪目标”不是文件，所以make无法生成它的依赖关系和决定它是否要执行。我们只有通过显式地指明这个“目标”才能让其生效。当然，“伪目标”的取名不能和文件名重名，不然其就失去了“伪目标”的意义了。
+
+当然，为了避免和文件重名的这种情况，我们可以使用一个特殊的标记“.PHONY”来显式地指明一个目标是“伪目标”，向make说明，不管是否有这个文件，这个目标就是“伪目标”。
+
+.PHONY : clean
+只要有这个声明，不管是否有“clean”文件，要运行“clean”这个目标，只有“make clean”这样。于是整个过程可以这样写：
+
+.PHONY : clean
+clean :
+    rm *.o temp
+伪目标一般没有依赖的文件。但是，我们也可以为伪目标指定所依赖的文件。伪目标同样可以作为“默认目标”，只要将其放在第一个。一个示例就是，如果你的Makefile需要一口气生成若干个可执行文件，但你只想简单地敲一个make完事，并且，所有的目标文件都写在一个Makefile中，那么你可以使用“伪目标”这个特性：
+
+all : prog1 prog2 prog3
+.PHONY : all
+
+prog1 : prog1.o utils.o
+    cc -o prog1 prog1.o utils.o
+
+prog2 : prog2.o
+    cc -o prog2 prog2.o
+
+prog3 : prog3.o sort.o utils.o
+    cc -o prog3 prog3.o sort.o utils.o
+我们知道，Makefile中的第一个目标会被作为其默认目标。我们声明了一个“all”的伪目标，其依赖于其它三个目标。由于默认目标的特性是，总是被执行的，但由于“all”又是一个伪目标，伪目标只是一个标签不会生成文件，所以不会有“all”文件产生。于是，其它三个目标的规则总是会被决议。也就达到了我们一口气生成多个目标的目的。 .PHONY : all 声明了“all”这个目标为“伪目标”。（注：这里的显式“.PHONY : all” 不写的话一般情况也可以正确的执行，这样make可通过隐式规则推导出， “all” 是一个伪目标，执行make不会生成“all”文件，而执行后面的多个目标。建议：显式写出是一个好习惯。）
+
+随便提一句，从上面的例子我们可以看出，目标也可以成为依赖。所以，伪目标同样也可成为依赖。看下面的例子：
+
+.PHONY : cleanall cleanobj cleandiff
+
+cleanall : cleanobj cleandiff
+    rm program
+
+cleanobj :
+    rm *.o
+
+cleandiff :
+    rm *.diff
+“make cleanall”将清除所有要被清除的文件。“cleanobj”和“cleandiff”这两个伪目标有点像“子程序”的意思。我们可以输入“make cleanall”和“make cleanobj”和“make cleandiff”命令来达到清除不同种类文件的目的。
 
 
-# demo4: makefile自动生成依赖
 
-
-
-
-
-
-
-
-# demo5: 综合运用上述技巧
+# demo4: 一个综合案列使用内置函数+静态模式+自动生成依赖
 
 在最后的这个例子中， 我们将综合运用上述的一些技巧去完成模块的构建。
 
@@ -485,12 +569,3 @@ clean:
 
 
 
-# makefile打印日志
-$(info Hello world)
-
-
-
-# makefile中的@和-
-1、如果makefile执行的命令前面加了@符号，则不显示命令本身而只显示结果。
-
-2、通常make执行的命令出错（该命令的退出状态非0）就立刻终止，不再执行后续命令，但是如果命令前面加上“-”，即使这条命令出错，makefile也会继续执行后续命令的。
