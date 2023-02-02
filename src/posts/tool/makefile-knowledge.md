@@ -4,14 +4,13 @@ category:
 - Makefile
 ---
 # makefile简介
-很多时候， 我们在git clone完一个project之后， 就会让我们使用```make```命令进行项目的构建。 这个make命令的背后就是按照了Makefile文件定义的格式去完成项目构建。
+很多时候， 我们在```git clone```完一个project之后， 就会让我们使用```make```命令进行项目的构建。 这个make命令的背后就是按照了Makefile文件定义的格式去完成项目构建。
 
-Makefile 是一个管理项目的配置文件，它主要有 2 个作用：
+因此Makefile的作用就是帮助程序员进行项目的构建，它按照项目的需求个人化的定义自己的构建过程。 Makefile并不限定编程语言， 但是在c/c++项目中使用相对较多。 其他的一些构建工具， 例如qmake， 也是将*.pro文件转化为Makefile， 再进行构建。
 
-- 组织工程文件，编译成复杂的程序
-- 安装及卸载程序
+可以看出Makefile的应用面还是非常广泛的， 下面将一步一步的讲解Makefile最常使用的语法， 并通过案例进行实践， 一步一步深入Makefile。
 
-# makefile规则
+# makefile的基本规则
 Makefile的格式通常有如下两种：
 
 格式一：
@@ -28,11 +27,26 @@ targets : prerequisites ; command
     ...
 ```
 
-格式一，command是命令行，其不与"target:prerequisites"在一行，必须以Tab键开头
+targets为目标文件， prerequisites为依赖文件， command为如果使用依赖文件构建出目标文件的命令。
 
-格式二如果和prerequisites在一行，那么可以用分号做为分隔。
+格式一中，command是命令行，其不与"target:prerequisites"在一行，必须以Tab键开头
 
-通常情况下， 一般使用格式一。
+格式二中, 如果command和prerequisites在一行，那么可以用分号做为分隔。
+
+通常情况下， **一般使用格式一**， 命令和依赖分开， 比较清晰。
+
+构建的逻辑如下所示：
+
+(1)如果发现目标文件不存在，但是依赖文件存在，就会执行命令集构建生成目标文件
+
+(2)如果发现目标文件不存在，但是依赖文件也不存在，那么就会寻找依赖文件的构建模块， 尝试构建依赖文件， 然后再构建目标文件。
+
+(3)如果发现目标文件已经存在，依赖文件也存在，make指令会自动去比较两者的修改时间
+- 依赖文件的最后修改时间晚于目标文件，就会执行指令集合。
+
+- 依赖文件的最后修改时间早于目标文件，就不会执行指令集合。同时会提示目标文件已经是最新的
+
+(4)如果发现目标文件已经存在， 依赖文件不存在，那么makefile将会寻找依赖文件的构建模块，并尝试构建依赖模块， 由于依赖模块生成时间晚于目标文件， 因此目标文件将会重新构建。
 
 下面我们用过一些demo，一步一步的深入Makefile。
 
@@ -50,7 +64,8 @@ demo1的目录结构如下所示：
 ```cpp
 #include <iostream>
 using namespace std;
-int main () {
+int main () 
+{
     cout << "Hello World" << endl;
 }
 ```
@@ -66,23 +81,23 @@ main.o:main.cpp
 ```
 首先看构建main对象，main对象依赖于main.o对象```main:main.o```， 因此需要完成main.o对象的构建。
 
-接着看到main.o对象依赖于main.cpp文件， 该文件存在与当前目录中， 因此执行相应的command```g++ -c main.cpp```
+接着看到main.o对象依赖于main.cpp文件， 该文件存在与当前目录中， 因此执行相应的命令```g++ -c main.cpp```
 ```makefile
 main.o:main.cpp
         g++ -c main.cpp
 ```
-如此之后， main.o对象构建成功，这样就可以构建main对象，于是执行了main对象的command，```g++ main.o -o main```
+如此之后， main.o对象构建成功，这样就可以构建main对象，于是执行了main对象的命令```g++ main.o -o main```
 
 至此main对象的构建完毕。
 
 makefile的最后一部分是一个clean对象， 用于清理生成的文件， 使用make clean即可构建clean对象。 关于关键字```.PHONY```将在下面的例子中讲解。
-```make
+```makefile
 .PHONY clean:
         rm -rf *.o main
 ```
 
 # 使用$@ $< $^符号简化编写
-在Makefile中， 可以使用$@ $< $^来简化书写，其含义如下所示：
+在Makefile中，可以使用一些预定好的符号来简化书写， 例如$@ $< $^，其含义如下所示：
 
 $@  表示目标文件
 
@@ -98,7 +113,7 @@ main: main.cpp add.cpp
 下面我们就使用它们来改动demo1中的makefile
 
 # demo2：使用$@ $< $^ 简化书写
-文件结构如下所示：
+demo2的文件结构如下所示：
 ```text
 .
 ├── main.cpp
@@ -109,7 +124,8 @@ main.cpp如下：
 ```cpp
 #include <iostream>
 using namespace std;
-int main () {
+int main () 
+{
     cout << "Hello World" << endl;
 }
 ```
@@ -131,26 +147,34 @@ main.o可以以此类推。
 # vpath和VPATH
 vpath和VPATH主要作用是通过指定文件的搜索路径自动寻找源文件， 但是这种自动推导需要你将vpath/VPATH与```$<```,```$^```结合使用。
 
-VPATH和vpath的区别是：
+VPATH是一个变量， 其格式如下所示：
+```makefile
+VPATH = PATH1:PATH2:PATH3
+```
+将需要搜索的目录按照冒号分割。
 
-VPATH是变量，更具体的说是环境变量，Makefile 中的一种特殊变量，使用时需要指定文件的路径；
+vpath是一个关键字， 有三种格式：
 
-vpath 是关键字，按照模式搜索，也可以说成是选择搜索。搜索的时候不仅需要加上文件的路径，还需要加上相应限制的条件。
+1、```vpath <pattern> <directories>```
 
+为符合模式```<pattern>```的文件指定搜索目录```<directories>```。
 
+```makefile
+vpath %.c path1:path2
+```
+其表示搜索.c结尾的文件，先在path1目录搜索，接着在path2目录搜索。
 
-vpath的格式：
-vpath <pattern> <directories>
-为符合模式<pattern>的文件指定搜索目录<directories>。
+2、```vpath <pattern>```
 
-vpath <pattern>
-清除符合模式<pattern>的文件的搜索目录。
+清除符合模式```<pattern>```的文件的搜索目录。
 
-vpath
+3、vpath
+
 清除所有已被设置好了的文件搜索目录。
 
+第一个格式用于添加搜索路径， 后两个格式用于清除搜索路径。
 
-vpath %.h ../headers
+下面需要注意vpath/VPATH的一个使用误区， 即vpath没有和```$<```,```$^```结合使用， 会有什么结果。
 
 看下面的一个目录结构,
 ```text
@@ -160,7 +184,7 @@ vpath %.h ../headers
     └── main.cpp
 ```
 
-所要编译的文件main.cpp在src目录下， 我们使用VPATH指定了搜索路径是src， 我们在command直接指定了文件名， 没有使用$<,$^， 试问这样编写Makefile能正确编译吗？
+所要编译的文件main.cpp在src目录下， 我们使用VPATH指定了搜索路径src， 我们在command直接指定了文件名， 没有使用$<,$^， 试问这样编写Makefile能正确编译吗？
 
 ```makefile
 VPATH=src
@@ -179,10 +203,9 @@ compilation terminated
 
 因此**VPATH想要生效，需要与\$<,\$^配合**， 当搜索相应的目录找到对应的文件时， Makefile就会将$<,$^替换为文件的相对路径。
 
-下面看demo3案例
+下面通过demo3， 来实践一下vpath/VPATH。
 
 # demo3：使用vpath和VPATH指定依赖文件搜索路径
-
 
 demo3的文件目录结构如下所示：
 ```
@@ -248,13 +271,35 @@ g++ -c src/add.cpp -I inc/
 g++ -o main main.o add.o
 ```
 
+# 使用内置函数wildcard，patsubst， foreach， notdir等函数帮助我们构建
 
-# 使用内置函数wildcard，patsubst， foreach， notdir等函数快速寻找到所有要构建的源文件
+makefile提供了一些内置函数帮助我们的构建过程更加自动化。
 
-可以获取工作目录下的所有.c文件列表
+**wilecard**:
+
+使用格式
+
+```makefile
+$(wildcard PATTERN...)
+```
+
+它被展开为已经存在的、使用空格分开的、匹配此模式的所有文件列表。
+
+例如下面的语句可以获取工作目录下的所有.c文件列表。
+
 ```makefile
 objects = $(wildcard *.c) 
 ```
+
+**patsubst**:
+
+```
+$(patsubst <pattern>,<replacement>,<text> ) 
+```
+
+查找```<text>```中的单词（单词以"空格"、"Tab"或"回车""换行"分隔）是否符合模式```<pattern>```，如果匹配的话，则以```<replacement>```替换。
+
+下面的例子可以快速的生成一个目录下.c文件生成的.o文件。
 
 首先使用"wildcard"函数获取工作目录下的.c文件列表；之后将列表中所有文件名的后缀.c替换为.o。这样我们就可以得到在当前目录可生成的.o文件列表。
 
@@ -262,18 +307,25 @@ objects = $(wildcard *.c)
 $(patsubst %.c,%.o,$(wildcard *.c))
 ```
 
-notdir用于去掉文件的绝对路径，只保留文件名。
+**notdir**:
+
+用于去掉文件的绝对路径，只保留文件名。
+
+下面的例子用于去除sub目录的前缀。
+
 ```makefile
 file=$(notdir $(wildcard ./sub/*.c)),
 ```
 
-foreach实际上是一种循环， 常用于遍历文件夹下的所有文件。
-
-foreach函数的工作过程是：把LIST中使用空格分割的单词依次取出并赋值给变量ITEM，然后执行TEXT表达式。重复这个过程，直到遍历完LIST中的最后一个单词。函数的返回值是TEXT多次计算的结果。
+**foreach**:
 
 ```makefile
 $(foreach ITEM, LIST, TEXT)
 ```
+
+实际上是一种循环， 常用于遍历文件夹下的所有文件。
+
+foreach函数的工作过程是：把LIST中使用空格分割的单词依次取出并赋值给变量ITEM，然后执行TEXT表达式。重复这个过程，直到遍历完LIST中的最后一个单词。函数的返回值是TEXT多次计算的结果。
 
 例如
 ```makefile
@@ -281,7 +333,6 @@ dirs = src src/math
 srcs = $(foreach dir, $(dirs), $(wildcard $(dir)/*.cpp))
 ```
 这段makefile就取出了src和src/math目录下所有的cpp文件
-
 
 
 # 静态模式
@@ -594,3 +645,7 @@ clean:
 
 
 
+
+
+
+ -->
