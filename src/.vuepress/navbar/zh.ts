@@ -15,7 +15,7 @@ export const zhNavbar = navbar([
       { 
         text: "Linux", 
         icon: "edit", 
-        link: "Linux" 
+        link: "linux" 
       },
       { 
         text: "网络", 
@@ -25,7 +25,7 @@ export const zhNavbar = navbar([
       { 
         text: "编程语言", 
         icon: "edit", 
-        link: "Program_language" 
+        link: "program_language" 
       },
       { 
         text: "工具", 

@@ -123,6 +123,37 @@ main.o:main.cpp
 main.o可以以此类推。
 
 # demo3：使用vpath和VPATH指定依赖文件搜索路径
+vpath和VPATH主要作用是通过指定文件的搜索路径自动寻找源文件， 但是这种自动推导需要你将vpath/VPATH与$<,$^结合使用。
+
+看下面的一个目录结构,
+```text
+.
+├── Makefile
+└── src
+    └── main.cpp
+```
+
+所要编译的文件main.cpp在src目录下， 我们使用VPATH指定了搜索路径是src， 我们在command直接指定了文件名， 没有使用$<,$^， 试问这样编写Makefile能正确编译吗？
+
+```makefile
+VPATH=src
+main.o:main.cpp
+        g++ -c main.cpp -o main.o
+```
+
+答案是否定的， 执行结果如下：
+```text
+g++ -c main.cpp -o main.o
+cc1plus: fatal error: main.cpp: No such file or directory
+compilation terminated
+```
+
+因为此时已经手动指定了文件名称， Makefile没有能力去为这种场景做适配。
+
+因此**VPATH想要生效，需要与\$<,\$^配合**， 当搜索相应的目录找到对应的文件时， Makefile就会将$<,$^替换为文件的相对路径。
+
+下面看demo3案例：
+
 demo3的文件目录结构如下所示：
 ```
 .
@@ -166,7 +197,7 @@ Makefile
 VPATH = src:inc
 
 test : main.o add.o
-        g++ -o main main.o add.o
+        g++ -o main $^
 
 main.o : main.cpp add.hpp
         g++ -c $< -I inc/
@@ -187,7 +218,6 @@ g++ -c src/add.cpp -I inc/
 g++ -o main main.o add.o
 ```
 
-需要注意的是**VPATH必须要和$<, $^等结合使用**才可以完成自动推导。
 
 # demo4:使用wildcard，patsubst等函数
 $(wildcard *.c) 可以获取工作目录下的所有.c文件列表
