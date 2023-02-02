@@ -351,66 +351,68 @@ target-pattern是指明了targets的模式，也就是的目标集模式。
 prereq-patterns是目标的依赖模式，它对target-pattern形成的模式再进行一次依赖目标的定义。
 
 
+下面的例子， 将多个构建目标合并在了一个静态模式中：
+
 ```makefile
-objects = foo.o bar.o
+objects = main.o add.o
 
 all: $(objects)
 
-$(objects): %.o: %.c
-    $(CC) -c $(CFLAGS) $< -o $@
+$(objects): %.o: %.cpp
+    $(CXX) -c $(CFLAGS) $< -o $@
 ```
 
+其中：
 ```makefile
-foo.o : foo.c
-    $(CC) -c $(CFLAGS) foo.c -o foo.o
-bar.o : bar.c
-    $(CC) -c $(CFLAGS) bar.c -o bar.o
+$(objects): %.o: %.cpp
+    $(CXX) -c $(CFLAGS) $< -o $@
+```
+相当于
+
+```makefile
+main.o : main.c
+    $(CXX) -c $(CFLAGS) main.cpp -o main.o
+add.o : add.cpp
+    $(CXX) -c $(CFLAGS) add.cpp -o add.o
 ```
 
 
 # makefile自动生成依赖
 
-在Makefile中，我们的依赖关系可能会需要包含一系列的头文件，比如，如果我们的main.c中有一句 #include "defs.h" ，那么我们的依赖关系应该是：
+在Makefile中，我们的依赖关系可能会需要包含一系列的头文件，比如，如果我们的main.cpp中有一句 #include "sub.h" ，那么我们的依赖关系应该是：
 
-main.o : main.c defs.h
-但是，如果是一个比较大型的工程，你必需清楚哪些C文件包含了哪些头文件，并且，你在加入或删除头文件时，也需要小心地修改Makefile，这是一个很没有维护性的工作。为了避免这种繁重而又容易出错的事情，我们可以使用C/C++编译的一个功能。大多数的C/C++编译器都支持一个“-M”的选项，即自动找寻源文件中包含的头文件，并生成一个依赖关系。例如，如果我们执行下面的命令:
+main.o : main.cpp sub.h
 
-cc -M main.c
-其输出是：
+但是使用一些模式匹配的方法是不能够自动将这些依赖的头文件也包含进去的。
 
-main.o : main.c defs.h
-于是由编译器自动生成的依赖关系，这样一来，你就不必再手动书写若干文件的依赖关系，而由编译器自动生成了。需要提醒一句的是，如果你使用GNU的C/C++编译器，你得用 -MM 参数，不然， -M 参数会把一些标准库的头文件也包含进来。
+这就意味着, 如果sub.h文件添加了内容， 并不会使得main.o重新构建。 这不是我们所期望的。
 
-gcc -M main.c的输出是:
-```text
-main.o: main.c defs.h /usr/include/stdio.h /usr/include/features.h \
-    /usr/include/sys/cdefs.h /usr/include/gnu/stubs.h \
-    /usr/lib/gcc-lib/i486-suse-linux/2.95.3/include/stddef.h \
-    /usr/include/bits/types.h /usr/include/bits/pthreadtypes.h \
-    /usr/include/bits/sched.h /usr/include/libio.h \
-    /usr/include/_G_config.h /usr/include/wchar.h \
-    /usr/include/bits/wchar.h /usr/include/gconv.h \
-    /usr/lib/gcc-lib/i486-suse-linux/2.95.3/include/stdarg.h \
-    /usr/include/bits/stdio_lim.h
+这里就需要我们借助gcc/g++的 -MM参数自动依赖
+例如```g++ -MM main.cpp```的输出则是:
 ```
-gcc -MM main.c的输出则是:
+main.o: main.c add.h
+```
 
-main.o: main.c defs.h
-
+此时只需要
 
 # 伪目标
-伪目标¶
-最早先的一个例子中，我们提到过一个“clean”的目标，这是一个“伪目标”，
 
+在demo1中，我们提到过一个"clean"的目标，这是一个"伪目标"。
+
+"伪目标"并不是一个文件，只是一个标签，由于"伪目标"不是文件，所以make无法生成它的依赖关系和决定它是否要执行。我们只有通过显示地指明这个"目标"才能让其生效。当然，"伪目标"的取名不能和文件名重名，不然其就失去了"伪目标"的意义了。
+```makefile
 clean:
     rm *.o temp
-正像我们前面例子中的“clean”一样，既然我们生成了许多文件编译文件，我们也应该提供一个清除它们的“目标”以备完整地重编译而用。 （以“make clean”来使用该目标）
+```
+正像我们前面例子中的"clean"一样，既然我们生成了许多文件编译文件，我们也应该提供一个清除它们的"目标"以备完整地重编译而用。 （以"make clean"来使用该目标）
 
-因为，我们并不生成“clean”这个文件。“伪目标”并不是一个文件，只是一个标签，由于“伪目标”不是文件，所以make无法生成它的依赖关系和决定它是否要执行。我们只有通过显式地指明这个“目标”才能让其生效。当然，“伪目标”的取名不能和文件名重名，不然其就失去了“伪目标”的意义了。
+因为，我们并不生成"clean"这个文件。"伪目标"并不是一个文件，只是一个标签，由于"伪目标"不是文件，所以make无法生成它的依赖关系和决定它是否要执行。我们只有通过显式地指明这个“目标”才能让其生效。当然，“伪目标”的取名不能和文件名重名，不然其就失去了"伪目标"的意义了。
 
-当然，为了避免和文件重名的这种情况，我们可以使用一个特殊的标记“.PHONY”来显式地指明一个目标是“伪目标”，向make说明，不管是否有这个文件，这个目标就是“伪目标”。
+当然，为了避免和文件重名的这种情况，我们可以使用一个特殊的标记".PHONY"来显式地指明一个目标是"伪目标"，向make说明，不管是否有这个文件，这个目标就是“伪目标”。
 
+```makefile
 .PHONY : clean
+```
 只要有这个声明，不管是否有“clean”文件，要运行“clean”这个目标，只有“make clean”这样。于是整个过程可以这样写：
 
 .PHONY : clean
@@ -432,7 +434,7 @@ prog3 : prog3.o sort.o utils.o
 我们知道，Makefile中的第一个目标会被作为其默认目标。我们声明了一个“all”的伪目标，其依赖于其它三个目标。由于默认目标的特性是，总是被执行的，但由于“all”又是一个伪目标，伪目标只是一个标签不会生成文件，所以不会有“all”文件产生。于是，其它三个目标的规则总是会被决议。也就达到了我们一口气生成多个目标的目的。 .PHONY : all 声明了“all”这个目标为“伪目标”。（注：这里的显式“.PHONY : all” 不写的话一般情况也可以正确的执行，这样make可通过隐式规则推导出， “all” 是一个伪目标，执行make不会生成“all”文件，而执行后面的多个目标。建议：显式写出是一个好习惯。）
 
 随便提一句，从上面的例子我们可以看出，目标也可以成为依赖。所以，伪目标同样也可成为依赖。看下面的例子：
-
+```makefile
 .PHONY : cleanall cleanobj cleandiff
 
 cleanall : cleanobj cleandiff
@@ -443,8 +445,8 @@ cleanobj :
 
 cleandiff :
     rm *.diff
-“make cleanall”将清除所有要被清除的文件。“cleanobj”和“cleandiff”这两个伪目标有点像“子程序”的意思。我们可以输入“make cleanall”和“make cleanobj”和“make cleandiff”命令来达到清除不同种类文件的目的。
-
+```
+"make cleanall"将清除所有要被清除的文件。"cleanobj"和"cleandiff"这两个伪目标有点像"子程序"的意思。我们可以输入"make cleanall"和"make cleanobj"和"make cleandiff"命令来达到清除不同种类文件的目的。
 
 
 # demo4: 一个综合案列使用内置函数+静态模式+自动生成依赖
@@ -642,10 +644,3 @@ clean:
         rm -rf $(TEMP_PATH)/*.o  $(TEMP_PATH)/main
 ```
 最后这个模块用于清除生成的文件。
-
-
-
-
-
-
- -->
