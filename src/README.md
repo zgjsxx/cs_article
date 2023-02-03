@@ -2,7 +2,7 @@
 home: true
 layout: BlogHome
 icon: home
-title: 博客主页
+title: 程序员小x
 heroImage: /logo.svg
 heroText: Code Building
 heroFullScreen: true
