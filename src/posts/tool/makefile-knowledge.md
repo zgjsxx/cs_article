@@ -4,11 +4,11 @@ category:
 - Makefile
 ---
 # makefile简介
-很多时候， 我们在```git clone```完一个project之后， 就会让我们使用```make```命令进行项目的构建。 这个make命令的背后就是按照了Makefile文件定义的格式去完成项目构建。
+很多时候， 我们在```git clone```完一个project之后，就会让我们使用```make```命令进行项目的构建。这个make命令的背后就是按照了Makefile文件定义的格式去完成项目构建。
 
-因此Makefile的作用就是帮助程序员进行项目的构建，它按照项目的需求个人化的定义自己的构建过程。 Makefile并不限定编程语言， 但是在c/c++项目中使用相对较多。 其他的一些构建工具， 例如qmake， 也是将*.pro文件转化为Makefile， 再进行构建。
+因此Makefile的作用就是帮助程序员进行项目的构建，它按照项目的需求个性化的定义自己的构建过程。Makefile并不限定编程语言，但是在c/c++项目中使用相对较多。其他的一些构建工具，例如qmake，也是将*.pro文件转化为Makefile，再进行构建。
 
-可以看出Makefile的应用面还是非常广泛的， 下面将一步一步的讲解Makefile最常使用的语法， 并通过案例进行实践， 一步一步深入Makefile。
+可以看出Makefile的应用面还是非常广泛的， 下面将一步一步的讲解Makefile最常使用的语法， 并通过案例进行实践， 一步一步深入Makefile， 本文的案例主要使用了C++语言。
 
 # makefile的基本规则
 Makefile的格式通常有如下两种：
@@ -27,26 +27,26 @@ targets : prerequisites ; command
     ...
 ```
 
-targets为目标文件， prerequisites为依赖文件， command为如果使用依赖文件构建出目标文件的命令。
+其中，targets为目标文件， prerequisites为依赖文件， command为如果使用依赖文件构建出目标文件的命令。
 
-格式一中，command是命令行，其不与"target:prerequisites"在一行，必须以Tab键开头
+格式一中，command不与"target:prerequisites"在一行，必须以Tab键开头。
 
-格式二中, 如果command和prerequisites在一行，那么可以用分号做为分隔。
+格式二中, command和prerequisites在一行，那么可以用分号做为分隔。
 
 通常情况下， **一般使用格式一**， 命令和依赖分开， 比较清晰。
 
 构建的逻辑如下所示：
 
-(1)如果发现目标文件不存在，但是依赖文件存在，就会执行命令集构建生成目标文件
+(1)如果发现**目标文件不存在**，但是**依赖文件存在**，就会执行命令集构建生成目标文件。
 
-(2)如果发现目标文件不存在，但是依赖文件也不存在，那么就会寻找依赖文件的构建模块， 尝试构建依赖文件， 然后再构建目标文件。
+(2)如果发现目**标文件不存在**，但是**依赖文件也不存在**，那么就会寻找依赖文件的构建模块， 尝试构建依赖文件， 然后再构建目标文件。
 
-(3)如果发现目标文件已经存在，依赖文件也存在，make指令会自动去比较两者的修改时间
+(3)如果发现**目标文件已经存在**，**依赖文件也存在**，make指令会自动去比较两者的修改时间：
 - 依赖文件的最后修改时间晚于目标文件，就会执行指令集合。
 
-- 依赖文件的最后修改时间早于目标文件，就不会执行指令集合。同时会提示目标文件已经是最新的
+- 依赖文件的最后修改时间早于目标文件，就不会执行指令集合。同时会提示目标文件已经是最新的。
 
-(4)如果发现目标文件已经存在， 依赖文件不存在，那么makefile将会寻找依赖文件的构建模块，并尝试构建依赖模块， 由于依赖模块生成时间晚于目标文件， 因此目标文件将会重新构建。
+(4)如果发现**目标文件已经存在**， **依赖文件不存在**，那么makefile将会寻找依赖文件的构建模块，并尝试构建依赖模块， 由于依赖模块生成时间晚于目标文件， 因此目标文件将会重新构建。
 
 下面我们用过一些demo，一步一步的深入Makefile。
 
@@ -76,23 +76,25 @@ main:main.o
         g++ main.o -o main
 main.o:main.cpp
         g++ -c main.cpp main.o
-.PHONY clean:
+.PHONY : clean
+clean:
         rm -rf *.o main
 ```
 首先看构建main对象，main对象依赖于main.o对象```main:main.o```， 因此需要完成main.o对象的构建。
 
-接着看到main.o对象依赖于main.cpp文件， 该文件存在与当前目录中， 因此执行相应的命令```g++ -c main.cpp```
+接着看到main.o对象依赖于main.cpp文件， 该文件存在与当前目录中， 因此执行相应的命令```g++ -c main.cpp```。
 ```makefile
 main.o:main.cpp
         g++ -c main.cpp
 ```
-如此之后， main.o对象构建成功，这样就可以构建main对象，于是执行了main对象的命令```g++ main.o -o main```
+如此之后， main.o对象构建成功，这样就可以构建main对象，于是执行了main对象的命令```g++ main.o -o main```。
 
 至此main对象的构建完毕。
 
 makefile的最后一部分是一个clean对象， 用于清理生成的文件， 使用make clean即可构建clean对象。 关于关键字```.PHONY```将在下面的例子中讲解。
 ```makefile
-.PHONY clean:
+.PHONY : clean
+clean:
         rm -rf *.o main
 ```
 
@@ -110,7 +112,7 @@ main: main.cpp add.cpp
 
 ```$@```指的就是main，```$<```指的就是main.cpp, ```$^```指的就是main.cpp add.cpp
 
-下面我们就使用它们来改动demo1中的makefile
+下面我们就使用它们来改动demo1中的makefile。
 
 # demo2：使用$@ $< $^ 简化书写
 demo2的文件结构如下所示：
@@ -136,16 +138,17 @@ main:main.o
         g++ $< -o $@
 main.o:main.cpp
         g++ -c $< -o $@
-.PHONY clean:
+.PHONY : clean
+clean:
         rm -rf *.o main
 ```
 
-首先看main目标的command，```g++ $< -o $@```, $<代表第一个依赖项，即main.o， $@代表构建目标，即main， 因此该语句可以翻译成```g++ main.o -o main```
+首先看main目标的command，```g++ $< -o $@```, $<代表第一个依赖项，即main.o， $@代表构建目标，即main， 因此该语句可以翻译成```g++ main.o -o main```。
 
 main.o可以以此类推。
 
 # vpath和VPATH
-vpath和VPATH主要作用是通过指定文件的搜索路径自动寻找源文件， 但是这种自动推导需要你将vpath/VPATH与```$<```,```$^```结合使用。
+vpath和VPATH主要作用是通过指定文件的搜索路径自动寻找源文件，但是这种自动推导需要你将vpath/VPATH与```$<```,```$^```结合使用。
 
 VPATH是一个变量， 其格式如下所示：
 ```makefile
@@ -249,8 +252,8 @@ Makefile
 ```makefile
 VPATH = src:inc
 
-test : main.o add.o
-        g++ -o main $^
+main : main.o add.o
+        g++ -o $@ $^
 
 main.o : main.cpp add.hpp
         g++ -c $< -I inc/
@@ -277,7 +280,7 @@ makefile提供了一些内置函数帮助我们的构建过程更加自动化。
 
 **wilecard**:
 
-使用格式
+使用格式:
 
 ```makefile
 $(wildcard PATTERN...)
@@ -344,11 +347,11 @@ srcs = $(foreach dir, $(dirs), $(wildcard $(dir)/*.cpp))
     <commands>
     ...
 ```
-targets定义了一系列的目标文件，可以有通配符。是目标的一个集合。
+**targets**定义了一系列的目标文件，可以有通配符。是目标的一个集合。
 
-target-pattern是指明了targets的模式，也就是的目标集模式。
+**target-pattern**是指明了targets的模式，也就是的目标集模式。
 
-prereq-patterns是目标的依赖模式，它对target-pattern形成的模式再进行一次依赖目标的定义。
+**prereq-patterns**是目标的依赖模式，它对target-pattern形成的模式再进行一次依赖目标的定义。
 
 
 下面的例子， 将多个构建目标合并在了一个静态模式中：
@@ -413,7 +416,7 @@ int my_add(int a, int b)
 在Makefile中，我们的依赖关系可能会需要包含一系列的头文件，比如，如果我们的main.cpp中有一句```#include "add.hpp" ```，那么我们的依赖关系应该是：
 
 ```makefile
-main.o : main.cpp add.h
+main.o : main.cpp add.hpp
 ```
 
 但是使用一些模式匹配的方法是不能够自动将这些依赖的头文件也包含进去的， 例如下面的语句:
@@ -453,7 +456,7 @@ main.d
 main.o: main.cpp add.hpp
 ```
 
-相当于生成了这样一个makefile文件
+将include的内容展开， 等效的makefile文件如下所示:
 ```makefile
 main: main.o main.d
     g++ $< -o $@
@@ -465,15 +468,16 @@ main.d: main.cpp
 main.o: main.cpp add.hpp
 ```
 
-可以看出在该makefile中,出现了两个main.o的目标.
+可以看出展开后，在该makefile中,出现了两个main.o的目标。
 
-对于多规则同目标文件是有描述的：
+对于这种多规则同目标文件是有描述的：
 
-在Makefile中，一个文件可以作为多个规则的目标出现。这种情况时，此目标文件的所有依赖文件将会被合并成此目标一个依赖文件列表，其中任何一个依赖文件比目标更新（比较目标文件和依赖文件的时间戳）时， make 将会执行特定的命令来重建这个目标。
+在Makefile中，一个文件可以作为多个规则的目标出现。这种情况时，此目标文件的所有依赖文件将会被**合并成此目标一个依赖文件列表**，其中任何一个依赖文件比目标更新（比较目标文件和依赖文件的时间戳）时， make将会执行特定的命令来重建这个目标。
 
-对于一个多规则的目标，重建此目标的命令只能出现在一个规则中（可以是多条命令）。如果多个规则同时给出重建此目标的命令， make将使用最后一个规则所以的命令，同时提示错误信息（一个特殊的例外是：使用“.”开头的多规则目标文件，可以在多个规则中给出多个重建命令。这种方式只是为了和其他版本make进行兼容，一般在GNU make中应该避免使用这个功能）。
+对于一个多规则的目标，重建此目标的命令**只能出现在一个规则中**（可以是多条命令）。如果多个规则同时给出重建此目标的命令，make将使用最后一个规则所以的命令，同时提示错误信息（一个特殊的例外是：使用"."开头的多规则目标文件，可以在多个规则中给出多个重建命令。这种方式只是为了和其他版本make进行兼容，一般在GNU make中应该避免使用这个功能）。
 
-因此上述makefile可以转化为如下的makefile:
+因此上述含有多目标的makefile可以转化为如下的makefile:
+
 ```makefile
 main: main.o main.d
     g++ $< -o $@
@@ -483,10 +487,14 @@ main.d: main.cpp
     g++ -MM $<
 ```
 
-到此,似乎已经很完美了， 但是真的如此吗？
+到此, 当我们修改add.hpp时， main.o会重新构建。 这似乎已经很完美了，但是真的如此吗？
 
+我们试想此时在add.hpp中添加新的依赖sub.hpp， 因为main.cpp依赖于add.hpp，因此main.o会重新编译。 但是由于main.d文件只依赖于main.cpp, 因此main.d不会重新生成, 因此当我们这个时候修改sub.hpp时, main.cpp并不会更新。
 
-我们试想此时在add.hpp中添加新的依赖sub.hpp， 因为main.cpp依赖于add.h，因此main.o会重新编译. 但是由于main.d文件只依赖于main.cpp, 因此main.d不会重新生成, 因此当我们这个时候修改sub.hpp时, main.cpp并不会更新。因此这就要求main.d 也要添加对头文件的依赖.
+因此这就要求main.d 也要添加对头文件的依赖。
+
+修改上面的makefile：
+
 ```makefile
 main: main.o main.d
     g++ $< -o $@
@@ -500,9 +508,11 @@ main: main.o main.d
 
 include main.d
 ```
+这里使用了sed去修改了gcc默认生成的依赖关系，即将```main.o: main.cpp add.hpp```转换成```main.o main.d : main.cpp add.hpp```。
 
-这样的目的就是将gcc自动生成的```main.o: main.cpp add.hpp```转换成```main.o main.d : main.cpp add.hpp```
-也就是在main.d的依赖中增加了add.hpp的依赖
+也就是在main.d的依赖中增加了add.hpp的依赖。
+
+等效的makefile如下所示：
 
 ```makefile
 main: main.o main.d
@@ -513,23 +523,24 @@ main.d: main.cpp add.hpp
     g++ -MM $<
 ```
 
-这样, 即使在add.hpp中增加其他头文件依赖, 也会触发main.o的更新
+这样, 即使在add.hpp中增加其他头文件依赖, 然后再修改其他的头文件，也会触发main.o的更新。
 
 
 # 伪目标
 
 在demo1中，我们提到过一个"clean"的目标，这是一个"伪目标"。
 
-"伪目标"并不是一个文件，只是一个标签，由于"伪目标"不是文件，所以make无法生成它的依赖关系和决定它是否要执行。我们只有通过显示地指明这个"目标"才能让其生效。当然，"伪目标"的取名不能和文件名重名，不然其就失去了"伪目标"的意义了。
+"伪目标"并不是一个文件，只是一个**标签**。 
+
+假设我们不使用```.PHONY```:
+
 ```makefile
 clean:
     rm *.o temp
 ```
-正像我们前面例子中的"clean"一样，既然我们生成了许多文件编译文件，我们也应该提供一个清除它们的"目标"以备完整地重编译而用。 （以"make clean"来使用该目标）
+当本地也有一个文件叫做clean时， 那么```rm *.o temp```的操作将不会被执行。
 
-因为，我们并不生成"clean"这个文件。"伪目标"并不是一个文件，只是一个标签，由于"伪目标"不是文件，所以make无法生成它的依赖关系和决定它是否要执行。我们只有通过显式地指明这个"目标"才能让其生效。当然，“伪目标”的取名不能和文件名重名，不然其就失去了"伪目标"的意义了。
-
-当然，为了避免和文件重名的这种情况，我们可以使用一个特殊的标记".PHONY"来显式地指明一个目标是"伪目标"，向make说明，不管是否有这个文件，这个目标就是"伪目标"。
+因此为了避免和文件重名的这种情况，我们可以使用一个特殊的标记".PHONY"来显式地指明一个目标是"伪目标"，向make说明，不管是否有这个文件，这个目标就是"伪目标"。
 
 ```makefile
 .PHONY : clean
@@ -541,36 +552,6 @@ clean:
 clean :
     rm *.o temp
 ```
-伪目标一般没有依赖的文件。但是，我们也可以为伪目标指定所依赖的文件。伪目标同样可以作为“默认目标”，只要将其放在第一个。一个示例就是，如果你的Makefile需要一口气生成若干个可执行文件，但你只想简单地敲一个make完事，并且，所有的目标文件都写在一个Makefile中，那么你可以使用“伪目标”这个特性：
-```makefile
-all : prog1 prog2 prog3
-.PHONY : all
-
-prog1 : prog1.o utils.o
-    cc -o prog1 prog1.o utils.o
-
-prog2 : prog2.o
-    cc -o prog2 prog2.o
-
-prog3 : prog3.o sort.o utils.o
-    cc -o prog3 prog3.o sort.o utils.o
-```
-我们知道，Makefile中的第一个目标会被作为其默认目标。我们声明了一个“all”的伪目标，其依赖于其它三个目标。由于默认目标的特性是，总是被执行的，但由于“all”又是一个伪目标，伪目标只是一个标签不会生成文件，所以不会有“all”文件产生。于是，其它三个目标的规则总是会被决议。也就达到了我们一口气生成多个目标的目的。 .PHONY : all 声明了“all”这个目标为“伪目标”。（注：这里的显式“.PHONY : all” 不写的话一般情况也可以正确的执行，这样make可通过隐式规则推导出， “all” 是一个伪目标，执行make不会生成“all”文件，而执行后面的多个目标。建议：显式写出是一个好习惯。）
-
-随便提一句，从上面的例子我们可以看出，目标也可以成为依赖。所以，伪目标同样也可成为依赖。看下面的例子：
-```makefile
-.PHONY : cleanall cleanobj cleandiff
-
-cleanall : cleanobj cleandiff
-    rm program
-
-cleanobj :
-    rm *.o
-
-cleandiff :
-    rm *.diff
-```
-"make cleanall"将清除所有要被清除的文件。"cleanobj"和"cleandiff"这两个伪目标有点像"子程序"的意思。我们可以输入"make cleanall"和"make cleanobj"和"make cleandiff"命令来达到清除不同种类文件的目的。
 
 
 # demo4: 一个综合案列使用内置函数+静态模式+自动生成依赖
@@ -653,44 +634,42 @@ int my_sub(int a, int b)
 VPATH = src:src/math:inc
 
 CXX=g++
-MODULE=demo5
+MODULE=demo4
 SOURCE_PATH += ./src \
                ./src/math
 TEMP_PATH=./tmp
-TARGET=$(TEMP_PATH)/demo5
-
-CXXFLAGS+=-I./inc
-COMPILEFLAGS = $(CXXFLAGS)
-
+TARGET=$(TEMP_PATH)/$(MODULE)
 
 CPP_SOURCES = $(foreach d,$(SOURCE_PATH),$(wildcard $(d)/*.cpp) )
 CPP_OBJS += $(patsubst %.cpp, $(TEMP_PATH)/%.o, $(notdir $(CPP_SOURCES)))
 CPP_DEPS += $(patsubst %.cpp, $(TEMP_PATH)/%.d, $(notdir $(CPP_SOURCES)))
 OBJS = $(CPP_OBJS)
 
+CXXFLAGS+=-I./inc
 
 $(TARGET): $(OBJS) $(CPP_DEPS)
-        @echo "generate final target"
-        $(CXX) -o $@ $(OBJS)
+	@echo "generate final target"
+	$(CXX) -o $@ $(OBJS)
 
 $(CPP_OBJS): $(TEMP_PATH)/%.o : %.cpp
-        -@mkdir -p $(TEMP_PATH)
-        @echo [$(MODULE) CXX] $<
-        $(CXX) -c  $(COMPILEFLAGS) $< -o $@
+	-@mkdir -p $(TEMP_PATH)
+	@echo [$(MODULE) CXX] $<
+	$(CXX) -c  $(CXXFLAGS) $< -o $@
 
 $(CPP_DEPS): $(TEMP_PATH)/%.d: %.cpp
-        -@mkdir -p $(TEMP_PATH)
-        -@echo -n "$(TEMP_PATH)/" > $@
-        @set -e; rm -f $@; \
-        $(CXX) -MM  $(COMPILEFLAGS) $< > $@.$$$$; \
-        sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
-        rm -f $@.$$$$
+	-@mkdir -p $(TEMP_PATH)
+	-@echo -n "$(TEMP_PATH)/" > $@
+	@set -e; rm -f $@; \
+    $(CXX) -MM  $(CXXFLAGS) $< > $@.$$$$; \
+    sed 's,\($*\)\.o[ :]*,tmp/\1.o $@ : ,g' < $@.$$$$ > $@; \
+    rm -f $@.$$$$
 
 include $(CPP_DEPS)
 
 .PHONY: clean
 clean:
-        rm -rf $(TEMP_PATH)/*.o  $(TEMP_PATH)/main
+	rm -rf $(TEMP_PATH)/*.o  $(TEMP_PATH)/*.d  $(TEMP_PATH)/$(MODULE)
+
 ```
 
 下面一一分析。
@@ -702,14 +681,13 @@ VPATH = src:src/math:inc
 
 ```makefile
 CXX=g++
-MODULE=demo5
+MODULE=demo4
 SOURCE_PATH += ./src \
                ./src/math
 TEMP_PATH=./tmp
-TARGET=$(TEMP_PATH)/demo5
+TARGET=$(TEMP_PATH)/$(MODULE)
 
 CXXFLAGS+=-I./inc
-COMPILEFLAGS = $(CXXFLAGS)
 ```
 
 这里定义了一些变量，包括源文件的路径， 目标文件存放的位置， 编译参数等等。
@@ -719,6 +697,7 @@ COMPILEFLAGS = $(CXXFLAGS)
 CPP_SOURCES = $(foreach d,$(SOURCE_PATH),$(wildcard $(d)/*.cpp) )
 CPP_OBJS += $(patsubst %.cpp, $(TEMP_PATH)/%.o, $(notdir $(CPP_SOURCES)))
 CPP_DEPS += $(patsubst %.cpp, $(TEMP_PATH)/%.d, $(notdir $(CPP_SOURCES)))
+OBJS = $(CPP_OBJS)
 ```
 
 这里首先使用foreach去遍历SOURCE_PATH路径下的所有的.cpp文件
@@ -728,16 +707,15 @@ CPP_DEPS += $(patsubst %.cpp, $(TEMP_PATH)/%.d, $(notdir $(CPP_SOURCES)))
 
 ```makefile
 $(TARGET): $(OBJS) $(CPP_DEPS)
-        @echo "generate final target"
-        $(CXX) -o $@ $(OBJS)
+	@echo "generate final target"
+	$(CXX) -o $@ $(OBJS)
 ```
 
-这里展开便是
+这里展开便是:
 ```makefile
-demo5: main.o sub.o add.o main.d sub.d main.d
-    g++ -o demo5 main.o sub.o add.o
+tmp/demo4: tmp/main.o tmp/sub.o tmp/add.o tmp/main.d tmp/sub.d tmp/main.d
+    g++ -o tmp/demo4 tmp/main.o tmp/sub.o tmp/add.o
 ```
-
 
 ```makefile
 $(CPP_OBJS): $(TEMP_PATH)/%.o : %.cpp
@@ -745,25 +723,27 @@ $(CPP_OBJS): $(TEMP_PATH)/%.o : %.cpp
         @echo [$(MODULE) CXX] $<
         $(CXX) -c  $(COMPILEFLAGS) $< -o $@
 ```
-这里展开便是
+这里展开便是:
 ```makefile
-main.o: main.cpp
-    g++ -c main.cpp -o tmp/main.o -I./inc
-add.o: add.cpp
-    g++ -c add.cpp -o tmp/add.o -I./inc
-sub.o: sub.cpp
-    g++ -c sub.cpp -o tmp/sub.o -I./inc
+tmp/main.o: src/main.cpp
+    g++ -c src/main.cpp -o tmp/main.o -I./inc
+tmp/add.o: src/math/add.cpp
+    g++ -c src/math/add.cpp -o tmp/add.o -I./inc
+tmp/sub.o: src/math/sub.cpp
+    g++ -c src/math/sub.cpp -o tmp/sub.o -I./inc
 ```
-该步骤就是生成了.o文件
-
+该步骤就是生成了.o文件:
 
 ```makefile
 $(CPP_DEPS): $(TEMP_PATH)/%.d: %.cpp
-        -@mkdir -p $(TEMP_PATH)
-        -@echo -n "$(TEMP_PATH)/" > $@
-        $(CXX) -MM $(COMPILEFLAGS) $< >> $@
+	-@mkdir -p $(TEMP_PATH)
+	-@echo -n "$(TEMP_PATH)/" > $@
+	@set -e; rm -f $@; \
+    $(CXX) -MM  $(CXXFLAGS) $< > $@.$$$$; \
+    sed 's,\($*\)\.o[ :]*,tmp/\1.o $@ : ,g' < $@.$$$$ > $@; \
+    rm -f $@.$$$$
 ```
-该步骤使用了g++ -MM参数用于自动生成依赖文件， 以便于当头文件修改时，也可以自动编译
+该步骤使用了g++ -MM参数用于自动生成依赖文件， 以便于当头文件修改时，也可以自动编译/
 
 ```makefile
 .PHONY: clean
@@ -771,3 +751,5 @@ clean:
         rm -rf $(TEMP_PATH)/*.o  $(TEMP_PATH)/main
 ```
 最后这个模块用于清除生成的文件。
+
+至此， demo4结束。
