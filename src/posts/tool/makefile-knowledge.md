@@ -10,7 +10,7 @@ category:
 
 可以看出Makefile的应用面还是非常广泛的， 下面将一步一步的讲解Makefile最常使用的语法， 并通过案例进行实践， 一步一步深入Makefile， 本文的案例主要使用了C++语言。
 
-# makefile的基本规则
+## makefile的基本规则
 Makefile的格式通常有如下两种：
 
 格式一：
@@ -51,7 +51,7 @@ targets : prerequisites ; command
 下面我们用过一些demo，一步一步的深入Makefile。
 
 下面是demo1， 通过demo1来熟悉makefile的基本语法。
-# demo1：第一个Makefile
+## demo1：第一个Makefile
 demo1的目录结构如下所示：
 
 ```text
@@ -98,7 +98,7 @@ clean:
         rm -rf *.o main
 ```
 
-# 使用$@ $< $^符号简化编写
+## 使用$@ $< $^符号简化编写
 在Makefile中，可以使用一些预定好的符号来简化书写， 例如$@ $< $^，其含义如下所示：
 
 $@  表示目标文件
@@ -114,7 +114,7 @@ main: main.cpp add.cpp
 
 下面我们就使用它们来改动demo1中的makefile。
 
-# demo2：使用$@ $< $^ 简化书写
+## demo2：使用$@ $< $^ 简化书写
 demo2的文件结构如下所示：
 ```text
 .
@@ -147,7 +147,7 @@ clean:
 
 main.o可以以此类推。
 
-# vpath和VPATH
+## vpath和VPATH
 vpath和VPATH主要作用是通过指定文件的搜索路径自动寻找源文件，但是这种自动推导需要你将vpath/VPATH与```$<```,```$^```结合使用。
 
 VPATH是一个变量， 其格式如下所示：
@@ -187,7 +187,7 @@ vpath %.c path1:path2
     └── main.cpp
 ```
 
-所要编译的文件main.cpp在src目录下， 我们使用VPATH指定了搜索路径src， 我们在command直接指定了文件名， 没有使用$<,$^， 试问这样编写Makefile能正确编译吗？
+所要编译的文件main.cpp在src目录下， 我们使用VPATH指定了搜索路径src， 我们在command直接指定了文件名， 没有使用```$<```,```$^```， 试问这样编写Makefile能正确编译吗？
 
 ```makefile
 VPATH=src
@@ -208,7 +208,7 @@ compilation terminated
 
 下面通过demo3， 来实践一下vpath/VPATH。
 
-# demo3：使用vpath和VPATH指定依赖文件搜索路径
+## demo3：使用vpath和VPATH指定依赖文件搜索路径
 
 demo3的文件目录结构如下所示：
 ```
@@ -274,7 +274,7 @@ g++ -c src/add.cpp -I inc/
 g++ -o main main.o add.o
 ```
 
-# 使用内置函数wildcard，patsubst， foreach， notdir等函数帮助我们构建
+## 使用内置函数wildcard，patsubst， foreach， notdir等函数帮助我们构建
 
 makefile提供了一些内置函数帮助我们的构建过程更加自动化。
 
@@ -338,7 +338,7 @@ srcs = $(foreach dir, $(dirs), $(wildcard $(dir)/*.cpp))
 这段makefile就取出了src和src/math目录下所有的cpp文件
 
 
-# 静态模式
+## 静态模式
 
 静态模式可以更加容易地定义多目标的规则，可以让我们的规则变得更加的有弹性和灵活。我们还是先来看一下语法：
 
@@ -380,7 +380,7 @@ add.o : add.cpp
 ```
 
 
-# makefile自动生成依赖
+## makefile自动生成依赖
 在讲解makefile自动生成依赖之前,先给出本节中例子的目录结构和文件内容:
 
 首先给出本节中例子的目录结构:
@@ -526,7 +526,7 @@ main.d: main.cpp add.hpp
 这样, 即使在add.hpp中增加其他头文件依赖, 然后再修改其他的头文件，也会触发main.o的更新。
 
 
-# 伪目标
+## 伪目标
 
 在demo1中，我们提到过一个"clean"的目标，这是一个"伪目标"。
 
@@ -554,7 +554,7 @@ clean :
 ```
 
 
-# demo4: 一个综合案列使用内置函数+静态模式+自动生成依赖
+## demo4: 一个综合案列使用内置函数+静态模式+自动生成依赖
 
 在最后的这个例子中， 我们将综合运用上述的一些技巧去完成模块的构建。
 
