@@ -383,17 +383,76 @@ add.o : add.cpp
 
 main.o : main.cpp sub.h
 
-但是使用一些模式匹配的方法是不能够自动将这些依赖的头文件也包含进去的。
+但是使用一些模式匹配的方法是不能够自动将这些依赖的头文件也包含进去的， 例如下面的语句:
 
-这就意味着, 如果sub.h文件添加了内容， 并不会使得main.o重新构建。 这不是我们所期望的。
+```makefile
+%.o: %.cpp
+	g++ -c $< -o $@
+```
 
-这里就需要我们借助gcc/g++的 -MM参数自动依赖
+这就意味着, 如果sub.hpp文件添加了内容， 并不会使得main.o重新构建。 这不是我们所期望的。
+
+这里就需要我们借助gcc/g++的 -MM参数自动生成依赖
 例如```g++ -MM main.cpp```的输出则是:
 ```
 main.o: main.c add.h
 ```
 
-此时只需要
+GNU组织建议把编译器为每一个源文件的自动生成的依赖关系放到一个文件中，为每一个.cpp的文件都生成一个.d的Makefile文件，然后再使用include将.d的依赖关系添加进来
+例如：
+
+```makefile
+main: main.o main.d
+    g++ $< -o $@
+%.o: %.cpp
+	g++ -c $< -o $@
+%.d: %.cpp
+    g++ -MM $<
+
+include main.d
+```
+
+main.d的内容如下：
+
+main.d
+```makefile
+main.o: main.cpp add.hpp
+```
+
+相当于生成了这样一个makefile文件
+```makefile
+main: main.o main.d
+    g++ $< -o $@
+main.o: main.cpp
+    g++ -c $< -o $@
+main.d: main.cpp
+    g++ -MM $<
+
+main.o: main.cpp add.h
+```
+
+这样就是一个多规则同目标文件的makefile文件。
+
+对于多规则同目标文件是有描述的：
+
+Makefile 中，一个文件可以作为多个规则的目标出现。这种情况时，此目标文件的所有依赖文件将会被合并成此目标一个依赖文件列表，其中任何一个依赖文件比目标更新（比较目标文件和依赖文件的时间戳）时， make 将会执行特定的命令来重建这个目标。
+
+对于一个多规则的目标，重建此目标的命令只能出现在一个规则中（可以是多条命令）。如果多个规则同时给出重建此目标的命令， make将使用最后一个规则所以的命令，同时提示错误信息（一个特殊的例外是：使用“.”开头的多规则目标文件，可以在多个规则中给出多个重建命令。这种方式只是为了和其他版本make进行兼容，一般在GNU make中应该避免使用这个功能）。
+
+因此上述makefile可以转化为如下的makefile:
+```makefile
+main: main.o main.d
+    g++ $< -o $@
+main.o: main.cpp add.h
+    g++ -c $< -o $@
+main.d: main.cpp
+    g++ -MM $<
+```
+
+到此为此似乎已经完美了， 但是真的如此吗？
+
+
+我们试想此时在add.hpp中添加新的依赖sub.hpp， 因为main.cpp依赖于add.h，因此main.o会重新编译. 但是由于main.d文件只依赖于main.cpp, 因此main.d不会重新生成, 因此当我们这个时候修改sub.hpp时, main.cpp并不会更新。因此这就要求main.d 也要添加对头文件的依赖.
 
 # 伪目标
 
