@@ -20,9 +20,9 @@ projects:
     link: http://gauss.ececs.uc.edu/Courses/e4022/code/memory/understanding.pdf
 
   - icon: book
-    name: 书籍名称
-    desc: 书籍详细描述
-    link: https://你的书籍链接
+    name: 深入理解Linux 内核
+    desc: 深入理解Linux 内核
+    link: https://github.com/lancetw/ebook-1/raw/master/03_operating_system/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3linux%E5%86%85%E6%A0%B8%EF%BC%88%E4%B8%AD%E6%96%87%E7%AC%AC%E4%B8%89%E7%89%88%EF%BC%89.pdf
 
   - icon: article
     name: 文章名称
