@@ -25,9 +25,9 @@ projects:
     link: https://github.com/lancetw/ebook-1/raw/master/03_operating_system/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3linux%E5%86%85%E6%A0%B8%EF%BC%88%E4%B8%AD%E6%96%87%E7%AC%AC%E4%B8%89%E7%89%88%EF%BC%89.pdf
 
   - icon: article
-    name: 文章名称
-    desc: 文章详细描述
-    link: https://你的文章链接
+    name: Linux-0.11完全解读
+    desc: Linux-0.11完全解读
+    link: (http://oldlinux.org/download/clk011c-3.0-toc.pdf
 
   - icon: friend
     name: 伙伴名称
