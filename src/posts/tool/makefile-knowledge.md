@@ -3,7 +3,7 @@ category:
 - Linux
 - Makefile
 ---
-# makefile简介
+# makefile案例学习
 很多时候， 我们在```git clone```完一个project之后，就会让我们使用```make```命令进行项目的构建。这个make命令的背后就是按照了Makefile文件定义的格式去完成项目构建。
 
 因此Makefile的作用就是帮助程序员进行项目的构建，它按照项目的需求个性化的定义自己的构建过程。Makefile并不限定编程语言，但是在c/c++项目中使用相对较多。其他的一些构建工具，例如qmake，也是将*.pro文件转化为Makefile，再进行构建。
