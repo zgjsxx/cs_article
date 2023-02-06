@@ -27,7 +27,7 @@ projects:
   - icon: article
     name: Linux-0.11完全解读
     desc: Linux-0.11完全解读
-    link: (http://oldlinux.org/download/clk011c-3.0-toc.pdf
+    link: http://oldlinux.org/download/clk011c-3.0-toc.pdf
 
   - icon: friend
     name: 伙伴名称
