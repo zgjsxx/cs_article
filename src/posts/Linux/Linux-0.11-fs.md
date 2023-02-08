@@ -1,21 +1,9 @@
 
-# Linux-0.11 文件系统
-```c
-struct buffer_head * getblk(int dev,int block)
-```
-**作用**:获取高速缓存中指定的缓存块
+# Linux-0.11 inode.c详解
 
+## read_inode
 
-```c
-bread(int dev,int block)
-```
-**作用**:从设备上读取一个逻辑块内容到缓存块上
-
-```c
-iget(int dev,int nr)
-```
-
-## 知道了inode的序号，如何在硬盘上查找到inode块的内容？
+知道了inode的序号，如何在硬盘上查找到inode块的内容？
 
 回顾一下minux文件系统的分布， 如下图所示:
 
@@ -57,6 +45,35 @@ if (!(bh=bread(inode->i_dev,block)))
 字节Byte是计算机数据处理的最小单位，习惯上用大写的B表示，每个字节有8个二进制位，其中**最右边**的一位为最低位，**最左边**的一位为最高位，每个二进制位的值不是0就是1。一个字节由8个二进制位组成。也就是1字节Byte等于8比特Bit。这也是计算机设计时规定的。一个字节最大为8个1（11111111）即2的8次方，总共是256种状态。
 
 
+## iget(int dev,int nr)
+
+```c
+iget(int dev,int nr)
+```
+
+```c
+if (inode->i_mount) {
+    int i;
+
+    for (i = 0 ; i<NR_SUPER ; i++)
+        if (super_block[i].s_imount==inode)
+            break;
+    if (i >= NR_SUPER) {
+        printk("Mounted inode hasn't got sb\n");
+        if (empty)
+            iput(empty);
+        return inode;
+    }
+    iput(inode);
+    dev = super_block[i].s_dev;
+    nr = ROOT_INO;
+    inode = inode_table;
+    continue;
+}
+```
+
+
+
 ```c
 static struct m_inode * get_dir(const char * pathname)
 ```
@@ -83,3 +100,31 @@ d_inode:磁盘中的inode的内容
 
 
 sys_open->open_namei->
+
+
+
+## iput
+
+
+## write_inode
+
+
+
+## get_empty_inode
+
+
+
+## _bmap
+
+
+## sync_inodes
+
+
+## invalidate_inodes
+
+## lock_inode
+
+
+## wait_on_inode
+
+## unlock_inode
