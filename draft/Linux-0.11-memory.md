@@ -25,3 +25,17 @@ unsigned long get_free_page(void)
 
 然后从mem_map的尾部向前搜寻为0的项目，这样就可以找到空闲的物理内存。
 
+
+### un_wp_page
+```c
+void un_wp_page(unsigned long * table_entry)
+```
+**作用**: 取消写保护异常，用于页异常中断过程中写保护异常的处理(写时复制)
+
+
+
+### do_no_page 
+```c
+void do_no_page(unsigned long error_code,unsigned long address)
+```
+**作用**: 执行缺页处理
