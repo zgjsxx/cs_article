@@ -5,7 +5,7 @@ Tags:
   - Linux
 ---
 
-# Linux-0.11 inode.c详解
+# Linux-0.11 文件系统inode.c详解
 
 ## read_inode
 
@@ -141,8 +141,14 @@ void invalidate_inodes(int dev)
 static inline void lock_inode(struct m_inode * inode)
 ```
 
-锁定该inode。
-
+锁定某个inode。
+```c
+cli();//关中断
+while (inode->i_lock)
+    sleep_on(&inode->i_wait);
+inode->i_lock=1; //将该inode的锁定状态修改为1
+sti();//开中断
+```
 
 ## wait_on_inode
 ```c
@@ -150,7 +156,14 @@ static inline void wait_on_inode(struct m_inode * inode)
 ```
 等待inode块解锁。
 
+该代表较为简单， 直接通过注释进行解释。
 
+```c
+cli(); //关中断
+while (inode->i_lock) 
+    sleep_on(&inode->i_wait); //如果该inode被加锁， 就将当前进程状态修改为TASK_UNINTERRUPTIBLE
+sti();//开中断
+```
 ## unlock_inode
 
 ```c
@@ -158,3 +171,7 @@ static inline void unlock_inode(struct m_inode * inode)
 ```
 
 对该inode 解锁。
+```c
+inode->i_lock=0;//将该inode的锁定状态修改为0.
+wake_up(&inode->i_wait);//唤醒等待该inode的进程
+```
