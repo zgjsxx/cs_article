@@ -1,7 +1,7 @@
 ---
 category:
   - Linux
-Tags:
+tag:
   - Linux
 ---
 
