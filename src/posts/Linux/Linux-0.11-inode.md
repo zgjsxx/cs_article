@@ -13,13 +13,11 @@ tag:
 static void read_inode(struct m_inode * inode);
 ```
 
-该函数的作用是通过inode的编号，**在磁盘上找到inode块的内容**。
+该函数的作用是通过inode的编号，**在磁盘上读取inode块**的内容到内存。
 
 回顾一下minix文件系统的分布，如下图所示:
 
 ![minix](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/minixfs.drawio.png)
-
-![inode-data-map](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/inode_map.drawio.png)
 
 其中**引导块**为1个block，**超级块**为1个block，**inode位图**的大小在**超级块**中定义，**逻辑块位图**的大小在超级块中定义。跳过这些块，就可以来到inode节点块的起点。
 
@@ -29,9 +27,9 @@ inode节点的序号从0开始， 但是0号是个保留号， 实际存储并�
 
 因此序号为n的inode，在磁盘上的盘块号为:
 
-block = 1 + 1 + s_imap_blocks + s_zmap_blocks + (n - 1)/每个磁盘块存储的inode数量。
+block = 1 + 1 + s_imap_blocks(inode位图大小) + s_zmap_blocks(逻辑块位图大小) + (n - 1)/每个磁盘块存储的inode数量。
 
-找到了inode所在的磁盘块， 计算inode在该块中的下标， 则通过
+找到了inode所在的逻辑块号， 计算inode在该块中的下标， 则通过
 
 index = (n - 1) % 每个磁盘块存储的inode数量
 
@@ -40,7 +38,7 @@ index = (n - 1) % 每个磁盘块存储的inode数量
 通过上面的解释，很容易理解下面的代码。
 
 ```C
-if (!(sb=get_super(inode->i_dev)))//获取超级快的内容
+if (!(sb=get_super(inode->i_dev)))//获取超级块的内容
     panic("trying to read inode without dev");
 block = 2 + sb->s_imap_blocks + sb->s_zmap_blocks +
     (inode->i_num-1)/INODES_PER_BLOCK;//获取inode所在的逻辑块
@@ -48,7 +46,7 @@ if (!(bh=bread(inode->i_dev,block)))//读取该逻辑块的内容
     panic("unable to read i-node block");
 *(struct d_inode *)inode =
     ((struct d_inode *)bh->b_data)
-        [(inode->i_num-1)%INODES_PER_BLOCK];//将该inode读取内存中
+        [(inode->i_num-1)%INODES_PER_BLOCK];//将该inode读取到内存中
 ```
 
 ## iget(int dev,int nr)
@@ -76,7 +74,7 @@ while (inode < NR_INODE+inode_table) {
 ```
 
 
-如果i节点是某个文件系统的安装点， 则在超级块的表中搜索即可搜索到。 若找到了相应的超级块， 则将该i节点写盘。再从安装此i节点的文件系统的超级快块上取设备号，并令i节点为1。
+如果i节点是某个文件系统的安装点， 则在**超级块**的表中搜索即可搜索到。 若找到了相应的超级块， 则将该i节点写盘。再从**安装此i节点的文件系统上**的超级块上取设备号，并令i节点为1。
 
 ![inode](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/inode_iget.png)
 
@@ -94,14 +92,13 @@ if (inode->i_mount) {//该inode是一个挂载节点
             iput(empty);
         return inode;
     }
-    iput(inode);
+    iput(inode);//将该inode的引用计数减1
     dev = super_block[i].s_dev;//设备号设置为超级块中的设备号
     nr = ROOT_INO;//inode节点号设置为1号
     inode = inode_table;
     continue;
 }
 ```
-
 
 
 ## iput
@@ -141,23 +138,24 @@ if (S_ISBLK(inode->i_mode)) {
 }
 ```
 
+最后一段是执行引用计数减1的操作：
 ```c
 repeat:
-if (inode->i_count>1) {
+if (inode->i_count>1) {//引用计数大于1， 直接减1后返回
     inode->i_count--;
     return;
 }
-if (!inode->i_nlinks) {
+if (!inode->i_nlinks) {//如果连接数为0， 则该文件已经被删除
     truncate(inode);
     free_inode(inode);
     return;
 }
-if (inode->i_dirt) {
+if (inode->i_dirt) {//如果该inode为脏数据, 则写回磁盘
     write_inode(inode);	/* we can sleep - so do again */
     wait_on_inode(inode);
     goto repeat;
 }
-inode->i_count--;
+inode->i_count--;//引用计数减1
 ```
 
 
@@ -305,7 +303,7 @@ void invalidate_inodes(int dev)
 ```
 释放设备dev在内存i节点表中的所有i节点。
 
-该函数的作用就是遍历inode数组， 如果inode数组的某一项的i_dev等于dev的时候， 将该inode的i_dev和i_dirt置为0.
+该函数的作用就是遍历inode数组， 如果inode数组的某一项的i_dev等于dev的时候， 将该inode的i_dev和i_dirt置为0。
 
 ```c
 inode = 0+inode_table;
@@ -314,9 +312,26 @@ for(i=0 ; i<NR_INODE ; i++,inode++) {
     if (inode->i_dev == dev) {
         if (inode->i_count) //如果引用不为0， 则打印出错信息
             printk("inode in use on removed disk\n\r");
-        inode->i_dev = inode->i_dirt = 0; //将设备号置为0， 即释放该inode
+        inode->i_dev = inode->i_dirt = 0; //将设备号置为0, 即释放该inode
     }
 }
+```
+
+## get_pipe_inode
+```c
+struct m_inode * get_pipe_inode(void)
+```
+该函数的作用是获取管道节点。
+```c
+if (!(inode = get_empty_inode()))//从inode表中获取一个空闲的inode
+    return NULL;
+if (!(inode->i_size=get_free_page())) {//从内存中获取一个空的页,赋值给inode的i_size变量
+    inode->i_count = 0;
+    return NULL;
+}
+inode->i_count = 2;	/* sum of readers/writers */
+PIPE_HEAD(*inode) = PIPE_TAIL(*inode) = 0;//复位管道的头尾指针
+inode->i_pipe = 1;
 ```
 
 ## lock_inode
