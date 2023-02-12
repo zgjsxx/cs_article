@@ -307,6 +307,8 @@ void invalidate_inodes(int dev)
 
 该函数的作用就是遍历inode数组， 如果inode数组的某一项的i_dev等于dev的时候， 将该inode的i_dev和i_dirt置为0。
 
+![minix](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/invalidate_inodes.png)
+
 ```c
 inode = 0+inode_table;
 for(i=0 ; i<NR_INODE ; i++,inode++) {
