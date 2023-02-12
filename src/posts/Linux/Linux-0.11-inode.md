@@ -13,15 +13,15 @@ Tags:
 static void read_inode(struct m_inode * inode);
 ```
 
-该函数的作用是通过inode的编号，在磁盘上找到inode块的内容。
+该函数的作用是通过inode的编号，**在磁盘上找到inode块的内容**。
 
 回顾一下minix文件系统的分布，如下图所示:
 
-![inode](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/minixfs.drawio.png)
+![minix](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/minixfs.drawio.png)
 
-![inode](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/inode_map.drawio.png)
+![inode-data-map](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/inode_map.drawio.png)
 
-其中引导块为一个block，超级块为一个block，inode位图的大小在超级块中定义，逻辑块位图的大小在超级块中定义。跳过这些块，就可以来到inode节点块的起点。
+其中**引导块**为1个block，**超级块**为1个block，**inode位图**的大小在**超级块**中定义，**逻辑块位图**的大小在超级块中定义。跳过这些块，就可以来到inode节点块的起点。
 
 那么inode节点会在哪个block中呢？
 
@@ -37,17 +37,18 @@ index = (n - 1) % 每个磁盘块存储的inode数量
 
 到此， 给定一个inode号，就可以从磁盘上找到对应的inode节点。
 
+通过上面的解释，很容易理解下面的代码。
 
 ```C
-if (!(sb=get_super(inode->i_dev)))
+if (!(sb=get_super(inode->i_dev)))//获取超级快的内容
     panic("trying to read inode without dev");
 block = 2 + sb->s_imap_blocks + sb->s_zmap_blocks +
-    (inode->i_num-1)/INODES_PER_BLOCK;
-if (!(bh=bread(inode->i_dev,block)))
+    (inode->i_num-1)/INODES_PER_BLOCK;//获取inode所在的逻辑块
+if (!(bh=bread(inode->i_dev,block)))//读取该逻辑块的内容
     panic("unable to read i-node block");
 *(struct d_inode *)inode =
     ((struct d_inode *)bh->b_data)
-        [(inode->i_num-1)%INODES_PER_BLOCK];
+        [(inode->i_num-1)%INODES_PER_BLOCK];//将该inode读取内存中
 ```
 
 ## iget(int dev,int nr)
@@ -59,10 +60,47 @@ iget(int dev,int nr)
 
 需要注意的是，如果一个硬盘上装有**多个文件系统**，需要处理**一个inode节点是另一个文件系统挂载点**的情况。
 
+该段代码主要是遍历inode表，查找是否存在这样的inode， 这个inode的设备号和入参的设备号相同， inode的节点号和入参的节点号相同。如果查到了， 则将该inode的引用计数增加1。
+```c
+while (inode < NR_INODE+inode_table) {
+    if (inode->i_dev != dev || inode->i_num != nr) {//遍历inode表， 查找inode
+        inode++;
+        continue;
+    }
+    wait_on_inode(inode);//等待该inode节点
+    if (inode->i_dev != dev || inode->i_num != nr) {
+        inode = inode_table;
+        continue;
+    }
+    inode->i_count++;//引用计数增加1
+```
+
+
 如果i节点是某个文件系统的安装点， 则在超级块的表中搜索即可搜索到。 若找到了相应的超级块， 则将该i节点写盘。再从安装此i节点的文件系统的超级快块上取设备号，并令i节点为1。
 
 ![inode](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/inode_iget.png)
 
+
+```c
+if (inode->i_mount) {//该inode是一个挂载节点
+    int i;
+
+    for (i = 0 ; i<NR_SUPER ; i++)
+        if (super_block[i].s_imount==inode)//在超级块中查找到
+            break;
+    if (i >= NR_SUPER) {
+        printk("Mounted inode hasn't got sb\n");
+        if (empty)
+            iput(empty);
+        return inode;
+    }
+    iput(inode);
+    dev = super_block[i].s_dev;//设备号设置为超级块中的设备号
+    nr = ROOT_INO;//inode节点号设置为1号
+    inode = inode_table;
+    continue;
+}
+```
 
 
 
