@@ -9,9 +9,9 @@ tags:
 
 ## 问题引入 
 
-看下面一段代码，两个线程将竞争互斥锁mutex而进入临界区， 线程二在竞争互斥锁之前会sleep 2秒， 因此大概率线程一将获得互斥锁。 然而线程一执行完临界区的代码之后， 没有执行解锁操作，就退出了。
+看下面一段代码，两个线程将竞争互斥锁mutex而进入临界区， 线程2在竞争互斥锁之前会sleep 2秒， 因此大概率线程一将获得互斥锁。 然而线程1执行完临界区的代码之后， 没有执行解锁操作，就退出了。
 
-这样会导致线程二将死锁，因为该锁的状态将永远是锁定状态， 它将永远都不能获得锁。
+这样会导致线程2将死锁，因为该锁的状态将永远是锁定状态， 它将永远都不能获得锁。
 
 ```cpp
 #include<unistd.h>
@@ -58,19 +58,19 @@ int main(void)
     return 0;
 }
 ```
-
+那么遇到这种情况该如何处理呢?
 
 ## PTHREAD_MUTEX_ROBUST 和  pthread_mutex_consistent登场了
 
-首先给出解决方案，如果出现了上述的场景，就需要使用互斥锁的PTHREAD_MUTEX_ROBUST属性和pthread_mutex_consistent函数。
+首先给出解决方案，如果出现了上述的场景，就需要使用互斥锁的**PTHREAD_MUTEX_ROBUST属性**和**pthread_mutex_consistent函数**。
 
-设置PTHREAD_MUTEX_ROBUST属性需要使用pthread_mutexattr_setrobust函数。
+设置PTHREAD_MUTEX_ROBUST属性需要使用pthread_mutexattr_setrobust函数, 其原型如下:
 ```cpp
 int pthread_mutexattr_setrobust(pthread_mutexattr_t *attr,
        int robust);
 ```
 
-使用了该属性之后，如果某个持有互斥锁的线程还没有释放互斥锁就退出的话， 那么其他线程在进行加锁时将会收到一个EOWNERDEAD的错误，这就提示加锁线程， 目前持有锁的线程已经死亡， 可以对互斥锁的状态进行**重置**。
+使用了该属性之后，如果某个持有互斥锁的线程还没有释放互斥锁就退出的话， 那么其他线程在进行加锁时将会收到一个**EOWNERDEAD**的错误，这就提示加锁线程， 目前持有锁的线程**已经死亡**， 可以对互斥锁的状态进行**重置**。
 
 而重置的过程就需要使用到**pthread_mutex_consistent**方法。
 
@@ -140,7 +140,7 @@ int main(void)
 }
 ```
 
-需要特别注意的是，如果owner死亡后，这个锁的继任者，没有调用pthread_mutex_consistent恢复锁的一致性的话，那么后续对该锁的操作除了pthread_mutex_destroy以外， 其他的操作都将失败， 并且返回ENOTRECOVERABLE错误，意味着该锁彻底可再用了， 只有将其销毁。
+需要特别注意的是，如果owner死亡后，这个锁的继任者，没有**调用pthread_mutex_consistent**恢复锁的一致性的话，那么后续对该锁的操作除了pthread_mutex_destroy以外， 其他的操作都将失败， 并且返回**ENOTRECOVERABLE错误**，意味着该锁彻底可再用了， 只有将其销毁。
 
 ```cpp
 #include<unistd.h>
@@ -224,5 +224,5 @@ int main(void)
 
 
 ## 结论：
-- 在多线程中，离开临界区时候一定需要释放互斥锁。 可以使用RAII的设计方法， 离开作用域的时候栈对象析构， 从而释放锁。
-- 多进程中，如果持有锁的进程意外退出，那么其他进程需要使用PTHREAD_MUTEX_ROBUST和pthread_mutex_consistent对互斥锁进行恢复。
+- 在多线程/多进程程序中，离开临界区时候一定需要释放互斥锁。 可以使用RAII的设计方法， 离开作用域的时候栈对象析构， 从而释放锁。
+- 在多线程/多进程程序中,如果持有锁的owner意外退出，如果还想继续使用该锁, 那么该锁的后续的owner需要使用PTHREAD_MUTEX_ROBUST和pthread_mutex_consistent对互斥锁的状态进行恢复。
