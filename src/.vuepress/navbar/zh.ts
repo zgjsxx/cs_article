@@ -58,4 +58,9 @@ export const zhNavbar = navbar([
     icon: "note",
     link: "https://meiriyiwen.com/",
   },
+  { 
+    text: "关于作者", 
+    icon: "about", 
+    link: "/posts/about/about" 
+  },
 ]);
