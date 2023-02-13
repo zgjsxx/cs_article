@@ -2,7 +2,6 @@
 title: C++中如何实现go语言中的defer？
 category: 
 - C++
-- 面试
 ---
 
 

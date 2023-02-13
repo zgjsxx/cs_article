@@ -2,7 +2,7 @@
 category: 
 - Linux
 tags:
-- interview
+- 操作系统面试题
 ---
 
 # Fork之前创建了互斥锁，Fork之后是否可以保护临界区？

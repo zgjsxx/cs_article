@@ -2,7 +2,7 @@
 category: 
 - Linux
 tags:
-- interview
+- 操作系统面试题
 ---
 
 # 如果持有互斥锁的线程没有解锁退出了，该如何处理？
