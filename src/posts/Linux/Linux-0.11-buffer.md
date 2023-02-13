@@ -94,44 +94,6 @@ for (i=0;i<NR_HASH;i++)
   hash_table[i]=NULL;
 ```
 
-## wait_on_buffer
-```c
-static inline void wait_on_buffer(struct buffer_head * bh)
-```
-
-
-## sys_sync
-```c
-int sys_sync(void)
-```
-
-
-## sync_dev
-```c
-int sync_dev(int dev)
-```
-
-## invalidate_buffer
-```c
-static void inline invalidate_buffers(int dev)
-```
-
-## check_disk_change
-```c
-void check_disk_change(int dev)
-```
-
-
-## remove_from_queues
-```c
-static inline void remove_from_queues(struct buffer_head * bh)
-```
-
-
-## insert_into_queues
-```c
-static inline void insert_into_queues(struct buffer_head * bh)
-```
 
 
 ## find_buffer
@@ -150,17 +112,28 @@ struct buffer_head * get_hash_table(int dev, int block)
 struct buffer_head * getblk(int dev,int block)
 ```
 
+## remove_from_queues
+```c
+static inline void remove_from_queues(struct buffer_head * bh)
+```
+
+
+## insert_into_queues
+```c
+static inline void insert_into_queues(struct buffer_head * bh)
+```
+
 
 ## brelse
 ```c
 void brelse(struct buffer_head * buf)
 ```
 
-
 ## bread
 ```c
 struct buffer_head * bread(int dev,int block)
 ```
+
 
 ## bread_page
 ```c
@@ -172,4 +145,32 @@ void bread_page(unsigned long address,int dev,int b[4])
 struct buffer_head * breada(int dev,int first, ...)
 ```
 
+
+## wait_on_buffer
+```c
+static inline void wait_on_buffer(struct buffer_head * bh)
+```
+
+## sys_sync
+```c
+int sys_sync(void)
+```
+
+
+## sync_dev
+```c
+int sync_dev(int dev)
+```
+
+
+## invalidate_buffer
+```c
+static void inline invalidate_buffers(int dev)
+```
+
+
+## check_disk_change
+```c
+void check_disk_change(int dev)
+```
 
