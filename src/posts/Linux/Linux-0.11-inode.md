@@ -7,6 +7,10 @@ tag:
 
 # Linux-0.11 文件系统inode.c详解
 
+Linux-0.11中使用的文件系统为minix， inode.c中的函数和该文件系统强关联。 
+
+inode节点在文件系统中与文件相关联，一个文件的就由一个inode来管理，这个inode节点将记录文件的权限，大小， 文件具体存储的逻辑块位置等等信息。
+
 ## read_inode
 
 ```c
@@ -17,7 +21,7 @@ static void read_inode(struct m_inode * inode);
 
 回顾一下minix文件系统的分布，如下图所示:
 
-![minix](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/minixfs.drawio.png)
+![minix](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/inode/minixfs.drawio.png)
 
 其中**引导块**为1个block，**超级块**为1个block，**inode位图**的大小在**超级块**中定义，**逻辑块位图**的大小在超级块中定义。跳过这些块，就可以来到inode节点块的起点。
 
@@ -95,7 +99,7 @@ while (inode < NR_INODE+inode_table) {
 
 如果i节点是某个文件系统的安装点， 则在**超级块**的表中搜索即可搜索到。 若找到了相应的超级块， 则将该i节点写盘。再从**安装此i节点的文件系统上**的超级块上取设备号，并令i节点为1。
 
-![inode](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/inode_iget.png)
+![inode](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/inode/inode_iget.png)
 
 
 判断inode节点是否是其他文件系统挂载点的代码如下:
@@ -185,7 +189,7 @@ struct m_inode * get_empty_inode(void)
 ```
 该函数的作用是从空闲的inode表中获取一个空闲的i节点项。
 
-![inode](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/get_empty_inode.png)
+![inode](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/inode/get_empty_inode.png)
 
 
 ## _bmap
@@ -198,7 +202,7 @@ static int _bmap(struct m_inode * inode,int block,int create)
 
 inode的寻址主要分为直接寻址，一次间接块的寻址， 二次间接块的寻址三种。如下图所示：
 
-![inode](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/inode_search_address.png)
+![inode](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/inode/inode_search_address.png)
 
 
 如果block号小于7， 则直接寻址。
@@ -307,7 +311,7 @@ void invalidate_inodes(int dev)
 
 该函数的作用就是遍历inode数组， 如果inode数组的某一项的i_dev等于dev的时候， 将该inode的i_dev和i_dirt置为0。
 
-![minix](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/invalidate_inodes.png)
+![minix](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/inode/invalidate_inodes.png)
 
 ```c
 inode = 0+inode_table;
