@@ -12,26 +12,44 @@ tag:
 void buffer_init(long buffer_end)
 ```
 
-在main.c文件中给定了buffer_end的大小定义。
+该函数的作用主要是初始化磁盘的高速缓冲区.
 
+刚开始使用h指向了start_buffer的位置。
 ```c
-if (memory_end > 16*1024*1024)
-    memory_end = 16*1024*1024;
-if (memory_end > 12*1024*1024) 
-    buffer_memory_end = 4*1024*1024;
-else if (memory_end > 6*1024*1024)
-    buffer_memory_end = 2*1024*1024;
-else
-    buffer_memory_end = 1*1024*1024;
+struct buffer_head * h = start_buffer;
+void * b;
+int i;
 ```
 
-内存大小>12Mb，buffer_end=4Mb
+start_buffer定义为end的位置，即内存中system模块的结束的位置。
+```c
+struct buffer_head * start_buffer = (struct buffer_head *) &end;
+```
+经过这个步骤之后h实际上指向了内核高速缓冲区的低地址。
 
-6Mb<内存大小<=12Mb，buffer_end=4Mb
 
-如果内存大小<=6Mb，buffer_end=1Mb
+接下来使用了b指针指向了内核告诉缓冲区的高地址。
+```c
+if (buffer_end == 1<<20)
+  b = (void *) (640*1024);
+else
+  b = (void *) buffer_end;
+```
+这里根据buffer_end的值的不同， 决定了b的指向。
 
+在main.c文件中给定了buffer_end的大小定义:
 
+- 内存大小>12Mb，buffer_end=4Mb
+- 6Mb<内存大小<=12Mb，buffer_end=2Mb
+- 如果内存大小<=6Mb，buffer_end=1Mb
+
+知道了buffer_end的值，那么很容易通过条件语句得到b的值。
+
+那么为什么要对buffer_end的值进行讨论呢？
+
+这主要是因为物理内存中640K-1M的区域内存放了显存和BIOS ROM，因此当buffer_end=1M， 高速缓冲区是一块， 如果buffer_end>1M， 那么高速缓冲区是两块， 这个点通过下面这张图可以清晰的了解到。
+
+![minix](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/buffer/buffer_init.png)
 
 ## wait_on_buffer
 ```c
