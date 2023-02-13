@@ -123,6 +123,23 @@ static inline void remove_from_queues(struct buffer_head * bh)
 static inline void insert_into_queues(struct buffer_head * bh)
 ```
 
+下面这段代码的作用就是将bh插入到双向链表的尾部
+```c
+bh->b_next_free = free_list;
+bh->b_prev_free = free_list->b_prev_free;
+free_list->b_prev_free->b_next_free = bh;
+free_list->b_prev_free = bh;
+```
+下面这段代码就是将bh插入到哈希表的首部。
+```c
+bh->b_prev = NULL;
+bh->b_next = NULL;
+if (!bh->b_dev)
+  return;
+bh->b_next = hash(bh->b_dev,bh->b_blocknr);
+hash(bh->b_dev,bh->b_blocknr) = bh;
+bh->b_next->b_prev = bh;
+```
 
 ## brelse
 ```c
