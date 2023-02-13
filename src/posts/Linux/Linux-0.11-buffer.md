@@ -49,7 +49,50 @@ else
 
 这主要是因为物理内存中640K-1M的区域内存放了显存和BIOS ROM，因此当buffer_end=1M， 高速缓冲区是一块， 如果buffer_end>1M， 那么高速缓冲区是两块， 这个点通过下面这张图可以清晰的了解到。
 
-![minix](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/buffer/buffer_init.png)
+![buffer_init](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/buffer/buffer_init.png)
+
+buffer_init接下来要做的就是对这些高速缓冲区进行初始化
+```c
+while ( (b -= BLOCK_SIZE) >= ((void *) (h+1)) ) {
+  h->b_dev = 0;
+  h->b_dirt = 0;
+  h->b_count = 0;
+  h->b_lock = 0;
+  h->b_uptodate = 0;
+  h->b_wait = NULL;
+  h->b_next = NULL;
+  h->b_prev = NULL;
+  h->b_data = (char *) b;
+  h->b_prev_free = h-1;
+  h->b_next_free = h+1;
+  h++;
+  NR_BUFFERS++;
+  if (b == (void *) 0x100000)
+    b = (void *) 0xA0000;
+}
+```
+让每一个buffer_header节点使用b_data指针指向一个数据块block(1k)。然后h指针加1，b指针减1。直到h和b指针指向的区别相交。
+
+这些buffer_header用一个双向链表进行串联。
+
+需要注意的是， 当内存大于6Mb时， 高速缓冲区有两块， 当b指针在移动时，如果**移动到了1Mb的地址**时，也就是到了显存和BIOS ROM的高地址边界时， 需要跳过它，直接来到640Kb的地址。也就是下面这两行代码。
+
+```c
+if (b == (void *) 0x100000)
+  b = (void *) 0xA0000;
+```
+h指针和b指针移动进行初始化的效果如下图所示：
+
+![buffer_init](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/buffer/buffer_init2.png)
+
+最后这段代码， 将free_list指向了第一个buffer_header块。然后让首尾两个buffer_header相接， 形成完整的双向链表。 最后的话，将高速哈希表中的每一行初始化为NULL。
+```c
+free_list = start_buffer;
+free_list->b_prev_free = h;
+h->b_next_free = free_list;
+for (i=0;i<NR_HASH;i++)
+  hash_table[i]=NULL;
+```
 
 ## wait_on_buffer
 ```c
