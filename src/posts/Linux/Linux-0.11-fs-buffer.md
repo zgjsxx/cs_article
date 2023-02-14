@@ -116,12 +116,33 @@ struct buffer_head * getblk(int dev,int block)
 ```c
 static inline void remove_from_queues(struct buffer_head * bh)
 ```
+该函数的作用是将buffer_header(简称bh)从空闲链表和哈希队列中移除。
 
+下面这段代码作用是将bh从哈希队列中移除。
+```c
+if (bh->b_next)
+  bh->b_next->b_prev = bh->b_prev;
+if (bh->b_prev)
+  bh->b_prev->b_next = bh->b_next;
+if (hash(bh->b_dev,bh->b_blocknr) == bh)
+  hash(bh->b_dev,bh->b_blocknr) = bh->b_next;
+```
+
+下面这段代码作用是将bh从自由链表中移除。
+```c
+if (!(bh->b_prev_free) || !(bh->b_next_free))
+  panic("Free block list corrupted");
+bh->b_prev_free->b_next_free = bh->b_next_free;
+bh->b_next_free->b_prev_free = bh->b_prev_free;
+if (free_list == bh)
+  free_list = bh->b_next_free;
+```
 
 ## insert_into_queues
 ```c
 static inline void insert_into_queues(struct buffer_head * bh)
 ```
+该函数的作用就是将bh插入到空闲链表的尾部，并通入哈希函数插入到指定的哈希队列中。
 
 下面这段代码的作用就是将bh插入到双向链表的尾部
 ```c
