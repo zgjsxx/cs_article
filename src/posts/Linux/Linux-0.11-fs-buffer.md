@@ -95,22 +95,36 @@ for (i=0;i<NR_HASH;i++)
 ```
 
 
-
 ## find_buffer
 ```c
 static struct buffer_head * find_buffer(int dev, int block)
 ```
+该函数的作用是从哈希队列中按照设备号和逻辑块号去查询对应的缓冲区块。
 
+![图片]()
 
+首先根据设备号和块号查找到哈希数组的下标，找到下标对应的bh， 遍历该bh通过b_next连接起来的链表， 看该链表中是否有匹配的。
+```c
+for (tmp = hash(dev,block) ; tmp != NULL ; tmp = tmp->b_next)
+  if (tmp->b_dev==dev && tmp->b_blocknr==block)
+    return tmp;
+return NULL;
+```
 ## get_hash_table
 ```c
 struct buffer_head * get_hash_table(int dev, int block)
 ```
+该函数的作用是从哈希链表中找到指定的bh块。其内部调用了find_buffer函数， 内部增加了如果bh块被其他进程占用情况的处理。
+
+
 
 ## getblk
 ```c
 struct buffer_head * getblk(int dev,int block)
 ```
+
+该函数的作用是从哈希链表和自由链表两个地方寻找可用的bh块。
+
 
 ## remove_from_queues
 ```c
@@ -166,11 +180,14 @@ bh->b_next->b_prev = bh;
 ```c
 void brelse(struct buffer_head * buf)
 ```
+该函数的作用是释放一个bh块。
 
 ## bread
 ```c
 struct buffer_head * bread(int dev,int block)
 ```
+该函数的作用是用于去指定的设备上读取相应的块。
+
 
 
 ## bread_page
@@ -178,34 +195,38 @@ struct buffer_head * bread(int dev,int block)
 void bread_page(unsigned long address,int dev,int b[4])
 ```
 
+该函数的作用是用于去指定的设备上读取4个逻辑块到内存中， 也就是读取4k内容到一个内存页中。
+
+
+
 ## breada
 ```c
 struct buffer_head * breada(int dev,int first, ...)
 ```
-
+breada函数是bread函数的拓展，如果只传递一个块号， 那么就是bread。 如果传递多个块号，就会读取多个逻辑块的值到高速缓存。
 
 ## wait_on_buffer
 ```c
 static inline void wait_on_buffer(struct buffer_head * bh)
 ```
-
+该函数的作用是如果一个bh块被加锁， 那么将等待该bh块解锁。
 ## sys_sync
 ```c
 int sys_sync(void)
 ```
-
+该函数的作用是将所有高速缓冲bh块的脏数据写盘。
 
 ## sync_dev
 ```c
 int sync_dev(int dev)
 ```
-
+该函数的作用是将所有高速缓冲中某个设别的bh块的脏数据写盘。
 
 ## invalidate_buffer
 ```c
 static void inline invalidate_buffers(int dev)
 ```
-
+该函数的作用是将所有某个设备的bh块中的b_uptodate和b_dirt置为0。
 
 ## check_disk_change
 ```c
