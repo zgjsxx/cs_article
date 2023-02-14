@@ -101,31 +101,107 @@ static struct buffer_head * find_buffer(int dev, int block)
 ```
 该函数的作用是从哈希队列中按照设备号和逻辑块号去查询对应的缓冲区块。
 
-![图片]()
+首先根据设备号和块号查找到哈希数组的下标，找到下标对应的bh， 遍历该bh通过b_next连接起来的链表， 看该链表中是否有匹配的。如下图所示：
 
-首先根据设备号和块号查找到哈希数组的下标，找到下标对应的bh， 遍历该bh通过b_next连接起来的链表， 看该链表中是否有匹配的。
+![find_buffer](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/buffer/find_buffer.png)
+
+这个过程的代码如下：
+
 ```c
-for (tmp = hash(dev,block) ; tmp != NULL ; tmp = tmp->b_next)
-  if (tmp->b_dev==dev && tmp->b_blocknr==block)
+for (tmp = hash(dev,block) ; tmp != NULL ; tmp = tmp->b_next)//计算哈希值， 遍历该哈希桶上的链表
+  if (tmp->b_dev==dev && tmp->b_blocknr==block)  //如果设备号和块号相同， 代表找到了， 返回bh块
     return tmp;
 return NULL;
 ```
+
 ## get_hash_table
 ```c
 struct buffer_head * get_hash_table(int dev, int block)
 ```
 该函数的作用是从哈希链表中找到指定的bh块。其内部调用了find_buffer函数， 内部增加了如果bh块被其他进程占用情况的处理。
 
+从下面的代码可以看出， 首先调用了find_buffer函数寻找执行的bh块， 如果没有找到， 就直接返回，暗示**可能要再去自由链表上去搜索**。
 
+```c
+for (;;) {
+  if (!(bh=find_buffer(dev,block)))
+    return NULL;
+```
 
+如果找到了bh块，就是看这个块是否有其他进程加锁，如果没有就将引用计数加1。如果有的话就等待锁的释放。
+```c
+bh->b_count++;
+wait_on_buffer(bh);
+if (bh->b_dev == dev && bh->b_blocknr == block)
+  return bh;
+bh->b_count--;
+```
 ## getblk
 ```c
 struct buffer_head * getblk(int dev,int block)
 ```
 
-该函数的作用是从哈希链表和自由链表两个地方寻找可用的bh块。
+该函数的作用是从**哈希链表**和**自由链表**两个地方寻找可用的bh块。
+
+该函数先从哈希链表中寻找指定的bh块。如果找到了就直接返回。
+```c
+if ((bh = get_hash_table(dev,block)))
+  return bh;
+```
+
+当从哈希表中没有找到对应的bh块时， 就需要去自由链表中查找一个**品质**最好的块。品质是根据bh块的b_dirt和b_lock去计算的。 在遍历过程中， 会查看某个块是否引用计数为0, 为0则放入备选项， 然后继续遍历， 如果后续找到了更**品质**的块， 就更新该备选项。遍历结束之后就找到了最佳的bh块。
+
+```c
+do {
+  if (tmp->b_count)
+    continue;
+  if (!bh || BADNESS(tmp)<BADNESS(bh)) {
+    bh = tmp;
+    if (!BADNESS(tmp))
+      break;
+  }
+/* and repeat until we find something good */
+} while ((tmp = tmp->b_next_free) != free_list);
+```
+
+如果这个过程， 仍然没有找到可用的bh块， 代表现在高速缓冲区很繁忙，则需要等待。
+```c
+if (!bh) {
+  sleep_on(&buffer_wait);
+  goto repeat;
+}
+```
 
 
+如果经过上述步骤找到了一个**最佳品质**的bh块之后，如果该块有锁，则等待锁的释放， 如果没有锁， 但是有脏数据， 就将脏数据写盘。
+```c
+wait_on_buffer(bh);
+if (bh->b_count)
+  goto repeat;
+while (bh->b_dirt) {
+  sync_dev(bh->b_dev);
+  wait_on_buffer(bh);
+  if (bh->b_count)
+    goto repeat;
+}
+```
+
+如果该block已经被添加到哈希链表中， 则需要重新寻找。
+```c
+if (find_buffer(dev,block))
+  goto repeat;
+```
+
+到此为止，终于找到了可用的bh块，将其初始化，并且插入到哈希链表中。
+```c
+bh->b_count=1;
+bh->b_dirt=0;
+bh->b_uptodate=0;
+remove_from_queues(bh);
+bh->b_dev=dev;
+bh->b_blocknr=block;
+insert_into_queues(bh);
+```
 ## remove_from_queues
 ```c
 static inline void remove_from_queues(struct buffer_head * bh)
@@ -188,16 +264,39 @@ struct buffer_head * bread(int dev,int block)
 ```
 该函数的作用是用于去指定的设备上读取相应的块。
 
-
+将该块的引用计数减1。
+```c
+if (!(buf->b_count--))
+  panic("Trying to free free buffer");
+```
 
 ## bread_page
 ```c
 void bread_page(unsigned long address,int dev,int b[4])
 ```
-
 该函数的作用是用于去指定的设备上读取4个逻辑块到内存中， 也就是读取4k内容到一个内存页中。
 
+该函数分为两个过程， 第一个过程是将磁盘数据块拷贝到bh块中。
+```c
+for (i=0 ; i<4 ; i++)
+  if (b[i]) {
+    if ((bh[i] = getblk(dev,b[i])))
+      if (!bh[i]->b_uptodate)
+        ll_rw_block(READ,bh[i]);
+  } else
+    bh[i] = NULL;
+```
 
+第二个过程是将bh块中的内容拷贝到指定的内存中。
+```c
+for (i=0 ; i<4 ; i++,address += BLOCK_SIZE)
+  if (bh[i]) {
+    wait_on_buffer(bh[i]);
+    if (bh[i]->b_uptodate)
+      COPYBLK((unsigned long) bh[i]->b_data,address);
+    brelse(bh[i]);
+  }
+```
 
 ## breada
 ```c
@@ -205,6 +304,32 @@ struct buffer_head * breada(int dev,int first, ...)
 ```
 breada函数是bread函数的拓展，如果只传递一个块号， 那么就是bread。 如果传递多个块号，就会读取多个逻辑块的值到高速缓存。
 
+这个函数使用了可变参数列表， 但是其功能与bread类似， 不再赘述。
+
+```c
+va_list args;
+struct buffer_head * bh, *tmp;
+
+va_start(args,first);
+if (!(bh=getblk(dev,first)))
+  panic("bread: getblk returned NULL\n");
+if (!bh->b_uptodate)
+  ll_rw_block(READ,bh);
+while ((first=va_arg(args,int))>=0) {
+  tmp=getblk(dev,first);
+  if (tmp) {
+    if (!tmp->b_uptodate)
+      ll_rw_block(READA,bh);
+    tmp->b_count--;
+  }
+}
+va_end(args);
+wait_on_buffer(bh);
+if (bh->b_uptodate)
+  return bh;
+brelse(bh);
+return (NULL);
+```
 ## wait_on_buffer
 ```c
 static inline void wait_on_buffer(struct buffer_head * bh)
@@ -232,4 +357,5 @@ static void inline invalidate_buffers(int dev)
 ```c
 void check_disk_change(int dev)
 ```
+该函数的作用是检查磁盘是否已经更换。 如果已经更换， 就要对更新高速缓冲区的状态。
 
