@@ -17,6 +17,14 @@ mmap内存映射 一般分为 3个阶段：
 3.3. 调页过程 先在 交换缓存空间(swap cache) 中寻找 需要访问的内存页，如果 没有 则调用nopage函数 分配 物理页 并把内容读取到 物理页 中。
 3.4. 用户进程 对 映射内存 进行 读写操作。如果 写操作 修改了内容，则一定时间后系统会自动回写 内存中的数据 到对应 磁盘地址。该过程有一定的 时间延迟，可以调用 msync 来 强制同步。
 
+mmap通过映射用户态地址到内核态page cache实现的
+
+32位机器为例，不能直接操作虚拟地址中内核态3G-4G的虚拟地址， 就通过页表将用户态地址映射到内核态的物理页上， 我猜测是这样
+
 
 **参考文章**：
+
+Linux映射内核态地址到用户态地址
+https://linux-kernel-labs.github.io/refs/heads/master/labs/memory_mapping.html
+
 https://www.jianshu.com/p/78a978ff48f2/
