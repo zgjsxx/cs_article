@@ -6,7 +6,7 @@ tag:
 ---
 
 
-# Linux-0.11 进程管理sched.c详解
+# Linux-0.11 kernel目录进程管理sched.c详解
 
 ## schedule
 ```c

@@ -24,7 +24,7 @@ mmap通过映射用户态地址到内核态page cache实现的
 
 **参考文章**：
 
-Linux映射内核态地址到用户态地址
+Linux映射内核态地址到用户态地址(重要参考)
 https://linux-kernel-labs.github.io/refs/heads/master/labs/memory_mapping.html
 
 https://www.jianshu.com/p/78a978ff48f2/
