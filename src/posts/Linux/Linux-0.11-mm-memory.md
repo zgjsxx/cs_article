@@ -2,12 +2,19 @@
 
 # Linux-0.11 memory.c详解
 
-## 内存区域划分
+## 概述
+内存区域划分
 ![memory-area](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-memory/mem-area.png)
 
 
 在Linux-0.11内核中，所有进程都使用一个页目录表，而每个进程都有自己的页表。
 
+页目录表和页表的格式
+![memory-area](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-memory/page_frame.png)
+
+图中页表项的第0位P代表**存在位**，该位表示这个页表项是否可以用于地址转换，P=1代表该项可用， 当目录表项或者第二级表项的P=0时，代表该项是无效的，不能用于地址转换。
+
+当P=0时， 处理器会发出缺页异常的信号， 缺页中断的异常处理程序就可以将所请求的页面加入到物理内存中。
 
 ## 函数分析
 
@@ -24,6 +31,19 @@ unsigned long get_free_page(void)
 ![get_free_page](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-memory/get_free_page.png)
 
 然后从mem_map的尾部向前搜寻为0的项目，这样就可以找到空闲的物理内存。
+
+
+### free_page
+```c
+void free_page(unsigned long addr);
+```
+该函数的作用就是释放某个地址所在的内存页。
+
+
+### do_wp_page
+```c
+void do_wp_page(unsigned long error_code,unsigned long address)
+```
 
 
 ### un_wp_page

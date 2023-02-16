@@ -26,3 +26,6 @@ if DF = 0:
     SI = SI + 2 , DI = DI + 2 ；
 else if DF = 1:
     SI = SI - 2 , DI = DI - 2 ;
+
+
+## test
