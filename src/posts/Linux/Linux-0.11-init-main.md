@@ -17,3 +17,5 @@ else if (memory_end > 6*1024*1024)
 else
     buffer_memory_end = 1*1024*1024;
 ```
+
+trap_init函数完成中断处理函数的设置。
