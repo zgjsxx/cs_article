@@ -59,3 +59,43 @@ void un_wp_page(unsigned long * table_entry)
 void do_no_page(unsigned long error_code,unsigned long address)
 ```
 **作用**: 执行缺页处理
+
+
+### copy_page_tables
+```c
+int copy_page_tables(unsigned long from,unsigned long to,long size)
+```
+
+```c
+from_dir = (unsigned long *) ((from>>20) & 0xffc); //取出源地址的页目录的地址
+to_dir = (unsigned long *) ((to>>20) & 0xffc);//取出目的地址的页目录的地址
+```
+
+
+```c
+for( ; size-->0 ; from_dir++,to_dir++) {
+    if (1 & *to_dir)//如果目的页目录表存在位为0， 则代表目的页目录表已经存在，这将是致命的错误
+        panic("copy_page_tables: already exist");
+    if (!(1 & *from_dir))//如果源页目录表存在位为0， 则代表该页目录表可以不用复制
+        continue;
+		from_page_table = (unsigned long *) (0xfffff000 & *from_dir);//取出源地址的页表起始的位置
+		if (!(to_page_table = (unsigned long *) get_free_page()))//申请一个4k内存页面，作为目的地址的页表
+			return -1;	/* Out of memory, see freeing */
+```
+
+下面这里依次拷贝页表中的每一项。
+```c
+for ( ; nr-- > 0 ; from_page_table++,to_page_table++) {
+    this_page = *from_page_table;
+    if (!(1 & this_page))
+        continue;
+    this_page &= ~2;
+    *to_page_table = this_page;
+    if (this_page > LOW_MEM) {
+        *from_page_table = this_page;
+        this_page -= LOW_MEM;
+        this_page >>= 12;
+        mem_map[this_page]++;
+    }
+}
+```
