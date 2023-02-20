@@ -28,7 +28,7 @@ struct buffer_head * start_buffer = (struct buffer_head *) &end;
 经过这个步骤之后h实际上指向了内核高速缓冲区的低地址。
 
 
-接下来使用了b指针指向了内核告诉缓冲区的高地址。
+接下来使用了b指针指向了内核高速缓冲区的高地址。
 ```c
 if (buffer_end == 1<<20)
   b = (void *) (640*1024);
@@ -277,7 +277,7 @@ struct buffer_head * bread(int dev,int block)
 ```
 该函数的作用是用于去**指定的设备上读取相应的块**。
 
-首先调用getblk在高速缓冲区中找到一个bh块， 随后调用磁盘读写函数ll_rw_block向磁盘设别发出读请求， 将磁盘内容读取到bh块中。
+首先调用getblk在高速缓冲区中找到一个bh块， 随后调用磁盘读写函数ll_rw_block向磁盘设备发出读请求， 将磁盘内容读取到bh块中。
 ```c
 if (!(bh=getblk(dev,block)))
   panic("bread: getblk returned NULL\n");
