@@ -12,9 +12,9 @@ tag:
 void buffer_init(long buffer_end)
 ```
 
-该函数的作用主要是初始化磁盘的高速缓冲区.
+该函数的作用主要是**初始化磁盘的高速缓冲区**。
 
-刚开始使用h指向了start_buffer的位置。
+刚开始使用h指针指向了start_buffer的位置。
 ```c
 struct buffer_head * h = start_buffer;
 void * b;
@@ -51,7 +51,9 @@ else
 
 ![buffer_init](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/buffer/buffer_init.png)
 
-buffer_init接下来要做的就是对这些高速缓冲区进行初始化
+经过上述步骤。 h指针(头指针)指向了高速缓冲区的起点， b指针(数据块指针)指向了高速缓冲区的终点。
+
+buffer_init接下来要做的就是对这些高速缓冲区进行初始化。
 ```c
 while ( (b -= BLOCK_SIZE) >= ((void *) (h+1)) ) {
   h->b_dev = 0;
@@ -71,7 +73,7 @@ while ( (b -= BLOCK_SIZE) >= ((void *) (h+1)) ) {
     b = (void *) 0xA0000;
 }
 ```
-让每一个buffer_header节点使用b_data指针指向一个数据块block(1k)。然后h指针加1，b指针减1。直到h和b指针指向的区别相交。
+让每一个buffer_header节点使用b_data指针指向一个数据块block(1k)。然后h指针加1，b指针减1。如此往复，直到h和b指针指向的区别相交。
 
 这些buffer_header用一个双向链表进行串联。
 
@@ -100,7 +102,7 @@ for (i=0;i<NR_HASH;i++)
 ```c
 static struct buffer_head * find_buffer(int dev, int block)
 ```
-该函数的作用是从哈希队列中按照设备号和逻辑块号去查询对应的缓冲区块。
+该函数的作用是从**哈希链表**中按照**设备号和逻辑块号**去查询对应的缓冲区块。
 
 首先根据设备号和块号查找到哈希数组的下标，找到下标对应的bh， 遍历该bh通过b_next连接起来的链表， 看该链表中是否有匹配的。如下图所示：
 
@@ -119,7 +121,9 @@ return NULL;
 ```c
 struct buffer_head * get_hash_table(int dev, int block)
 ```
-该函数的作用是从哈希链表中找到指定的bh块。其内部调用了find_buffer函数， 内部增加了如果bh块被其他进程占用情况的处理。
+该函数的作用是从**哈希链表**中找到指定的bh块。其内部调用了find_buffer函数， 内部增加了如果**bh块被其他进程占用情况**的处理。 
+
+入参中的block指的是**磁盘的盘块号**。
 
 从下面的代码可以看出， 首先调用了find_buffer函数寻找执行的bh块， 如果没有找到， 就直接返回，暗示**可能要再去自由链表上去搜索**。
 
@@ -129,13 +133,14 @@ for (;;) {
     return NULL;
 ```
 
-如果找到了bh块，就是看这个块是否有其他进程加锁，如果没有就将引用计数加1。如果有的话就等待锁的释放。
+如果找到了bh块，就是看这个块是否有其他进程加锁，如果没有就将引用计数加1。如果有的话就等待锁的释放。注意等待过程中，该bh块可能被修改，因此wake up之后需要重新判断该块的设备号与块号是否相等。如果在等待过程中，该bh块没有被修改， 就直接返回。 如果被修改了，那么则需要重新寻找。
+
 ```c
 bh->b_count++;
 wait_on_buffer(bh);
 if (bh->b_dev == dev && bh->b_blocknr == block)
   return bh;
-bh->b_count--;
+bh->b_count--;//该block在等待中被修改。 减少其引用计数， 进入下一次循环，重新寻找符合要求的bh块。
 ```
 ## getblk
 ```c
@@ -193,7 +198,7 @@ if (find_buffer(dev,block))
   goto repeat;
 ```
 
-到此为止，终于找到了可用的bh块，将其初始化，并且插入到哈希链表中。
+到此为止，终于找到了可用的bh块，将其初始化，并且插入到哈希链表中，这里实际上实现了一个**LRU缓存**。有关**remove_from_queues**和**insert_into_queues**将在对应的函数讲解中详解。
 ```c
 bh->b_count=1;
 bh->b_dirt=0;
@@ -270,9 +275,9 @@ if (!(buf->b_count--))
 ```c
 struct buffer_head * bread(int dev,int block)
 ```
-该函数的作用是用于去指定的设备上读取相应的块。
+该函数的作用是用于去**指定的设备上读取相应的块**。
 
-首先在高速缓冲区中找到一个bh块， 随后调用磁盘读写函数ll_rw_block向磁盘设别发出读请求， 将磁盘内容读取到bh块中。
+首先调用getblk在高速缓冲区中找到一个bh块， 随后调用磁盘读写函数ll_rw_block向磁盘设别发出读请求， 将磁盘内容读取到bh块中。
 ```c
 if (!(bh=getblk(dev,block)))
   panic("bread: getblk returned NULL\n");
@@ -287,7 +292,7 @@ if (bh->b_uptodate)//如果缓冲区已经更新， 则直接返回
 ```c
 void bread_page(unsigned long address,int dev,int b[4])
 ```
-该函数的作用是用于去指定的设备上读取4个逻辑块到内存中， 也就是读取4k内容到一个内存页中。
+该函数的作用是用于去指定的设备上**读取4个逻辑块**到内存中， 也就是读取**4k磁盘内容**到**一个内存页**中。
 
 该函数分为两个过程， 第一个过程是将磁盘数据块拷贝到bh块中。
 ```c
@@ -317,7 +322,7 @@ struct buffer_head * breada(int dev,int first, ...)
 ```
 breada函数是bread函数的拓展，如果只传递一个块号， 那么就是bread。 如果传递多个块号，就会读取多个逻辑块的值到高速缓存。
 
-这个函数使用了可变参数列表， 但是其功能与bread类似， 不再赘述。
+这个函数使用了**可变参数列表**， 但是其功能与bread类似， 不再赘述。
 
 ```c
 va_list args;
@@ -354,11 +359,29 @@ int sys_sync(void)
 ```
 该函数的作用是将所有高速缓冲bh块的脏数据写盘。
 
+首先将inode_table表中修改的节点刷新到高速缓冲区的bh块中，
+```c
+int i;
+struct buffer_head * bh;
+
+sync_inodes();		
+```
+
+紧接着对所有的bh块进行循环，将其中有脏数据的bh块调用ll_rw_block发送写磁盘命令，将数据写到磁盘设备中。
+```c
+for (i=0 ; i<NR_BUFFERS ; i++,bh++) {
+  wait_on_buffer(bh);
+  if (bh->b_dirt)
+    ll_rw_block(WRITE,bh);
+}
+```
 ## sync_dev
 ```c
 int sync_dev(int dev)
 ```
 该函数的作用是将所有高速缓冲中某个设别的bh块的脏数据写盘。
+
+该函数总体与sync_sys类似，只不过在其中增加了dev号的判断。
 
 ## invalidate_buffer
 ```c
@@ -371,4 +394,6 @@ static void inline invalidate_buffers(int dev)
 void check_disk_change(int dev)
 ```
 该函数的作用是检查磁盘是否已经更换。 如果已经更换， 就要对更新高速缓冲区的状态。
+
+
 
