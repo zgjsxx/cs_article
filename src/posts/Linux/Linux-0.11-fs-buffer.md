@@ -35,7 +35,7 @@ if (buffer_end == 1<<20)
 else
   b = (void *) buffer_end;
 ```
-这里根据buffer_end的值的不同， 决定了b的指向。
+这里根据buffer_end的值的不同，决定了b的指向。
 
 在main.c文件中给定了buffer_end的大小定义:
 
@@ -258,16 +258,26 @@ void brelse(struct buffer_head * buf)
 ```
 该函数的作用是释放一个bh块。
 
+将该块的引用计数减1。
+```c
+if (!(buf->b_count--))
+  panic("Trying to free free buffer");
+```
+
+
 ## bread
 ```c
 struct buffer_head * bread(int dev,int block)
 ```
 该函数的作用是用于去指定的设备上读取相应的块。
 
-将该块的引用计数减1。
+首先在高速缓冲区中找到一个bh块， 随后调用磁盘读写函数ll_rw_block向磁盘设别发出读请求， 将磁盘内容读取到bh块中。
 ```c
-if (!(buf->b_count--))
-  panic("Trying to free free buffer");
+if (!(bh=getblk(dev,block)))
+  panic("bread: getblk returned NULL\n");
+if (bh->b_uptodate)
+  return bh;
+ll_rw_block(READ,bh);
 ```
 
 ## bread_page
