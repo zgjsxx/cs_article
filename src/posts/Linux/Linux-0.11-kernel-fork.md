@@ -173,3 +173,8 @@ while (size>0) {
 }
 ```
 
+
+## find_empty_process
+```c
+int find_empty_process(void)
+```
