@@ -145,11 +145,24 @@ if (copy_page_tables(old_data_base,new_data_base,data_limit)) {
 ```c
 void verify_area(void * addr,int size)
 ```
+该函数用于在进程空间进行写操作时进行地址验证的函数。
+
+addr是指在进程线性地址中相对于起始位置的偏移量， size指的是大小。
+
+由于检测判断是以4K页为单位进行操作的， 因此程序需要找出addr所在页的起始地址，如下图所示。
+
+![verify_area](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/fork/verify_area.png)
+
 
 ```c
-start &= 0xfffff000;//start为逻辑地址的以4K为划分的起始地址
+unsigned long start;
+
+start = (unsigned long) addr;
+size += start & 0xfff; //size 加上页内偏移
+start &= 0xfffff000; //start为逻辑地址的以4K为划分的起始地址
 start += get_base(current->ldt[2]);//获取当前进程在线性地址中数据段的起始地址， 加起来就是该逻辑地址转化到了线性地址
 ```
+
 
 下面进行写保护验证， 如果页面不可以写，则进行页面复制。
 ```c
