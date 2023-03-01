@@ -9,13 +9,6 @@ tag:
 
 fork.c中主要实现内核对于创建新的进程的行为。其中copy_process是其最和新的函数。
 
-## copy_mem
-```c
-int copy_mem(int nr,struct task_struct * p);
-```
-
-
-
 ## copy_process
 ```c
 int copy_process(int nr,long ebp,long edi,long esi,long gs,long none,
@@ -24,9 +17,16 @@ int copy_process(int nr,long ebp,long edi,long esi,long gs,long none,
 		long eip,long cs,long eflags,long esp,long ss)
 ```
 
-该函数的作用是从old进程中复制出一个new进程。
+该函数的作用是从old进程中复制出一个new进程。 该函数在system_call.s中的sys_fork函数中执行。
 
-首先在内存中分配了一个空闲页用于存储进程的PCB，即task_struct结构。并将该PCB放入了PCB的数组中。
+copy_process从INT 0x80中断触发system_call系统调用，进而调用sys_fork。此时内核栈的状态如下所示：
+
+![内核栈的状态](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/fork/system_call_stack.png)
+
+这与copy_process的参数是一致的。
+
+
+该函数首先在内存中分配了一个空闲页用于存储进程的PCB，即task_struct结构。并将该PCB放入了PCB的数组中。
 
 最后将old进程的PCB内容先直接拷贝给new进程。
 
@@ -37,7 +37,7 @@ if (!p)
 task[nr] = p;	
 *p = *current;	
 ```
-下面这段就是将继承来的PCB结构进行适当的修改， 详细解释见注释。
+下面这段就是将继承来的PCB结构进行适当的修改，详细解释见注释。
 
 ```c
 p->state = TASK_UNINTERRUPTIBLE;//设置进程状态为不可被中断
@@ -168,7 +168,7 @@ void verify_area(void * addr,int size)
 
 addr是指在进程线性地址中相对于起始位置的偏移量， size指的是大小。
 
-由于检测判断是以4K页为单位进行操作的， 因此程序需要找出addr所在页的起始地址，如下图所示。
+由于检测判断是以4K页为单位进行操作的，因此程序需要找出addr所在页的起始地址，如下图所示。
 
 ![verify_area](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/fork/verify_area.png)
 
@@ -198,4 +198,19 @@ write_verify函数详解可以参考memory.c文件的讲解。
 ```c
 int find_empty_process(void)
 ```
-该函数的作用是在全局的task数组中找到一个空闲的项，并返回其下标。
+该函数的作用是在全局的task数组中找到一个空闲的项，并返回其下标。其在system_call.s中的sys_fork函数中被调用。
+
+首先是寻找一个pid值
+```c
+repeat:
+    if ((++last_pid)<0) last_pid=1;
+    for(i=0 ; i<NR_TASKS ; i++)
+        if (task[i] && task[i]->pid == last_pid) goto repeat;
+```
+
+接着是去task数组中寻找可用的位置
+```c
+for(i=1 ; i<NR_TASKS ; i++)
+    if (!task[i])
+        return i;
+```
