@@ -27,6 +27,8 @@ for(p = &LAST_TASK ; p > &FIRST_TASK ; --p)
 ```
 
 
+下面这段代码就是任务调度的核心代码。这里会从所有任务从选取counter值最大的任务作用下一个运行的任务去执行。
+
 ```c
 while (1) {
 	c = -1;
@@ -36,14 +38,14 @@ while (1) {
 	while (--i) { //遍历所有的task， 取出其中counter最大的task
 		if (!*--p)
 			continue;
-		if ((*p)->state == TASK_RUNNING && (*p)->counter > c)
+		if ((*p)->state == TASK_RUNNING && (*p)->counter > c)//取出所有任务中counter值最大的任务作为下一个任务
 			c = (*p)->counter, next = i;
 	}
 	if (c) break;
 	for(p = &LAST_TASK ; p > &FIRST_TASK ; --p)
 		if (*p)
 			(*p)->counter = ((*p)->counter >> 1) +
-					(*p)->priority;//更新counter值
+					(*p)->priority;//更新counter值 counter = counter/2 + priority
 }
 switch_to(next);
 ```
@@ -53,13 +55,105 @@ switch_to(next);
 ```c
 int sys_pause(void)
 ```
+该函数是pause的系统调用。该函数会将当前任务的状态修改为可中断的状态， 并调用schedule函数去进行进程的调度。
 
+调用pause函数的进程会进入睡眠状态， 直到收到一个信号。
+
+```c
+current->state = TASK_INTERRUPTIBLE;
+schedule();
+```
 
 ## sleep_on
 ```c
 void sleep_on(struct task_struct **p)
 ```
 
+## ticks_to_floppy_on
+```c
+int ticks_to_floppy_on(unsigned int nr)
+```
+
+## floppy_on
+```c
+void floppy_on(unsigned int nr)
+```
+
+## floppy_off
+```c
+void floppy_off(unsigned int nr)
+```
+
+## do_floppy_timer
+```c
+void do_floppy_timer(void)
+```
+
+## add_timer 
+```c
+add_timer(long jiffies, void (*fn)(void))
+```
+## do_timer
+```c
+void do_timer(long cpl)
+```
+
+
+
+## sys_alarm
+```c
+int sys_alarm(long seconds)
+```
+
+该函数用于设置报警值。
+
+jiffies是指的是系统开机到目前经历的滴答数。
+
+current->alarm的单位也是系统滴答数。
+
+因此(current->alarm - jiffies) /100 就代表就的定时器还剩下多少秒。
+
+![进程定时器]()
+
+接着便按照入参seconds的值重新设置进程alarm值。
+
+
+
+## sys_getpid
+```c
+int sys_getpid(void)
+```
+
+
+## sys_getppid
+```c
+int sys_getppid(void)
+```
+
+## sys_getuid
+```c
+int sys_getuid(void)
+```
+
+## sys_geteuid
+```c
+int sys_geteuid(void)
+```
+
+## sys_getgid
+```c
+int sys_getgid(void)
+```
+
+## sys_getegid
+```c
+int sys_getegid(void)
+```
+
+## sys_nice
+```c
+int sys_nice(long increment)
+```
 
 ## sched_init
 ```c

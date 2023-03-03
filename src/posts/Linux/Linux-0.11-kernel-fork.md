@@ -7,7 +7,7 @@ tag:
 
 # Linux-0.11 kernel目录fork.c详解
 
-fork.c中主要实现内核对于创建新的进程的行为。其中copy_process是其最和新的函数。
+fork.c中主要实现内核对于创建新的进程的行为。其中copy_process是其最核心的函数。
 
 ## copy_process
 ```c
@@ -94,7 +94,7 @@ GDT表中每一项是8个字节，每个进程拥有一个TSS和LDT，因此每�
 #define _LDT(n) ((((unsigned long) n)<<4)+(FIRST_LDT_ENTRY<<3))
 ```
 
-对上述知识遗忘，可以通过下面这张图进行温故。
+如对上述知识遗忘，可以通过下面这张图进行温故。
 
 ![LDT.png](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/fork/LDT.png)
 
