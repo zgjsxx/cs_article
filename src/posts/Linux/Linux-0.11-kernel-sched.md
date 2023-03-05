@@ -184,17 +184,21 @@ next_timer = p;
 ```
 
 下面这段代码的作用是将刚刚插入链表中的timer移动的合适的位置。
-![timer移动示意图]()
+
+由于next_timer这个链表上的jiffies是一个相对值，即相对于前面一个timer还有多久到期。因此上面步骤的timer也需要进行转换。
+
+![timer移动示意图](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/sched/add_timer.png)
 ```c
 while (p->next && p->next->jiffies < p->jiffies) {
-	p->jiffies -= p->next->jiffies;
-	fn = p->fn;
-	p->fn = p->next->fn;
-	p->next->fn = fn;
-	jiffies = p->jiffies;
-	p->jiffies = p->next->jiffies;
-	p->next->jiffies = jiffies;
+	p->jiffies -= p->next->jiffies;//减去下一个timer的jiffies
+	fn = p->fn;//将当前的fn保存给临时变量
+	p->fn = p->next->fn;//将当前的fn设置为下一个timer的fn
+	p->next->fn = fn;//将下一个timer的fn设置为当前的fn
+	jiffies = p->jiffies;//将jiffies保存给一个临时变量
+	p->jiffies = p->next->jiffies;//将当前的jiffies设置为下一个timer的jiffies
+	p->next->jiffies = jiffies;//将下一个timer的jiffies设置为当前的jiffies
 	p = p->next;
+	//这一步骤实际上将p向后挪动到合适的位置， 并把jiffies转化成相对值。
 }
 ```
 
