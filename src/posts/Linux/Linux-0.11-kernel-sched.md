@@ -8,6 +8,8 @@ tag:
 
 # Linux-0.11 kernel目录进程管理sched.c详解
 
+sched.c主要功能是负责进程的调度，其最核心的函数就是schedule。
+
 ## schedule
 ```c
 void schedule(void)
@@ -50,6 +52,46 @@ while (1) {
 switch_to(next);
 ```
 
+## show_task
+```c
+void show_task(int nr,struct task_struct * p)
+```
+该函数的作用是显示任务序号为nr的进程的pid，进程状态以及内核栈剩余的大小。
+
+
+```c
+int i,j = 4096-sizeof(struct task_struct);
+
+printk("%d: pid=%d, state=%d, ",nr,p->pid,p->state);
+i=0;
+```
+
+此时j指向PCB所在内存页的顶部， i指向task_struct结构体的下一个字节。下面这段代码的所用实际就是统计内核栈中空闲大小。
+
+![show_task](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/sched/show_task.png)
+
+```c
+while (i<j && !((char *)(p+1))[i])
+	i++;
+printk("%d (of %d) chars free in kernel stack\n\r",i,j);
+```
+
+## show_stat
+```c
+void show_stat(void)
+```
+该函数内部调用show_task函数，实际上就是遍历task数组， 调用show_stat函数显示进程相关信息。
+```c
+int i;
+
+for (i=0;i<NR_TASKS;i++)
+	if (task[i])
+		show_task(i,task[i]);
+```
+## math_state_restore
+```c
+void math_state_restore()
+```
 
 ## sys_pause
 ```c
@@ -68,6 +110,12 @@ schedule();
 ```c
 void sleep_on(struct task_struct **p)
 ```
+
+## wake_up
+```c
+void wake_up(struct task_struct **p)
+```
+
 
 ## ticks_to_floppy_on
 ```c
