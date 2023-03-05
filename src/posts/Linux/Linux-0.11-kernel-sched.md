@@ -9,6 +9,7 @@ tag:
 # Linux-0.11 kernel目录进程管理sched.c详解
 
 sched.c主要功能是负责进程的调度，其最核心的函数就是schedule。
+。。
 
 ## schedule
 ```c
