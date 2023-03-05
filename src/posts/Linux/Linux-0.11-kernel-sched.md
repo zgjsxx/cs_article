@@ -9,7 +9,7 @@ tag:
 # Linux-0.11 kernel目录进程管理sched.c详解
 
 sched.c主要功能是负责进程的调度，其最核心的函数就是schedule。
-。。
+
 
 ## schedule
 ```c
@@ -133,22 +133,108 @@ void floppy_on(unsigned int nr)
 void floppy_off(unsigned int nr)
 ```
 
+关闭相应的软驱马达停转定时器3s。
+```c
+moff_timer[nr]=3*HZ;
+```
+
+
 ## do_floppy_timer
 ```c
 void do_floppy_timer(void)
+```
+
+
+如果马达启动定时到则唤醒进程。
+```c
+if (mon_timer[i]) {
+	if (!--mon_timer[i])
+		wake_up(i+wait_motor);
+```
+
+如果马达停转定时到期则复位相应马达启动位，并更新数字输出到寄存器。
+
+```c
+else if (!moff_timer[i]) {
+	current_DOR &= ~mask;
+	outb(current_DOR,FD_DOR);
 ```
 
 ## add_timer 
 ```c
 add_timer(long jiffies, void (*fn)(void))
 ```
+如果定时的值小于0， 那么立即调用处理函数。
+```c
+if (jiffies <= 0)
+	(fn)();
+```
+
+如果定时的值大于0， 那么首先取timer_list数组中寻找一个位置，将该位置上的滴答数设置为jiffies，将该位置上的fn设置为入参fn。并让next_timer指向它。
+```c
+for (p = timer_list ; p < timer_list + TIME_REQUESTS ; p++)
+	if (!p->fn)
+		break;
+if (p >= timer_list + TIME_REQUESTS)
+	panic("No more time requests free");
+p->fn = fn;
+p->jiffies = jiffies;
+p->next = next_timer;
+next_timer = p;
+```
+
+下面这段代码的作用是将刚刚插入链表中的timer移动的合适的位置。
+![timer移动示意图]()
+```c
+while (p->next && p->next->jiffies < p->jiffies) {
+	p->jiffies -= p->next->jiffies;
+	fn = p->fn;
+	p->fn = p->next->fn;
+	p->next->fn = fn;
+	jiffies = p->jiffies;
+	p->jiffies = p->next->jiffies;
+	p->next->jiffies = jiffies;
+	p = p->next;
+}
+```
+
 ## do_timer
 ```c
 void do_timer(long cpl)
 ```
+该函数是时钟中断的处理函数。其在system_call.s中的timer_interrupt函数中被调用。
 
+参数cpl表示的是当前的特权级， 0表示时钟中断发生时，当前运行在内核态，3表示时钟中断发生时，当前运行在用户态。
 
+下面的代码根据cpl的值将进程PCB中的utime和stime进行修改。如果cpl为0，则增加stime(supervisor time)， 如果cpl为3， 则增加utime。
 
+```c
+if (cpl)
+	current->utime++;
+else
+	current->stime++;
+```
+
+下面对定时器的链表进行遍历。 将链表的第一个定时器的滴答数减1。如果滴答数已经等于0， 代表该定时器已经到期，那么需要调用相应的处理程序进行处理。
+```c
+if (next_timer) {
+	next_timer->jiffies--;
+	while (next_timer && next_timer->jiffies <= 0) {
+		void (*fn)(void);
+		
+		fn = next_timer->fn;
+		next_timer->fn = NULL;
+		next_timer = next_timer->next;
+		(fn)();
+	}
+}
+```
+
+下面代码则是将当前运行的进程的时间片减去1，如果此时进程时间片没有用完，该函数则返回。 如果此时进程时间已经用完，则将时间片设置为0。并且如果此时cpl表明中断发生用户态，那么还将会触发进程的调度。
+```c
+if ((--current->counter)>0) return;
+current->counter=0;
+```
 ## sys_alarm
 ```c
 int sys_alarm(long seconds)
@@ -172,37 +258,43 @@ current->alarm的单位也是系统滴答数。
 ```c
 int sys_getpid(void)
 ```
-
+该函数用于获取进程的pid。
 
 ## sys_getppid
 ```c
 int sys_getppid(void)
 ```
+该函数用于获取父进程的pid。
 
 ## sys_getuid
 ```c
 int sys_getuid(void)
 ```
+该函数用于获取用户的uid。
 
 ## sys_geteuid
 ```c
 int sys_geteuid(void)
 ```
+该函数用于获取用户的有效id(euid)。
 
 ## sys_getgid
 ```c
 int sys_getgid(void)
 ```
+获取组和id号(gid)。
 
 ## sys_getegid
 ```c
 int sys_getegid(void)
 ```
+取有效的组id(egid)
 
 ## sys_nice
 ```c
 int sys_nice(long increment)
 ```
+该函数的作用是降低进程在调度时的优先级。
 
 ## sched_init
 ```c
