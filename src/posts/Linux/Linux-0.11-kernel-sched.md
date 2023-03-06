@@ -111,22 +111,104 @@ schedule();
 ```c
 void sleep_on(struct task_struct **p)
 ```
+该函数的作用是将当前的task置为不可中断的等待状态， 直到被wake_up唤醒再继续执行。
+
+入参p是等待任务队列的头指针。
+
+该函数首先对一些异常情况进行了处理他， 例如p是空指针。或者当前task是任务0。
+
+```c
+struct task_struct *tmp;
+
+// 若指针无效，则退出。（指针所指的对象可以是NULL，但指针本身不会为0)。
+if (!p)
+	return;
+if (current == &(init_task.task))	// 如果当前任务是任务0，则死机(impossible!)。
+	panic ("task[0] trying to sleep");
+```
+
+接着让当前等待任务的头指针指向当前任务。并将当前任务修改为不可中断的等待状态。进行调用schedule函数让操作系统切换其他任务执行。
+```c
+tmp = *p;
+*p = current;
+current->state = TASK_UNINTERRUPTIBLE;
+schedule ();	
+```
+
+当代码执行到当前部分时，说明任务已经被显式的wake_up，如果此时还有其他进程仍然在等待，那么也一同唤醒。
+
+因为任务都在等待同样的资源， 那么当资源可用的时候， 就可以唤醒所有等待的任务。
+```c
+if (tmp)			// 若还存在等待的任务，则也将其置为就绪状态（唤醒）。
+	tmp->state = 0;
+```
+
+## interruptible_sleep_on 
+```c
+void interruptible_sleep_on (struct task_struct **p)
+```
+该函数与sleep类似，但是该函数会将任务的状态修改为可中断的等待状态， 而sleep_on则是将任务修改为不可中断的等待状态。
+
+下面这段代码与sleep_on并无太大区别， 只是将进程的状态修改为可中断的等待状态。
+
+```c
+	struct task_struct *tmp;
+
+	if (!p)
+		return;
+	if (current == &(init_task.task))
+		panic ("task[0] trying to sleep");
+	tmp = *p;
+	*p = current;
+repeat:
+	current->state = TASK_INTERRUPTIBLE;
+	schedule ();
+```
+
+如果等待队列中还有其他任务，说明当前任务被放入队列后又有其他新的任务被放入了等待队列中。
+
+```c
+if (*p && *p != current)
+{
+	(**p).state = 0;
+	goto repeat;
+}
+```
+
+下面一句代码有误，应该是*p = tmp，让队列头指针指向其余等待任务，否则在当前任务之前插入
+等待队列的任务均被抹掉了
+```c
+*p = NULL;
+if (tmp)
+	tmp->state = 0;
+```
 
 ## wake_up
 ```c
 void wake_up(struct task_struct **p)
 ```
+该函数的作用就是唤醒某一个任务。
 
+
+```c
+if (p && *p)
+{
+	(**p).state = 0;		// 置为就绪（可运行）状态。
+	*p = NULL;
+}
+```
 
 ## ticks_to_floppy_on
 ```c
 int ticks_to_floppy_on(unsigned int nr)
 ```
+该函数指定软盘到正常运转状态所需延迟滴答数（时间）。
 
 ## floppy_on
 ```c
 void floppy_on(unsigned int nr)
 ```
+该函数等待指定软驱马达启动所需时间。
 
 ## floppy_off
 ```c
