@@ -8,15 +8,22 @@ tag:
 
 # Linux-0.11 kernel目录进程管理sched.c详解
 
-sched.c主要功能是负责进程的调度，其最核心的函数就是schedule。
+sched.c主要功能是负责进程的调度，其最核心的函数就是**schedule**。除schedule以外， sleep_on和wake_up也是相对重要的函数。
 
 
 ## schedule
 ```c
 void schedule(void)
 ```
+schedule函数的基本功能可以分为两大块， 第一块是**检查task中的报警信息和信号**， 第二块则是**进行任务的调度**。
 
+在第一块中，首先从任务数组的尾部任务开始，检查alarm是否小于当前系统滴答值，如果小于则代表alarm时间已经到期。将进程的signal中的SIGALARM位置1。
+
+接着就看如果检查进程的信号中如果处理BLOCK位以外还有别的信号，并且如果任务处于可中断状态，则将任务置为就绪状态。
 ```c
+int i,next,c;
+struct task_struct ** p;
+
 for(p = &LAST_TASK ; p > &FIRST_TASK ; --p)
     if (*p) {
         if ((*p)->alarm && (*p)->alarm < jiffies) { //如果设置了任务定时的值alarm， 并且已经过期
@@ -30,7 +37,9 @@ for(p = &LAST_TASK ; p > &FIRST_TASK ; --p)
 ```
 
 
-下面这段代码就是任务调度的核心代码。这里会从所有任务从选取counter值最大的任务作用下一个运行的任务去执行。
+第二块的代码就是任务调度的核心代码。
+
+这里会从任务数组的尾部任务开始进行遍历，从所有任务从选取counter值最大的任务作为下一个运行的任务去执行。
 
 ```c
 while (1) {
@@ -45,11 +54,13 @@ while (1) {
 			c = (*p)->counter, next = i;
 	}
 	if (c) break;
+	//如果当前没有RUNNING状态的任务的counter可以大于-1，那么则去更新counter的值，counter = counter/2 + priority
 	for(p = &LAST_TASK ; p > &FIRST_TASK ; --p)
 		if (*p)
 			(*p)->counter = ((*p)->counter >> 1) +
 					(*p)->priority;//更新counter值 counter = counter/2 + priority
 }
+//切换任务执行next
 switch_to(next);
 ```
 
@@ -93,6 +104,7 @@ for (i=0;i<NR_TASKS;i++)
 ```c
 void math_state_restore()
 ```
+该函数的作用是将当前协处理器内容保存到老协处理器状态数组中，并将当前任务的协处理器内容加载进协处理器。
 
 ## sys_pause
 ```c
@@ -111,9 +123,9 @@ schedule();
 ```c
 void sleep_on(struct task_struct **p)
 ```
-该函数的作用是将当前的task置为不可中断的等待状态， 直到被wake_up唤醒再继续执行。
+该函数的作用是将当前的task置为不可中断的等待状态， 直到被wake_up唤醒再继续执行。入参p是等待任务队列的头指针。通过p指针和tmp变量将等待的任务串在了一起。
 
-入参p是等待任务队列的头指针。
+![sleep_on示意图](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/sched/sleep_on.png)
 
 该函数首先对一些异常情况进行了处理他， 例如p是空指针。或者当前task是任务0。
 
@@ -147,7 +159,9 @@ if (tmp)			// 若还存在等待的任务，则也将其置为就绪状态（唤
 ```c
 void interruptible_sleep_on (struct task_struct **p)
 ```
-该函数与sleep类似，但是该函数会将任务的状态修改为可中断的等待状态， 而sleep_on则是将任务修改为不可中断的等待状态。
+该函数与sleep_on类似，但是该函数会将任务的状态修改为可中断的等待状态， 而sleep_on则是将任务修改为不可中断的等待状态。因此通过interruptible_sleep_on而等待的task是可以被信号唤醒的。 而通过sleep_on而等待的task是**不会被信号唤醒的**。
+
+![interruptible_sleep_on示意图](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/sched/interruptible_sleep_on.png)
 
 下面这段代码与sleep_on并无太大区别， 只是将进程的状态修改为可中断的等待状态。
 
@@ -165,7 +179,7 @@ repeat:
 	schedule ();
 ```
 
-如果等待队列中还有其他任务，说明当前任务被放入队列后又有其他新的任务被放入了等待队列中。
+由于任务是可以被信号唤醒的，因此下面需要判断唤醒的任务是否是等待任务队列的头节点。如果不是则需要等待其他任务。
 
 ```c
 if (*p && *p != current)
@@ -187,7 +201,7 @@ if (tmp)
 ```c
 void wake_up(struct task_struct **p)
 ```
-该函数的作用就是唤醒某一个任务。
+该函数的作用就是唤醒某一个任务。其用于唤醒p指向的等待队列中的任务。
 
 
 ```c
