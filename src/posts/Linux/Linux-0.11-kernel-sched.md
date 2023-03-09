@@ -31,7 +31,7 @@ for(p = &LAST_TASK ; p > &FIRST_TASK ; --p)
                 (*p)->alarm = 0;
             }
         if (((*p)->signal & ~(_BLOCKABLE & (*p)->blocked)) &&
-        (*p)->state==TASK_INTERRUPTIBLE)//如果信号位图中除了被阻塞的信号外还有其他信号， 并且任务处于可终端状态
+        (*p)->state==TASK_INTERRUPTIBLE)//如果信号位图中除了被阻塞的信号外还有其他信号， 并且任务处于可中断状态
             (*p)->state=TASK_RUNNING; //修改任务的状态为就绪态
     }
 ```
@@ -96,9 +96,9 @@ void show_stat(void)
 ```c
 int i;
 
-for (i=0;i<NR_TASKS;i++)
+for (i=0;i<NR_TASKS;i++)//遍历task数组
 	if (task[i])
-		show_task(i,task[i]);
+		show_task(i,task[i]);//调用show_task
 ```
 ## math_state_restore
 ```c
@@ -123,7 +123,7 @@ schedule();
 ```c
 void sleep_on(struct task_struct **p)
 ```
-该函数的作用是将当前的task置为不可中断的等待状态， 直到被wake_up唤醒再继续执行。入参p是等待任务队列的头指针。通过p指针和tmp变量将等待的任务串在了一起。
+该函数的作用是将当前的task置为**不可中断的等待状态**， 直到被wake_up唤醒再继续执行。入参p是等待任务队列的头指针。通过p指针和tmp变量将等待的任务串在了一起。
 
 ![sleep_on示意图](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/sched/sleep_on.png)
 
@@ -139,15 +139,15 @@ if (current == &(init_task.task))	// 如果当前任务是任务0，则死机(im
 	panic ("task[0] trying to sleep");
 ```
 
-接着让当前等待任务的头指针指向当前任务。并将当前任务修改为不可中断的等待状态。进行调用schedule函数让操作系统切换其他任务执行。
+接着让当前等待任务的头指针指向当前任务。并将当前任务修改为**不可中断的等待状态**。进行调用schedule函数让操作系统切换其他任务执行。
 ```c
 tmp = *p;
 *p = current;
 current->state = TASK_UNINTERRUPTIBLE;
-schedule ();	
+schedule();	
 ```
 
-当代码执行到当前部分时，说明任务已经被显式的wake_up，如果此时还有其他进程仍然在等待，那么也一同唤醒。
+当程序从schedule()返回继续执行时，说明任务已经被显式的wake_up，如果此时还有其他进程仍然在等待，那么也一同唤醒。
 
 因为任务都在等待同样的资源， 那么当资源可用的时候， 就可以唤醒所有等待的任务。
 ```c
@@ -159,7 +159,7 @@ if (tmp)			// 若还存在等待的任务，则也将其置为就绪状态（唤
 ```c
 void interruptible_sleep_on (struct task_struct **p)
 ```
-该函数与sleep_on类似，但是该函数会将任务的状态修改为可中断的等待状态， 而sleep_on则是将任务修改为不可中断的等待状态。因此通过interruptible_sleep_on而等待的task是可以被信号唤醒的。 而通过sleep_on而等待的task是**不会被信号唤醒的**。
+该函数与sleep_on类似，但是该函数会将任务的状态修改为**可中断的等待状态**， 而sleep_on则是将任务修改为**不可中断的等待状态**。因此通过interruptible_sleep_on而等待的task是可以被信号唤醒的。 而通过sleep_on而等待的task是**不会被信号唤醒的**，只能通过wake_up函数唤醒。
 
 ![interruptible_sleep_on示意图](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/sched/interruptible_sleep_on.png)
 
@@ -240,7 +240,6 @@ moff_timer[nr]=3*HZ;
 void do_floppy_timer(void)
 ```
 
-
 如果马达启动定时到则唤醒进程。
 ```c
 if (mon_timer[i]) {
@@ -259,7 +258,9 @@ else if (!moff_timer[i]) {
 ## add_timer 
 ```c
 add_timer(long jiffies, void (*fn)(void))
-```
+```、
+该函数的作用是设置定时值和相应的处理函数。
+
 如果定时的值小于0， 那么立即调用处理函数。
 ```c
 if (jiffies <= 0)
@@ -289,7 +290,7 @@ while (p->next && p->next->jiffies < p->jiffies) {
 	p->jiffies -= p->next->jiffies;//减去下一个timer的jiffies
 	fn = p->fn;//将当前的fn保存给临时变量
 	p->fn = p->next->fn;//将当前的fn设置为下一个timer的fn
-	p->next->fn = fn;//将下一个timer的fn设置为当前的fn
+	p->next->fn = fn;//将下一个timer的fn设置为临时变量fn
 	jiffies = p->jiffies;//将jiffies保存给一个临时变量
 	p->jiffies = p->next->jiffies;//将当前的jiffies设置为下一个timer的jiffies
 	p->next->jiffies = jiffies;//将下一个timer的jiffies设置为当前的jiffies
@@ -340,18 +341,17 @@ current->counter=0;
 int sys_alarm(long seconds)
 ```
 
-该函数用于设置报警值。
+该函数用于设置**报警值**。
 
 jiffies是指的是系统开机到目前经历的滴答数。
 
 current->alarm的单位也是系统滴答数。
 
-因此(current->alarm - jiffies) /100 就代表就的定时器还剩下多少秒。
+因此(current->alarm - jiffies) /100 就代表就是当前的定时器还剩下多少秒。
 
-![进程定时器]()
+而设置alarm值则需要加上系统当前的滴答数据jiffies， 如下图所示:
 
-接着便按照入参seconds的值重新设置进程alarm值。
-
+![sys_alarm](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/sched/sys_alarm.png)
 
 
 ## sys_getpid
@@ -400,9 +400,38 @@ int sys_nice(long increment)
 ```c
 void sched_init(void)
 ```
+该函数的作用是初始化进程调度模块。
 
+首先在gdt表中设置任务0的tss和ldt值。接着对其他任务的tss和ldt进行初始化。
+```c
+set_tss_desc(gdt+FIRST_TSS_ENTRY,&(init_task.task.tss));
+set_ldt_desc(gdt+FIRST_LDT_ENTRY,&(init_task.task.ldt));
+p = gdt+2+FIRST_TSS_ENTRY;
+for(i=1;i<NR_TASKS;i++) {
+	task[i] = NULL;
+	p->a=p->b=0;
+	p++;
+	p->a=p->b=0;
+	p++;
+}
+```
+
+显式地将任务0的tss加载到寄存器tr中， 显式地将任务0的ldt加载到ldtr中。
+```c
+ltr(0);
+lldt(0);
+```
+
+下面的代码用于初始化8253定时器。通道0，选择工作方式3，二进制计数方式。
 ```c
 outb_p(0x36,0x43);		/* binary, mode 3, LSB/MSB, ch 0 */
 outb_p(LATCH & 0xff , 0x40);	/* LSB */
 outb(LATCH >> 8 , 0x40);	/* MSB */
+```
+
+设置时钟中断处理程序的处理函数， 设置系统调用的中断处理函数。
+```c
+set_intr_gate(0x20,&timer_interrupt);
+outb(inb_p(0x21)&~0x01,0x21);
+set_system_gate(0x80,&system_call);
 ```
