@@ -17,7 +17,7 @@ tag:
 ```c
 void panic(const char * s)
 ```
-
+该函数的作用就是在内核出现严重错误的时候显示出错信息，进行死循环。
 ```c
 printk("Kernel panic: %s\n\r",s);//打印内核错误日志
 if (current == task[0])//如果当前是任务0，则不进行同步
