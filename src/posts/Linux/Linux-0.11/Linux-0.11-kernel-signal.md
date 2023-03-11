@@ -36,8 +36,16 @@ static inline void save_old(char * from,char * to)
 ```c
 static inline void get_new(char * from,char * to)
 ```
+该函数从数据段from位置复制到to处，即从用户数据空间复制到内核数据段中。
 
+其中借助了fs寄存器，在system_call函数中，将fs寄存器设置为了0x17，指向了用户的数据段。
 
+```c
+int i;
+
+for (i=0 ; i< sizeof(struct sigaction) ; i++)
+	*(to++) = get_fs_byte(from++);
+```
 ## sys_signal
 ```c
 int sys_signal(int signum, long handler, long restorer)
