@@ -7,6 +7,7 @@ tag:
 
 # Linux-0.11 kernel目录ll_rw_blk.c详解
 
+该模块的作用是处理块设备的读写，其中最重要的函数就是ll_rw_block。
 ## lock_buffer
 ```c
 static inline void lock_buffer(struct buffer_head * bh)
@@ -36,9 +37,15 @@ wake_up(&bh->b_wait);//唤醒等待该缓冲区的任务。
 ```c
 static void add_request(struct blk_dev_struct * dev, struct request * req)
 ```
-该函数的作用是将块设备读写请求插入到电梯队列中。
+该函数的作用是将块设备读写请求**插入到电梯队列**中。
 
-如果当前设备的请求为空，就将入参中的请求作为设备电梯队列的头节点。并且立即调用。
+首先将数据的脏数据标志置为0。
+```c
+if (req->bh)
+	req->bh->b_dirt = 0;
+```
+
+如果当前设备的请求为空，就将入参中的请求作为设备电梯队列的头节点。并且立即调用request_fn。request_fn对于不同的设备对应不同的回调函数，对于硬盘设备而言，request_fn指的是do_hd_request。
 ```c
 if (!(tmp = dev->current_request)) {
     dev->current_request = req;
@@ -48,6 +55,7 @@ if (!(tmp = dev->current_request)) {
 }
 ```
 
+接下来便是电梯算法的核心部分， 其中最难理解的便是宏定义IN_ORDER。IN_ORDER的定义如下所示。
 
 ```c
 #define IN_ORDER(s1,s2) \
@@ -82,8 +90,46 @@ bool inorder(request &s1, request &s2)
 
 对于操作类型而言，读操作优先级大于写操作。对于设备号而言，设备号小的设备优先级大于设备号大的设备的优先级。对于扇区而言，扇区序号小的扇区优先级高于扇区序号大的扇区。
 
-参考:
-https://blog.csdn.net/suppercoder/article/details/19619777
+概括起来，INORDER实际上就是定义了一个优先级,IN_ORDER(a,b)的含义就是判断a的优先级是否大于b的优先级。
+
+```c
+for ( ; tmp->next ; tmp=tmp->next)
+	if ((IN_ORDER(tmp,req) || 
+		!IN_ORDER(tmp,tmp->next)) &&
+		IN_ORDER(req,tmp->next))
+		break;
+req->next=tmp->next;
+tmp->next=req;
+```
+
+下面的这一段代码可以用两个if语句进行替代
+```c
+if ((IN_ORDER(tmp,req) || 
+	!IN_ORDER(tmp,tmp->next)) &&
+	IN_ORDER(req,tmp->next))
+```
+
+条件1：
+
+```c
+if(tmp > req && req > tmp->next)
+{
+	req->next=tmp->next;
+	tmp->next=req;	
+}
+```
+
+条件2:
+```c
+if(tmp < tmp->next && req > tmp->next)
+{
+	req->next=tmp->next;
+	tmp->next=req;	
+}
+```
+
+定向扫描  折回扫描
+https://zhizhi.pcwanli.com/front/article/23339.html
 
 ## make_request
 ```c
