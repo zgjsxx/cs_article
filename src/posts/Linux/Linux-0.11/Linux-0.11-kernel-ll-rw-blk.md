@@ -7,7 +7,7 @@ tag:
 
 # Linux-0.11 kernel目录ll_rw_blk.c详解
 
-该模块的作用是处理块设备的读写，其中最重要的函数就是ll_rw_block。
+该模块的作用是处理块设备的读写，其中最重要的函数就是ll_rw_block和电梯算法add_request函数。
 ## lock_buffer
 ```c
 static inline void lock_buffer(struct buffer_head * bh)
