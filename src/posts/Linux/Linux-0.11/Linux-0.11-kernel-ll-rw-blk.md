@@ -86,7 +86,7 @@ bool inorder(request &s1, request &s2)
 }
 ```
 
-展开上面的if-else结构逻辑就清晰了很多，IN_ORDER实际上就是一次对操作类型，设备号， 扇区号作比较， 并且操作类型优先级大于设备号，设备号优先级大于扇区号。
+展开上面的if-else结构逻辑就清晰了很多，IN_ORDER实际上就是一次对操作类型，设备号， 扇区号作比较，并且操作类型优先级大于设备号，设备号优先级大于扇区号。
 
 对于操作类型而言，读操作优先级大于写操作。对于设备号而言，设备号小的设备优先级大于设备号大的设备的优先级。对于扇区而言，扇区序号小的扇区优先级高于扇区序号大的扇区。
 
@@ -109,7 +109,7 @@ if ((IN_ORDER(tmp,req) ||
 	IN_ORDER(req,tmp->next))
 ```
 
-条件1：
+条件1：定向扫描
 
 ```c
 if(tmp > req && req > tmp->next)
@@ -119,12 +119,150 @@ if(tmp > req && req > tmp->next)
 }
 ```
 
-条件2:
+条件2: 折返扫描
 ```c
 if(tmp < tmp->next && req > tmp->next)
 {
 	req->next=tmp->next;
 	tmp->next=req;	
+}
+```
+
+C-SCAN算法是操作系统中真实使用的算法，也是电梯算法（可戏称为跳楼机）。
+
+其思路就是只单向寻道，到头后直接复位再次沿同方向寻道，这样对于所有磁盘位置的请求都是公平的。
+
+我们通过下面的代码实际感受一下这个过程，我们固定cmd和dev， 只让sector号有区别，依次插入50， 80， 60， 30， 20 ，看看最后的结果如何。
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+ 
+#define READ 0
+#define WRITE 1
+ 
+struct request {
+	int dev;		/* -1 if no request */
+	int cmd;		/* READ or WRITE */
+	int errors;
+	unsigned long sector;
+	unsigned long nr_sectors;
+	char * buffer;
+	//struct task_struct * waiting;
+	//struct buffer_head * bh;
+	struct request * next;
+};
+ 
+#define IN_ORDER(s1,s2) \
+	((s1)->cmd<(s2)->cmd || (s1)->cmd==(s2)->cmd && \
+	((s1)->dev < (s2)->dev || ((s1)->dev == (s2)->dev && \
+	(s1)->sector < (s2)->sector)))
+ 
+// 作为解析，以明白的分支结构重写一个内容一样的inorder函数
+bool inorder(struct request *s1,struct request *s2)
+{
+	if (s1->cmd<s2->cmd)
+	{
+		return true;//only when s1->cmd = READ; s2->cmd = WRITE;
+	}
+	else if ( s1->cmd == s2->cmd )
+	{
+		if (s1->dev < s2->dev)
+		{
+			return true;// when (s1->cmd==s2->cmd) && (s1->dev<s2->dev)
+		}
+		else if ( s1->dev == s2->dev )
+		{
+			if (s1->sector<s2->sector)
+			{
+				return true;// when when (s1->cmd==s2->cmd) && (s1->sector<s2->sector)
+			}
+			return false;// when when (s1->cmd==s2->cmd) && (s1->sector>=s1->sector)
+		}
+		return false;// when (s1->cmd==s2->cmd) && (s1->dev>s2->dev)
+	}
+	return false;// when s1->cmd>s2->cmd
+}
+ 
+void AddRequest(struct request * &head,struct request *req)
+{
+	if (!head)
+	{
+		head = req;
+		head->next = 0;
+		return ;
+	}
+	struct request * tmp = head;
+	for (;tmp->next;tmp = tmp->next)
+	{
+		// 使用inorder和宏IN_ORDER是一样的结果
+		//if ( ( inorder(tmp,req)||
+		//		!inorder(tmp,tmp->next)) &&
+		//		inorder(req,tmp->next))
+		if ( ( IN_ORDER(tmp,req)||
+			!IN_ORDER(tmp,tmp->next)) &&
+			IN_ORDER(req,tmp->next))
+		{
+			break;
+		}
+	}
+	req->next = tmp->next;
+	tmp->next = req;
+	return;
+}
+ 
+void PrintQueen(struct request * n)
+{
+	while (n)
+	{
+		printf("(%d,%d,%d),",n->cmd,n->dev,n->sector);
+		n = n->next;
+	}
+	printf("\n");
+}
+int main(int argc,char ** argv)
+{
+	struct request s1;
+	struct request * pHead = 0;
+    struct request *req = new struct request;
+    req->cmd = 0;
+    req->dev =  1;
+    req->sector =  50;
+
+    AddRequest(pHead,req);
+    PrintQueen(pHead);   
+
+    struct request *req3 = new struct request;
+    req3->cmd = 0;
+    req3->dev =  1;
+    req3->sector =  80;
+    AddRequest(pHead,req3);
+    PrintQueen(pHead);  
+
+    struct request *req2 = new struct request;
+    req2->cmd = 0;
+    req2->dev =  1;
+    req2->sector =  60;
+    AddRequest(pHead,req2);
+    PrintQueen(pHead);  
+
+    struct request *req5 = new struct request;
+    req5->cmd = 0;
+    req5->dev =  1;
+    req5->sector =  30;
+    AddRequest(pHead,req5);
+    PrintQueen(pHead);  
+
+    struct request *req4 = new struct request;
+    req4->cmd = 0;
+    req4->dev =  1;
+    req4->sector =  20;
+    AddRequest(pHead,req4);
+    PrintQueen(pHead);  
+
+
+
+	return 0;
 }
 ```
 
