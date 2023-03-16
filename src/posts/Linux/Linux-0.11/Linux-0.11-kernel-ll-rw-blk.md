@@ -128,9 +128,9 @@ if(tmp < tmp->next && req > tmp->next)
 }
 ```
 
-C-SCAN算法是操作系统中真实使用的算法，也是电梯算法（可戏称为跳楼机）。
+**C-SCAN算法**是操作系统中真实使用的算法，也是电梯算法（可戏称为跳楼机）。
 
-其思路就是只单向寻道，到头后直接复位再次沿同方向寻道，这样对于所有磁盘位置的请求都是公平的。
+其思路就是只**单向寻道**，到头后**直接复位**再次沿同方向寻道，这样对于所有磁盘位置的请求都是公平的。
 
 我们通过下面的代码实际感受一下这个过程，我们固定cmd和dev， 只让sector号有区别，依次插入50， 80， 60， 30， 20 ，看看最后的结果如何。
 
@@ -226,7 +226,7 @@ int main(int argc,char ** argv)
 	struct request * pHead = 0;
     struct request *req = new struct request;
     req->cmd = 0;
-    req->dev =  1;
+    req->dev =  0;
     req->sector =  50;
 
     AddRequest(pHead,req);
@@ -234,41 +234,46 @@ int main(int argc,char ** argv)
 
     struct request *req3 = new struct request;
     req3->cmd = 0;
-    req3->dev =  1;
+    req3->dev =  0;
     req3->sector =  80;
     AddRequest(pHead,req3);
     PrintQueen(pHead);  
 
     struct request *req2 = new struct request;
     req2->cmd = 0;
-    req2->dev =  1;
+    req2->dev =  0;
     req2->sector =  60;
     AddRequest(pHead,req2);
     PrintQueen(pHead);  
 
     struct request *req5 = new struct request;
     req5->cmd = 0;
-    req5->dev =  1;
+    req5->dev =  0;
     req5->sector =  30;
     AddRequest(pHead,req5);
     PrintQueen(pHead);  
 
     struct request *req4 = new struct request;
     req4->cmd = 0;
-    req4->dev =  1;
+    req4->dev =  0;
     req4->sector =  20;
     AddRequest(pHead,req4);
     PrintQueen(pHead);  
-
-
 
 	return 0;
 }
 ```
 
-定向扫描  折回扫描
-https://zhizhi.pcwanli.com/front/article/23339.html
-
+上述代码的执行结果如下所示:
+```text
+(0,0,50),
+(0,0,50),(0,0,80),
+(0,0,50),(0,0,60),(0,0,80),
+(0,0,50),(0,0,60),(0,0,80),(0,0,30),
+(0,0,50),(0,0,60),(0,0,80),(0,0,20),(0,0,30),
+```
+可以看出最后的结果就是50->60->80->20->30， 实际上效果就是单方向移动到最后一个位置，再复位进行扫描，再次沿同方向扫描。
+![c-san算法示意图](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/block/c-scan.png)
 ## make_request
 ```c
 static void make_request(int major,int rw, struct buffer_head * bh)
