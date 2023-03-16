@@ -7,31 +7,7 @@ tag:
 
 # Linux-0.11 kernel目录ll_rw_blk.c详解
 
-该模块的作用是处理块设备的读写，其中最重要的函数就是ll_rw_block和电梯算法add_request函数。
-## lock_buffer
-```c
-static inline void lock_buffer(struct buffer_head * bh)
-```
-该函数的作用是锁定指定的缓冲块。
-```c
-cli();//关中断
-while (bh->b_lock)//如果缓冲区已被锁定就睡眠，一直到缓冲区解锁
-    sleep_on(&bh->b_wait);
-bh->b_lock=1;//立即锁定缓冲区
-sti();//开中断
-```
-
-## unlock_buffer
-```c
-static inline void unlock_buffer(struct buffer_head * bh)
-```
-该函数的作用是解锁指定的缓冲块。
-```c
-if (!bh->b_lock)//如果该缓冲区没有加锁，则打印出错信息
-    printk("ll_rw_block.c: buffer not locked\n\r");
-bh->b_lock = 0;//对缓冲区解锁
-wake_up(&bh->b_wait);//唤醒等待该缓冲区的任务。
-```
+该模块的作用是处理块设备的读写，其中最重要的函数就是电梯算法**add_request**函数和**ll_rw_block**函数。
 
 ## add_request
 ```c
@@ -45,7 +21,7 @@ if (req->bh)
 	req->bh->b_dirt = 0;
 ```
 
-如果当前设备的请求为空，就将入参中的请求作为设备电梯队列的头节点。并且立即调用request_fn。request_fn对于不同的设备对应不同的回调函数，对于硬盘设备而言，request_fn指的是do_hd_request。
+如果当前设备的请求为空，就将入参中的请求作为设备电梯队列的头节点。并且立即调用request_fn。request_fn对于不同的设备对应不同的回调函数，对于硬盘设备而言，request_fn指的是do_hd_request，关于do_hd_request,将在hd.c中进行讲解。
 ```c
 if (!(tmp = dev->current_request)) {
     dev->current_request = req;
@@ -55,7 +31,7 @@ if (!(tmp = dev->current_request)) {
 }
 ```
 
-接下来便是电梯算法的核心部分， 其中最难理解的便是宏定义IN_ORDER。IN_ORDER的定义如下所示。
+上面的部分处理了请求队列只有一个请求的场景，接下来便是当请求队列有多个请求时，如何处理优先级顺序的逻辑，也就是电梯算法部分，其中最难理解的便是宏定义IN_ORDER。IN_ORDER的定义如下所示。
 
 ```c
 #define IN_ORDER(s1,s2) \
@@ -64,6 +40,7 @@ if (!(tmp = dev->current_request)) {
 (s1)->sector < (s2)->sector))))
 ```
 上述代码是比较难懂的，可以使用if-else来帮助理解
+
 ```c
 bool inorder(request &s1, request &s2)
 {
@@ -86,11 +63,11 @@ bool inorder(request &s1, request &s2)
 }
 ```
 
-展开上面的if-else结构逻辑就清晰了很多，IN_ORDER实际上就是一次对操作类型，设备号， 扇区号作比较，并且操作类型优先级大于设备号，设备号优先级大于扇区号。
+展开上面的if-else结构逻辑就清晰了很多，IN_ORDER实际上就是依次对操作类型，设备号， 扇区号作比较，并且操作类型优先级大于设备号，设备号优先级大于扇区号。
 
 对于操作类型而言，读操作优先级大于写操作。对于设备号而言，设备号小的设备优先级大于设备号大的设备的优先级。对于扇区而言，扇区序号小的扇区优先级高于扇区序号大的扇区。
 
-概括起来，INORDER实际上就是定义了一个优先级,IN_ORDER(a,b)的含义就是判断a的优先级是否大于b的优先级。
+有了这个认识之后，再看下面的语句，就会简单很多，实际上就是根据优先级找到合适的位置插入数据。
 
 ```c
 for ( ; tmp->next ; tmp=tmp->next)
@@ -102,14 +79,14 @@ req->next=tmp->next;
 tmp->next=req;
 ```
 
-下面的这一段代码可以用两个if语句进行替代
+下面的这一段代码可以用两个if语句进行替代，即**定向扫描**和**折返扫描**两个场景。
 ```c
 if ((IN_ORDER(tmp,req) || 
 	!IN_ORDER(tmp,tmp->next)) &&
 	IN_ORDER(req,tmp->next))
 ```
 
-条件1：定向扫描
+条件1：定向扫描， req在当前扫描的方向上
 
 ```c
 if(tmp > req && req > tmp->next)
@@ -119,7 +96,7 @@ if(tmp > req && req > tmp->next)
 }
 ```
 
-条件2: 折返扫描
+条件2: 折返扫描，req在下一轮扫描的方向上
 ```c
 if(tmp < tmp->next && req > tmp->next)
 {
@@ -128,7 +105,7 @@ if(tmp < tmp->next && req > tmp->next)
 }
 ```
 
-**C-SCAN算法**是操作系统中真实使用的算法，也是电梯算法（可戏称为跳楼机）。
+这里需要阐明的是，Linux-0.11实际使用的磁盘扫描算法是**C-SCAN算法**，也是**电梯算法**（可戏称为**跳楼机**）。
 
 其思路就是只**单向寻道**，到头后**直接复位**再次沿同方向寻道，这样对于所有磁盘位置的请求都是公平的。
 
@@ -195,10 +172,6 @@ void AddRequest(struct request * &head,struct request *req)
 	struct request * tmp = head;
 	for (;tmp->next;tmp = tmp->next)
 	{
-		// 使用inorder和宏IN_ORDER是一样的结果
-		//if ( ( inorder(tmp,req)||
-		//		!inorder(tmp,tmp->next)) &&
-		//		inorder(req,tmp->next))
 		if ( ( IN_ORDER(tmp,req)||
 			!IN_ORDER(tmp,tmp->next)) &&
 			IN_ORDER(req,tmp->next))
@@ -272,15 +245,17 @@ int main(int argc,char ** argv)
 (0,0,50),(0,0,60),(0,0,80),(0,0,30),
 (0,0,50),(0,0,60),(0,0,80),(0,0,20),(0,0,30),
 ```
-可以看出最后的结果就是50->60->80->20->30， 实际上效果就是单方向移动到最后一个位置，再复位进行扫描，再次沿同方向扫描。
+可以看出最后的顺序是50->60->80->20->30， 实际上效果就是单方向移动到最后一个位置，再复位进行扫描，再次沿同方向扫描。
+
 ![c-san算法示意图](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/block/c-scan.png)
+
 ## make_request
 ```c
 static void make_request(int major,int rw, struct buffer_head * bh)
 ```
 该函数的作用是创建请求项并插入请求队列中。
 
-首先判断命令是否READA或者是WRITEA。READA代表预读取，WRITEA代表预写入。 所以当命令是预读取或者是预写入，如果bh块被锁，那么就放弃，直接返回。如果bh块没有被锁，那么就当作普通的READ和WRITE。
+首先判断命令是否READA或者是WRITEA。READA代表预读取，WRITEA代表预写入。所以当命令是**预读取**或者是**预写入**，如果bh块被锁，那么就放弃，直接返回。如果bh块没有被锁，那么就当作普通的READ和WRITE。
 
 ```c
 	struct request * req;
@@ -368,7 +343,7 @@ make_request(major,rw,bh);
 ```c
 void blk_dev_init(void)
 ```
-该函数的作用是初始化块设备。
+该函数的作用是**初始化块设备**。
 
 遍历request数组，对request数组中每一项的dev设置为-1， 对next指针设置为NULL。
 ```c
@@ -376,4 +351,29 @@ for (i=0 ; i<NR_REQUEST ; i++) {
     request[i].dev = -1;
     request[i].next = NULL;
 }
+```
+
+## lock_buffer
+```c
+static inline void lock_buffer(struct buffer_head * bh)
+```
+该函数的作用是锁定指定的缓冲块。
+```c
+cli();//关中断
+while (bh->b_lock)//如果缓冲区已被锁定就睡眠，一直到缓冲区解锁
+    sleep_on(&bh->b_wait);
+bh->b_lock=1;//立即锁定缓冲区
+sti();//开中断
+```
+
+## unlock_buffer
+```c
+static inline void unlock_buffer(struct buffer_head * bh)
+```
+该函数的作用是解锁指定的缓冲块。
+```c
+if (!bh->b_lock)//如果该缓冲区没有加锁，则打印出错信息
+    printk("ll_rw_block.c: buffer not locked\n\r");
+bh->b_lock = 0;//对缓冲区解锁
+wake_up(&bh->b_wait);//唤醒等待该缓冲区的任务。
 ```
