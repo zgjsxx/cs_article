@@ -22,6 +22,8 @@ int sys_ssetmask(int newmask)
 ```
 用于设置新的信号屏蔽位图。其中SIGKILL是不可以被屏蔽的。
 
+``` ~(1<<(SIGKILL-1))``` 保证了SIGKILL的屏蔽位为0。
+
 ```c
 int old=current->blocked;
 
@@ -31,14 +33,29 @@ current->blocked = newmask & ~(1<<(SIGKILL-1));
 ```c
 static inline void save_old(char * from,char * to)
 ```
+该函数在sys_sigaction中被调用， 其作用是将旧的sigaction对象拷贝到用户地址空间。
 
+其中调用了put_fs_byte函数，其定义在segment.h文件中，其作用是把内核态一个字节的数据拷贝到由 fs:addr 指向的用户态内存地址空间。
+
+下面分析该函数的代码。
+
+首先对to所在的内存进行校验， 接着进行遍历，将from的内容拷贝到to的位置， 实际就是拷贝了from位置的sigaction对象到to位置。
+```c
+verify_area(to, sizeof(struct sigaction));
+for (i=0 ; i< sizeof(struct sigaction) ; i++) {
+	put_fs_byte(*from,to);
+	from++;
+	to++;
+}
+```
 ## get_new
 ```c
 static inline void get_new(char * from,char * to)
 ```
-该函数从数据段from位置复制到to处，即从用户数据空间复制到内核数据段中。
+该函数在sys_sigaction中被调用，其作用是将用户设置的sigaction传递到内核中。
 
-其中借助了fs寄存器，在system_call函数中，将fs寄存器设置为了0x17，指向了用户的数据段。
+其中调用了get_fs_byte函数， 其定义在segment.h文件中， 其作用是把fs:from 指向的用户态内存的一个字节拷贝到内核态to的地址中。该函数借助了fs寄存器，在system_call函数中，将fs寄存器设置为了0x17，指向了用户的数据段。
+
 
 ```c
 int i;
@@ -46,6 +63,7 @@ int i;
 for (i=0 ; i< sizeof(struct sigaction) ; i++)
 	*(to++) = get_fs_byte(from++);
 ```
+
 ## sys_signal
 ```c
 int sys_signal(int signum, long handler, long restorer)
@@ -82,7 +100,18 @@ int sys_sigaction(int signum, const struct sigaction * action,
 ```
 该函数是sigaction的系统调用。
 
+程序首先对入参signum做校验，其大小必须在区间[1，32]中，并且其值不得为SIGKILL（9）。
+```c
+if (signum < 1 || signum > 32 || signum == SIGKILL)
+	return -1;
+```
 
+```c
+tmp = current->sigaction[signum - 1];
+get_new ((char *) action, (char *) (signum - 1 + current->sigaction));
+if (oldaction)
+	save_old ((char *) &tmp, (char *) oldaction);
+```
 ## do_signal
 ```c
 void do_signal(long signr,long eax, long ebx, long ecx, long edx,
