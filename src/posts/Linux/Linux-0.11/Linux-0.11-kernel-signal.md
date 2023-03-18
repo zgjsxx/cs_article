@@ -8,7 +8,7 @@ tag:
 
 # Linux-0.11 kernel目录进程管理signal.c详解
 
-signal.c主要涉及的是进程的信号处理。
+signal.c主要涉及的是进程的信号处理。该章节中最难理解的是do_singal函数。
 
 ## sys_sgetmask
 ```c
@@ -119,3 +119,34 @@ void do_signal(long signr,long eax, long ebx, long ecx, long edx,
 	long eip, long cs, long eflags,
 	unsigned long * esp, long ss)
 ```
+
+![do_signal1](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/signal/signal_raw.png)
+
+
+![do_after](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/signal/signal_after.png)
+
+
+![sa_restore](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/signal/sa_restore.png)
+
+```asm
+.globl __sig_restore
+.globl __masksig_restore
+# 若没有blocked，则使用这个restorer函数
+__sig_restore:
+    addl $4, %esp
+	popl %eax
+	popl %ecx
+	popl %edx
+	popf
+	ret
+__masksig_restore:
+    addl $4, %esp
+	call __ssetmask
+	addl $4, %esp
+	popl %eax
+	popl %ecx
+	popl %edx
+	popf
+	ret
+```
+
