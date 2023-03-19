@@ -72,7 +72,14 @@ for (i=0 ; i< sizeof(struct sigaction) ; i++)
 ```c
 int sys_signal(int signum, long handler, long restorer)
 ```
-该函数是sys_signal的信号处理函数。
+该函数用于设置信号的处理函数。
+
+sys_signal有三个入参， 而signal函数只有两个入参(如下所示)，这第三个参数restorer是在编译的过程中由编译器加入的，其作用将在do_signal中阐述。
+
+```c
+typedef void sigfunc(int);
+sigfunc *signal(int signr, sigfunc *handler);
+```
 
 程序首先对入参signum做校验，其大小必须在区间[1，32]中，并且其值不得为SIGKILL（9）。
 ```c
@@ -123,9 +130,10 @@ void do_signal(long signr,long eax, long ebx, long ecx, long edx,
 	long eip, long cs, long eflags,
 	unsigned long * esp, long ss)
 ```
-该函数是进程接收到信号执行信号处理方法的主体。其在ret_from_sys_call中被调用，即从系统调用返回的过程中被调用。
+该函数是进程接收到信号执行信号处理方法的主体。其在**ret_from_sys_call**中被调用，即从系统调用返回的过程中被调用。
 
 在系统调用过程中，内核栈的情况如下图所示：
+
 ![do_signal1](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/signal/signal_raw.png)
 
 在该函数中，首先根据信号的id，取出对应的sigaction结构。
@@ -159,29 +167,31 @@ if (sa->sa_flags & SA_ONESHOT)
 	sa->sa_handler = NULL;
 ```
 
-下面这段就是将eip设置为信号处理函数的地址，当中断处理函数调用结束之后通过iret返回之后， 就会去执行中断处理函数。 同时也会将原来通过INT压栈的一些寄存器的值保存在用户栈中。
+下面的代码就是设置让系统调用返回时去执行信号处理函数。
+
+首先将eip设置为信号处理函数的地址，当中断处理函数调用结束之后通过iret返回之后， 就会去执行中断处理函数。 同时也会将原来通过INT压栈的一些寄存器的值保存在用户栈中。
 
 ```*(&eip) = sa_handler```就设置了新的eip值，这种做法，如果是c语言中的函数调用是不起作用的，因为在函数调用结束后，会因为esp指针的上移而丢弃掉， 而do_signal是在汇编程序中被调用，因此调用完毕之后，不会丢弃掉这些参数。
 
 ```c
 *(&eip) = sa_handler;
-longs = (sa->sa_flags & SA_NOMASK)?7:8;
-*(&esp) -= longs;
+longs = (sa->sa_flags & SA_NOMASK)?7:8;//判断是7个参数还是8个参数
+*(&esp) -= longs;//向下移动esp指针
 verify_area(esp,longs*4);
 tmp_esp=esp;
-put_fs_long((long) sa->sa_restorer,tmp_esp++);
-put_fs_long(signr,tmp_esp++);
+put_fs_long((long) sa->sa_restorer,tmp_esp++);//设置回复处理函数
+put_fs_long(signr,tmp_esp++);//设置信号的number
 if (!(sa->sa_flags & SA_NOMASK))
-	put_fs_long(current->blocked,tmp_esp++);
-put_fs_long(eax,tmp_esp++);
-put_fs_long(ecx,tmp_esp++);
-put_fs_long(edx,tmp_esp++);
-put_fs_long(eflags,tmp_esp++);
-put_fs_long(old_eip,tmp_esp++);
+	put_fs_long(current->blocked,tmp_esp++);//设置block
+put_fs_long(eax,tmp_esp++);//设置原eax
+put_fs_long(ecx,tmp_esp++);//设置ecx
+put_fs_long(edx,tmp_esp++);//设置edx
+put_fs_long(eflags,tmp_esp++);//设置eflags
+put_fs_long(old_eip,tmp_esp++);//设置eip
 current->blocked |= sa->sa_mask;
 ```
 
-其最终的结果如下图所示:
+其最终的效果如下图所示:
 
 ![do_after](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/signal/signal_after.png)
 
@@ -190,14 +200,13 @@ current->blocked |= sa->sa_mask;
 
 ![sa_restore](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/signal/sa_restore.png)
 
-sa_restorer实际就是恢复用户栈，并且让程序恢复到系统调用之前的上下文。
+下面就将解答之前在sys_signal中抛出的问题，sa_restorer是干什么的？ 
 
-这里有一个问题， signal函数定义中并没有第三个参数， 而sys_signal函数却有该参数，那么这第三个参数是什么时候传入的呢？
-```c
-void (*signal(int sig, void (*fn)(int)))(int);
-```
+sa_restorer实际就是用于**恢复用户栈**，并且让程序**恢复到系统调用之前的上下文**。 
 
-这是在编译链接用户自定义的信号处理函数时，编译程序会调用libc库中信号系统调用函数把sa_restorer函数插入到用户程序中。
+编译器会在编译程序中调用libc库中信号系统调用函数把sa_restorer作为参数传递给sys_signal或者sigaction。
+
+signal入参没有sa_flag，因此传入__sig_restore
 
 ```c
 void (*signal(int sig, __sighandler_t func))(int)
@@ -209,6 +218,29 @@ void (*signal(int sig, __sighandler_t func))(int)
 }
 ```
 
+
+sigaction有sa_flag参数，因此可以sa_flag参数决定传入__sig_restore或者是__masksig_restore。
+
+```c
+int sigaction(int sig, struct sigaction *sa, struct sigaction *old)
+{
+	register int __fooebx __asm__ ("bx") = sig;
+	if(sa->sa_flags & SA_NOMASK)
+		sa->sa_restorer = __sig_restore;
+	else
+		sa->sa_restorer = __masksig_restore;
+	__asm__("int 0x80": "=a"(sig)
+		:"0"(_NR_sigaction), "r"(__foxxebx), "c"(sa), "d"(old))
+	if(sig >= 0)
+		return 0;
+	errno = -sig;
+	return -1;
+}
+```
+
+__sig_restore和__masksig_restore的定义如下所示:
+
+其二者区别就在于栈中的参数是7个还是8个。
 
 ```asm
 .globl __sig_restore
@@ -231,4 +263,7 @@ __masksig_restore:
 	popf
 	ret
 ```
+到此为止， 梳理起来do_signal的处理流程如下：
+
+ret_from_sys_call->do_signal->iret->handler->return->sa_restorer->origin eip
 
