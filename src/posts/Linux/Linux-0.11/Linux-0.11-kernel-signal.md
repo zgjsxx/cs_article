@@ -8,7 +8,7 @@ tag:
 
 # Linux-0.11 kernel目录进程管理signal.c详解
 
-signal.c主要涉及的是进程的信号处理。该章节中最难理解的是do_singal函数。
+signal.c主要涉及的是进程的信号处理。该章节中最难理解的是**do_signal**函数。
 
 ## sys_sgetmask
 ```c
@@ -16,6 +16,10 @@ int sys_ssetmask(int newmask)
 ```
 该函数的作用是设置信号的屏蔽图，即进程对哪些信号可以不做处理。
 
+代码很简单，就是返回进程PCB中的blocked字段。
+```c
+return current->blocked;
+```
 ## sys_ssetmask
 ```c
 int sys_ssetmask(int newmask)
@@ -80,7 +84,7 @@ if (signum<1 || signum>32 || signum==SIGKILL)
 
 接下来设置信号处理函数以及对应的一些标志。例如SA_ONESHOT代表将只执行一次就会将信号处理函数恢复为之前的处理函数。
 
-除此以外还会将信号的默认处理行为保存在sa_restorer中。
+sa_restorer保存的是恢复处理函数，会在do_signal函数中再次被提到， 起作用就是在信号处理函数结束之后，恢复现场。
 ```c
 tmp.sa_handler = (void (*)(int)) handler;
 tmp.sa_mask = 0;
@@ -119,14 +123,71 @@ void do_signal(long signr,long eax, long ebx, long ecx, long edx,
 	long eip, long cs, long eflags,
 	unsigned long * esp, long ss)
 ```
+该函数是进程接收到信号执行信号处理方法的主体。其在ret_from_sys_call中被调用，即从系统调用返回的过程中被调用。
 
+在系统调用过程中，内核栈的情况如下图所示：
 ![do_signal1](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/signal/signal_raw.png)
 
+在该函数中，首先根据信号的id，取出对应的sigaction结构。
+```c
+unsigned long sa_handler;
+long old_eip=eip;
+struct sigaction * sa = current->sigaction + signr - 1;
+int longs;
+unsigned long * tmp_esp;
+```
+
+从sigaction结构体中取出sa_handler， 如果该handler的值为1， 代表是SIG_IGN，即忽略该信号， 则直接返回。
+
+如果sa_handler的值是0，即SIG_DFL，即使用默认的信号处理方式，如果信号是SIGCHILD,则直接返回， 如果不是，则程序直接退出。
+
+```c
+sa_handler = (unsigned long) sa->sa_handler;
+if (sa_handler==1)
+	return;
+if (!sa_handler) {
+	if (signr==SIGCHLD)
+		return;
+	else
+		do_exit(1<<(signr-1));
+}
+```
+
+接下来， 如果sa_flags含有SA_ONESHOT标记， 代表本次信号处理函数执行之后，就恢复默认处理方式。
+```c
+if (sa->sa_flags & SA_ONESHOT)
+	sa->sa_handler = NULL;
+```
+
+下面这段就是将eip设置为信号处理函数的地址，当中断处理函数调用结束之后通过iret返回之后， 就会去执行中断处理函数。 同时也会将原来通过int压栈的一些寄存器的值保存在用户栈中。
+```c
+*(&eip) = sa_handler;
+longs = (sa->sa_flags & SA_NOMASK)?7:8;
+*(&esp) -= longs;
+verify_area(esp,longs*4);
+tmp_esp=esp;
+put_fs_long((long) sa->sa_restorer,tmp_esp++);
+put_fs_long(signr,tmp_esp++);
+if (!(sa->sa_flags & SA_NOMASK))
+	put_fs_long(current->blocked,tmp_esp++);
+put_fs_long(eax,tmp_esp++);
+put_fs_long(ecx,tmp_esp++);
+put_fs_long(edx,tmp_esp++);
+put_fs_long(eflags,tmp_esp++);
+put_fs_long(old_eip,tmp_esp++);
+current->blocked |= sa->sa_mask;
+```
+
+其最终的结果如下图所示:
 
 ![do_after](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/signal/signal_after.png)
 
 
+当信号处理函数执行完毕，通过return返回时，就会去执行sa_restorer处的代码。
+
 ![sa_restore](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/signal/sa_restore.png)
+
+sa_restorer实际就是恢复用户栈，并且让程序恢复到系统调用之前的上下文。
 
 ```asm
 .globl __sig_restore
