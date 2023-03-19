@@ -16,7 +16,7 @@ int sys_ssetmask(int newmask)
 ```
 该函数的作用是设置信号的屏蔽图，即进程对哪些信号可以不做处理。
 
-代码很简单，就是返回进程PCB中的blocked字段。
+代码很简单，就是返回进程PCB中的**blocked**字段。
 ```c
 return current->blocked;
 ```
@@ -84,7 +84,7 @@ if (signum<1 || signum>32 || signum==SIGKILL)
 
 接下来设置信号处理函数以及对应的一些标志。例如SA_ONESHOT代表将只执行一次就会将信号处理函数恢复为之前的处理函数。
 
-sa_restorer保存的是恢复处理函数，会在do_signal函数中再次被提到， 起作用就是在信号处理函数结束之后，恢复现场。
+sa_restorer保存的是恢复处理函数，会在do_signal函数中再次被提到， 其作用就是在信号处理函数结束之后，恢复现场。
 ```c
 tmp.sa_handler = (void (*)(int)) handler;
 tmp.sa_mask = 0;
@@ -159,7 +159,10 @@ if (sa->sa_flags & SA_ONESHOT)
 	sa->sa_handler = NULL;
 ```
 
-下面这段就是将eip设置为信号处理函数的地址，当中断处理函数调用结束之后通过iret返回之后， 就会去执行中断处理函数。 同时也会将原来通过int压栈的一些寄存器的值保存在用户栈中。
+下面这段就是将eip设置为信号处理函数的地址，当中断处理函数调用结束之后通过iret返回之后， 就会去执行中断处理函数。 同时也会将原来通过INT压栈的一些寄存器的值保存在用户栈中。
+
+```*(&eip) = sa_handler```就设置了新的eip值，这种做法，如果是c语言中的函数调用是不起作用的，因为在函数调用结束后，会因为esp指针的上移而丢弃掉， 而do_signal是在汇编程序中被调用，因此调用完毕之后，不会丢弃掉这些参数。
+
 ```c
 *(&eip) = sa_handler;
 longs = (sa->sa_flags & SA_NOMASK)?7:8;
@@ -188,6 +191,24 @@ current->blocked |= sa->sa_mask;
 ![sa_restore](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/signal/sa_restore.png)
 
 sa_restorer实际就是恢复用户栈，并且让程序恢复到系统调用之前的上下文。
+
+这里有一个问题， signal函数定义中并没有第三个参数， 而sys_signal函数却有该参数，那么这第三个参数是什么时候传入的呢？
+```c
+void (*signal(int sig, void (*fn)(int)))(int);
+```
+
+这是在编译链接用户自定义的信号处理函数时，编译程序会调用libc库中信号系统调用函数把sa_restorer函数插入到用户程序中。
+
+```c
+void (*signal(int sig, __sighandler_t func))(int)
+{
+	void (*res)();.
+	register int __fooebx __asm__ ("bx") = sig;
+	__asm__("int $0x80":"=a"(res):
+	"0" (_NR_signal), "r" (__fooebx), "c"(func), "d"((long)__sig_restore)
+}
+```
+
 
 ```asm
 .globl __sig_restore
