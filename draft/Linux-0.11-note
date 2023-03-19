@@ -2,6 +2,13 @@ inode.c
 buffer.c
 fork.c
 sched.c
-memory.c
 ll_rw_blk.c
+signal.c
+
+
+hd.c
+memory.c
 tty_io.c
+traps.c
+exec.c
+open.c
