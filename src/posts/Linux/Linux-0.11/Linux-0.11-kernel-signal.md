@@ -265,5 +265,8 @@ __masksig_restore:
 ```
 到此为止， 梳理起来do_signal的处理流程如下：
 
-ret_from_sys_call->do_signal->iret->handler->return->sa_restorer->origin eip
+ret_from_sys_call->do_signal->iret->handler->return->sa_restorer->return->origin eip
 
+如下图所示:
+
+![do_signal_flow](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/signal/do_signal_flow.png)
