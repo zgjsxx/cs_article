@@ -359,10 +359,6 @@ inode->i_lock=1; //将该inode的锁定状态修改为1
 sti();//开中断
 ```
 
-这里有一个问题是调用完cli()之后，进程进入睡眠状态等待buffer解锁，切换其他进程运行，那么这里的关中断会影响其他进程吗？
-
-答案是不会，因为sleep_on将该进程挂起后，会触发调度器进行一次重调度，当选择新进程放入CPU运行时，需要对当前进程的上下文进程保存，当然也包括EFLAGS，而cli()改变的正是EFLAGS中的IF位。也就是说新切换进来的进程使用的是自己原有的EFLAGS，原有的IF是开中断状态，此时就是开中断状态，原有是关中断状态，此时就是关中断状态，和之前进程的中断是否开启无关。
-
 ## wait_on_inode
 ```c
 static inline void wait_on_inode(struct m_inode * inode)
