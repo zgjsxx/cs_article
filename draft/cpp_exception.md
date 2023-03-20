@@ -1,0 +1,1 @@
+http://baiy.cn/doc/cpp/inside_exception.htm
