@@ -103,6 +103,23 @@ return retval;
 int do_exit(long code)
 ```
 
+首先是释放当前进程代码段和数据段的内存页。
+```c
+int i;
+free_page_tables(get_base(current->ldt[1]),get_limit(0x0f));
+free_page_tables(get_base(current->ldt[2]),get_limit(0x17));
+```
+
+然后遍历进程表，如果当前进程有子进程，那么将子进程的父进程设置为1号进程(init进程)。如果该子进程已经处于僵死(ZOMBIE)状态，则向进程1发送子进程终止的信号。
+```c
+for (i=0 ; i<NR_TASKS ; i++)
+  if (task[i] && task[i]->father == current->pid) {
+    task[i]->father = 1;
+    if (task[i]->state == TASK_ZOMBIE)
+      /* assumption task[1] is always init */
+      (void) send_sig(SIGCHLD, task[1], 1);
+  }
+```
 ## sys_exit
 
 ## sys_waitpid
