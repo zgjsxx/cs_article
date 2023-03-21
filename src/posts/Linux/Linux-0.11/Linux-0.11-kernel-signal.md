@@ -12,7 +12,7 @@ signal.c主要涉及的是进程的信号处理。该章节中最难理解的是
 
 ## sys_sgetmask
 ```c
-int sys_ssetmask(int newmask)
+int sys_sgetmask()
 ```
 该函数的作用是设置信号的屏蔽图，即进程对哪些信号可以不做处理。
 
@@ -29,9 +29,9 @@ int sys_ssetmask(int newmask)
 ``` ~(1<<(SIGKILL-1))``` 保证了SIGKILL的屏蔽位为0。
 
 ```c
-int old=current->blocked;
+int old=current->blocked;//保存旧的信号屏蔽位
 
-current->blocked = newmask & ~(1<<(SIGKILL-1));
+current->blocked = newmask & ~(1<<(SIGKILL-1));//设置新的信号屏蔽位
 ```
 ## save_old
 ```c
@@ -43,7 +43,7 @@ static inline void save_old(char * from,char * to)
 
 下面分析该函数的代码。
 
-首先对to所在的内存进行校验， 接着进行遍历，将from的内容拷贝到to的位置， 实际就是拷贝了from位置的sigaction对象到to位置。
+首先对to所在的内存进行校验， 接着进行遍历，将from的内容拷贝到to的位置，实际就是拷贝了from位置的sigaction对象到to位置。
 ```c
 verify_area(to, sizeof(struct sigaction));
 for (i=0 ; i< sizeof(struct sigaction) ; i++) {
@@ -85,7 +85,7 @@ sigfunc *signal(int signr, sigfunc *handler);
 ```c
 struct sigaction tmp;
 
-if (signum<1 || signum>32 || signum==SIGKILL)
+if (signum<1 || signum>32 || signum==SIGKILL)//对signum做检查
 	return -1;
 ```
 
@@ -99,7 +99,7 @@ tmp.sa_flags = SA_ONESHOT | SA_NOMASK;
 tmp.sa_restorer = (void (*)(void)) restorer;
 ```
 
-接着取出改信号原来处理函数作为返回值返回。然后将上面构建好的sigaction类型的tmp对象放置于进程的sigaction数组的对应位置。
+接着取出该信号的旧的处理函数作为返回值返回。然后将上面构建好的sigaction类型的tmp对象放置于进程的sigaction数组的对应位置。
 ```c
 handler = (long) current->sigaction[signum-1].sa_handler;
 current->sigaction[signum-1] = tmp;
@@ -123,6 +123,15 @@ get_new ((char *) action, (char *) (signum - 1 + current->sigaction));
 if (oldaction)
 	save_old ((char *) &tmp, (char *) oldaction);
 ```
+
+如果允许信号在自己的信号句柄中收到，则令屏蔽码位0， 否则设置屏蔽本信号。
+```c
+if (current->sigaction[signum-1].sa_flags & SA_NOMASK)
+	current->sigaction[signum-1].sa_mask = 0;
+else
+	current->sigaction[signum-1].sa_mask |= (1<<(signum-1));
+```
+
 ## do_signal
 ```c
 void do_signal(long signr,long eax, long ebx, long ecx, long edx,
