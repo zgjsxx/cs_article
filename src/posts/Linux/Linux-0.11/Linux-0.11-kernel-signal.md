@@ -14,7 +14,7 @@ signal.c主要涉及的是进程的信号处理。该章节中最难理解的是
 ```c
 int sys_sgetmask()
 ```
-该函数的作用是设置**信号的屏蔽图**，即进程对哪些信号可以不做处理。
+该函数的作用是获取进程的**信号的屏蔽图**，即进程对哪些信号可以不做处理。
 
 代码很简单，就是返回进程PCB中的**blocked**字段。
 ```c
@@ -32,12 +32,13 @@ int sys_ssetmask(int newmask)
 int old=current->blocked;//保存旧的信号屏蔽位
 
 current->blocked = newmask & ~(1<<(SIGKILL-1));//设置新的信号屏蔽位
+return old;
 ```
 ## save_old
 ```c
 static inline void save_old(char * from,char * to)
 ```
-该函数在sys_sigaction中被调用， 其作用是将旧的sigaction对象拷贝到用户地址空间。
+该函数在**sys_sigaction**中被调用，其作用是将旧的sigaction对象拷贝到用户地址空间。
 
 其中调用了put_fs_byte函数，其定义在segment.h文件中，其作用是把内核态一个字节的数据拷贝到由 fs:addr 指向的用户态内存地址空间。
 
@@ -45,7 +46,7 @@ static inline void save_old(char * from,char * to)
 
 首先对to所在的内存进行校验，接着进行遍历，将from的内容拷贝到to的位置，实际就是拷贝了from位置的sigaction对象到to位置。
 ```c
-verify_area(to, sizeof(struct sigaction));
+verify_area(to, sizeof(struct sigaction));//对内存区域进行校验
 for (i=0 ; i< sizeof(struct sigaction) ; i++) {
 	put_fs_byte(*from,to);
 	from++;
@@ -56,7 +57,7 @@ for (i=0 ; i< sizeof(struct sigaction) ; i++) {
 ```c
 static inline void get_new(char * from,char * to)
 ```
-该函数在sys_sigaction中被调用，其作用是将用户设置的sigaction传递到内核中。
+该函数在**sys_sigaction**中被调用，其作用是将用户设置的sigaction传递到内核中。
 
 其中调用了get_fs_byte函数， 其定义在segment.h文件中， 其作用是把fs:from 指向的用户态内存的一个字节拷贝到内核态to的地址中。该函数借助了fs寄存器，在system_call函数中，将fs寄存器设置为了0x17，指向了用户的数据段。
 
@@ -93,8 +94,8 @@ if (signum<1 || signum>32 || signum==SIGKILL)//对signum做检查
 
 sa_restorer保存的是恢复处理函数，会在do_signal函数中再次被提到， 其作用就是在信号处理函数结束之后，恢复现场。
 ```c
-tmp.sa_handler = (void (*)(int)) handler;
-tmp.sa_mask = 0;
+tmp.sa_handler = (void (*)(int)) handler;//设置信号的handler
+tmp.sa_mask = 0;//设置信号的屏蔽码
 tmp.sa_flags = SA_ONESHOT | SA_NOMASK;
 tmp.sa_restorer = (void (*)(void)) restorer;
 ```
