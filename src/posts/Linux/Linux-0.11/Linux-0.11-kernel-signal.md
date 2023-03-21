@@ -14,7 +14,7 @@ signal.c主要涉及的是进程的信号处理。该章节中最难理解的是
 ```c
 int sys_sgetmask()
 ```
-该函数的作用是设置信号的屏蔽图，即进程对哪些信号可以不做处理。
+该函数的作用是设置**信号的屏蔽图**，即进程对哪些信号可以不做处理。
 
 代码很简单，就是返回进程PCB中的**blocked**字段。
 ```c
@@ -24,7 +24,7 @@ return current->blocked;
 ```c
 int sys_ssetmask(int newmask)
 ```
-用于设置新的信号屏蔽位图。其中SIGKILL是不可以被屏蔽的。
+用于设置**新的信号屏蔽位图**。其中SIGKILL是不可以被屏蔽的。
 
 ``` ~(1<<(SIGKILL-1))``` 保证了SIGKILL的屏蔽位为0。
 
@@ -43,7 +43,7 @@ static inline void save_old(char * from,char * to)
 
 下面分析该函数的代码。
 
-首先对to所在的内存进行校验， 接着进行遍历，将from的内容拷贝到to的位置，实际就是拷贝了from位置的sigaction对象到to位置。
+首先对to所在的内存进行校验，接着进行遍历，将from的内容拷贝到to的位置，实际就是拷贝了from位置的sigaction对象到to位置。
 ```c
 verify_area(to, sizeof(struct sigaction));
 for (i=0 ; i< sizeof(struct sigaction) ; i++) {
@@ -65,7 +65,7 @@ static inline void get_new(char * from,char * to)
 int i;
 
 for (i=0 ; i< sizeof(struct sigaction) ; i++)
-	*(to++) = get_fs_byte(from++);
+	*(to++) = get_fs_byte(from++);//拷贝用户空间的一个字节
 ```
 
 ## sys_signal
