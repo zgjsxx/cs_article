@@ -11,7 +11,7 @@ tag:
 ```c
 static void free_ind(int dev,int block)
 ```
-该函数的作用是释放所有的一次间接块。
+该函数的作用是**释放所有的一次间接块**。
 
 该函数首先读取一次间接块到bh中, 该bh块中存储了512个盘块号。
 ```c
@@ -39,7 +39,7 @@ free_block(dev,block);
 ```c
 static void free_dind(int dev,int block)
 ```
-该函数的作用就是释放所有的二次间接块。
+该函数的作用就是**释放所有的二次间接块**。
 
 该函数首先对盘块号的有效性进行校验。
 
@@ -73,8 +73,10 @@ void truncate(struct m_inode * inode)
 ```
 该函数的作用是释放该inode所占据的磁盘空间。 该函数在iput函数(inode.c)中如果文件的链接数为0的时候被调用。
 
-如果不是常规文件或者是目录文件， 就跳过。
+代码最开始检查如果不是**常规文件**或者是**目录文件**，就跳过。
 ```c
+int i;
+
 if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode)))
     return;
 ```
