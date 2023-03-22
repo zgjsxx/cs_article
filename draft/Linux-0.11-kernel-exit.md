@@ -121,5 +121,39 @@ for (i=0 ; i<NR_TASKS ; i++)
   }
 ```
 ## sys_exit
-
+```c
+int sys_exit (int error_code)
+```
+该函数的内部调用了do_exit函数实现进程的退出。
 ## sys_waitpid
+```c
+int sys_waitpid (pid_t pid, unsigned long *stat_addr, int options)
+```
+该函数是waitpid函数的系统调用，其作用是挂起当前进程，直到进程号等于入参pid的子进程退出。
+
+|参数值|说明|
+|--|--|
+|pid < -1|等待进程组号为pid绝对值的任何子进程|
+|pid = -1|等待任何子进程，此时的waitpid()函数就退化成了普通的wait()函数|
+|pid = 0|等待进程组号与目前进程相同的任何子进程，也就是说任何和调用waitpid()函数的进程在同一个进程组的进程|
+|pid > 0|等待进程号为pid的子进程|
+
+
+```c
+for(p = &LAST_TASK ; p > &FIRST_TASK ; --p) {
+    if (!*p || *p == current)
+        continue;
+    if ((*p)->father != current->pid)//如果当前项不是当前进程的子进程
+        continue;
+    if (pid>0) {
+        if ((*p)->pid != pid)//不是要寻找的子进程
+            continue;
+    } else if (!pid) {
+        if ((*p)->pgrp != current->pgrp)//属于同一个进程组
+            continue;
+    } else if (pid != -1) {
+        if ((*p)->pgrp != -pid)//进程组号等于pid的绝对值
+            continue;
+    }
+```
+
