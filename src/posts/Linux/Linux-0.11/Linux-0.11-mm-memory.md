@@ -24,9 +24,15 @@
 ```c
 unsigned long get_free_page(void)
 ```
-**作用**: 获取一个空闲页面， 从内存的高地址向低地址开始搜索
+该函数的作用是获取一个空闲页面，从内存的高地址向低地址开始搜索。 该函数仅是在mem_map寻找为0的位置，还没有建立线性地址和物理地址的映射关系。映射关系是在get_empty_page中调用put_page建立的，在下面的函数中会提到。
 
-%1: ax = 0    %2 LOW_MEM     %3: cx = PAGING_PAGES   %4 edi = mem_map+PAGING_PAGES-1
+%1: ax = 0    
+
+%2 LOW_MEM     
+
+%3: cx = PAGING_PAGES   
+
+%4 edi = mem_map+PAGING_PAGES-1
 
 将edi的值指向了mem_map数组的尾,如下图所示：
 
@@ -337,7 +343,6 @@ for(i=0 ; i<PAGING_PAGES ; i++)
     if (!mem_map[i]) free++;
 printk("%d pages free (of %d)\n\r",free,PAGING_PAGES);
 ```
-
 
 接下来进行遍历， 查看每个页目录项对应的页表占用了多少个物理内存页。
 ```c
