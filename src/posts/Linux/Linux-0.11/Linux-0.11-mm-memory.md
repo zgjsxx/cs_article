@@ -1,16 +1,24 @@
-
+---
+category:
+  - Linux
+tag:
+  - Linux-0.11代码解读系列
+---
 
 # Linux-0.11 memory.c详解
 
+memory.c负责内存分页机制的管理。
+
 ## 概述
-内存区域划分
+
+在Linux-0.11中，内存区域划分如下图所示：
 
 ![memory-area](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-memory/mem-area.png)
 
 
 在Linux-0.11内核中，所有进程都使用一个页目录表，而每个进程都有自己的页表。
 
-页目录表和页表的格式
+页目录表和页表的格式如下所示：
 
 ![memory-area](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-memory/page_frame.png)
 
@@ -26,26 +34,19 @@ unsigned long get_free_page(void)
 ```
 该函数的作用是获取一个空闲页面，从内存的高地址向低地址开始搜索。 该函数仅是在mem_map寻找为0的位置，还没有建立线性地址和物理地址的映射关系。映射关系是在get_empty_page中调用put_page建立的，在下面的函数中会提到。
 
-%1: ax = 0    
+该函数使用的是c语言内嵌汇编的方式实现，输入参数为 $1: ax = 0，$2: LOW_MEM, $3: cx = PAGING_PAGES, $4 edi = mem_map+PAGING_PAGES-1
 
-%2 LOW_MEM     
-
-%3: cx = PAGING_PAGES   
-
-%4 edi = mem_map+PAGING_PAGES-1
-
-将edi的值指向了mem_map数组的尾,如下图所示：
+这里将edi的值指向了mem_map数组的尾,如下图所示：
 
 ![get_free_page](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-memory/get_free_page.png)
 
-然后从mem_map的尾部向前搜寻为0的项目，这样就可以找到空闲的物理内存。
-
+查找的过程就是从mem_map的尾部向前搜寻为0的值，0值代表物理内存是空闲的。
 
 ### free_page
 ```c
 void free_page(unsigned long addr);
 ```
-该函数的作用就是释放某个地址所在的内存页。
+该函数的作用就是释放某个物理地址对应的内存页。 这里的入参addr指的是物理地址。
 
 该函数首先对地址addr进行校验， 如果addr小于LOW_MEM，就会直接返回。如果addr大于HIGH_MEMORY，将会抛出一个内核错误。
 ```c
@@ -67,9 +68,13 @@ panic("trying to free free page");
 ```c
 int free_page_tables(unsigned long from,unsigned long size)
 ```
-该函数用于释放起始位置为from，长度为size的**线性地址**所对应的物理地址。
+该函数用于释放起始位置为from，长度为size的**线性地址**所对应的**物理地址**。
 
 入参中的from代表的是线性地址。
+
+首先检查参数合法性，检查from参数，其值是否是 4MB、8MB、12MB、16MB，即4M的倍数。一个页表项可以管理4M的内存，因此这里检查from是否是4M的倍数。
+
+同时还检查其是否是 0，如果是0则出错，说明试图释放内核和缓冲所在空间。
 
 ```c
 unsigned long *pg_table;
@@ -81,13 +86,13 @@ if (!from)
     panic("Trying to free up swapper memory space");
 ```
 
-下面计算大小为size的内存空间占据多少个页目录项。
+接下来计算大小为size的内存空间占据多少个页目录项。
 
 一个页目录项可以管理4M的内存，因此移位```c>>22```可以计算size占用多少个4M，而其中加上0x3fffff是采用了进1法计算占用空间。
 
 例如```size =  4M + 1byte(0x400001)```，
 
-那么(size + 0x3fffff) >> 22 = (0x400001 + 0x3fffff) >> 22  = 2。
+那么```(size + 0x3fffff) >> 22 = (0x400001 + 0x3fffff) >> 22  = 2```。
 
 ```c
 size = (size + 0x3fffff) >> 22;
@@ -107,7 +112,7 @@ for ( ; size-->0 ; dir++) {//遍历dir
         continue;
     pg_table = (unsigned long *) (0xfffff000 & *dir);//取出页表的地址
     for (nr=0 ; nr<1024 ; nr++) {
-        if (1 & *pg_table)//判断存在位为0
+        if (1 & *pg_table)//判断存在位是否为1
             free_page(0xfffff000 & *pg_table);//释放该页表对应的内存
         *pg_table = 0;
         pg_table++;
@@ -124,6 +129,19 @@ for ( ; size-->0 ; dir++) {//遍历dir
 ```c
 int copy_page_tables(unsigned long from,unsigned long to,long size)
 ```
+该函数的作用是进行页表的复制。
+
+这里首先定义了一些参数，并校验了from和to是否是4M的倍数。
+```c
+unsigned long * from_page_table;
+unsigned long * to_page_table;
+unsigned long this_page;
+unsigned long * from_dir, * to_dir;
+unsigned long nr;
+
+if ((from&0x3fffff) || (to&0x3fffff))
+    panic("copy_page_tables called with wrong alignment");
+```
 
 下面的代码是不是很熟悉？ 在上面的free_page_tables中就有提到过，其作用是取出from和to所在的页目录项的起始地址。
 ```c
@@ -136,6 +154,7 @@ to_dir = (unsigned long *) ((to>>20) & 0xffc);
 size = ((unsigned) (size+0x3fffff)) >> 22;
 ```
 
+接下来就是遍历from所在的页目录项， 依次拷贝其页表项内容。
 
 ```c
 for( ; size-->0 ; from_dir++,to_dir++) {
@@ -149,6 +168,7 @@ for( ; size-->0 ; from_dir++,to_dir++) {
 ```
 
 下面这里依次拷贝页表中的每一项。
+
 ```c
 for ( ; nr-- > 0 ; from_page_table++,to_page_table++) {
     this_page = *from_page_table;
@@ -164,6 +184,12 @@ for ( ; nr-- > 0 ; from_page_table++,to_page_table++) {
     }
 }
 ```
+整个拷贝过程如下图所示:
+
+![copy_page_tables_process](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-memory/copy_page_tables1.png)
+
+拷贝结束后的结果如下图所示，实现了from和to对应的线性地址指向了相同的物理地址
+![copy_page_tables_result](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-memory/copy_page_tables2.png)
 
 ### put_page
 ```c
@@ -171,7 +197,8 @@ unsigned long put_page(unsigned long page,unsigned long address)
 ```
 该函数的作用是将**物理内存页**映射到**线性地址**中。
 
-程序的开始是对一些边界值做一些校验。
+程序的开始是对一些边界值做一些校验。如果低于LOW_MEM或者高于HIGH_MEMORY， 则打印告警信息。
+
 ```c
 unsigned long tmp, *page_table;
 
@@ -212,7 +239,7 @@ page_table[(address>>12) & 0x3ff] = page | 7;
 ```c
 void un_wp_page(unsigned long * table_entry)
 ```
-**作用**: 取消写保护异常，用于页异常中断过程中写保护异常的处理(写时复制)
+该函数的作用是取消写保护异常，用于页异常中断过程中写保护异常的处理(写时复制)
 
 入参table_entry指的是页表项的地址。 *table_entry解除引用得到映射的物理页帧。
 
@@ -247,6 +274,11 @@ void do_wp_page(unsigned long error_code,unsigned long address)
 ```
 该函数的内部调用un_wp_page进行写保护异常的处理。
 
+```((address>>10) & 0xffc)```是页表中的偏移量。
+
+```(0xfffff000 & *((unsigned long *) ((address>>20) &0xffc)))```是页表的起始位置。
+
+两者相加就可以找到线性地址address的页表项。
 
 ### write_verify
 ```c
