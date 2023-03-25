@@ -254,6 +254,20 @@ void write_verify(unsigned long address)
 ```
 该函数的作用就是在程序进行内存写操作的时候，判断是否可写，不可写则复制页面。
 
+如果页目录项不存在，则直接返回。
+```c
+if (!( (page = *((unsigned long *) ((address>>20) & 0xffc)) )&1))
+    return;
+```
+
+查找对应的页表项， 并检查存在位， 和写位， 如果不可写， 则进行写时复制。
+```c
+page &= 0xfffff000;
+page += ((address>>10) & 0xffc);
+if ((3 & *(unsigned long *) page) == 1)  /* non-writeable, present */
+    un_wp_page((unsigned long *) page);
+```
+
 ### get_empty_page
 ```c
 void get_empty_page(unsigned long address)
@@ -262,6 +276,15 @@ void get_empty_page(unsigned long address)
 
 get_empty_page内部调用get_free_page申请内存页，并调用put_page建立页表项到物理地址的映射。
 
+代码相对简单， 就是先调用get_free_page申请物理内存，再调用put_page建立页表映射关系。
+```c
+unsigned long tmp;
+
+if (!(tmp=get_free_page()) || !put_page(tmp,address)) {
+    free_page(tmp);		/* 0 is ok - ignored */
+    oom();
+}
+```
 ### try_to_share
 ```c
 static int try_to_share(unsigned long address, struct task_struct * p)
@@ -270,6 +293,79 @@ static int try_to_share(unsigned long address, struct task_struct * p)
 这里的入参address指的是逻辑地址(偏移量)。
 
 
+由于address是偏移量，因此在计算address对应的页目录地址时，需要加上进程的起始地址start_code。
+```c
+from_page = to_page = ((address>>20) & 0xffc);
+from_page += ((p->start_code>>20) & 0xffc);
+to_page += ((current->start_code>>20) & 0xffc);
+```
+
+如果from对应的页目录表的存在位为0，说明无法共享，直接返回。
+```c
+from = *(unsigned long *) from_page;
+if (!(from & 1))
+    return 0;
+```
+
+下面这里根据页目录表from_page计算得到了物理地址phys_addr。
+```c
+from &= 0xfffff000;
+from_page = from + ((address>>10) & 0xffc);
+phys_addr = *(unsigned long *) from_page;
+```
+
+接下来物理地址帧进行校验，校验其存在和脏位。
+```c
+if ((phys_addr & 0x41) != 0x01)
+    return 0;
+phys_addr &= 0xfffff000;
+if (phys_addr >= HIGH_MEMORY || phys_addr < LOW_MEM)
+    return 0;
+```
+
+让to_page的页表项指向相同的物理地址。
+```c
+*(unsigned long *) from_page &= ~2;
+*(unsigned long *) to_page = *(unsigned long *) from_page;
+```
+
+将对应的物理页的使用次数增加1。
+```c
+phys_addr -= LOW_MEM;
+phys_addr >>= 12;
+mem_map[phys_addr]++;
+```
+
+### share_page
+```c
+static int share_page(unsigned long address)
+```
+当发生缺页异常时，该函数将尝试从其他进程中共享内存页面。因为系统中可能会有多个进程执行相同的可执行文件。
+
+
+首先进行一些边界判断，如果进程的executable inode为0，则返回。 如果executable inode的icount<2， 说明没有执行相同可执行文件的其他进程，直接返回。
+```c
+struct task_struct ** p;
+
+if (!current->executable)
+    return 0;
+if (current->executable->i_count < 2)
+    return 0;
+```
+
+接下来就是对系统中任务数组进行遍历， 查找与当前进程的executable inode相同的项目， 并调用try_to_share进行共享。
+```c
+for (p = &LAST_TASK ; p > &FIRST_TASK ; --p) {
+    if (!*p)
+        continue;
+    if (current == *p)
+        continue;
+    if ((*p)->executable != current->executable)
+        continue;
+    if (try_to_share(address,*p))
+        return 1;
+}
+```
 ### do_no_page 
 ```c
 void do_no_page(unsigned long error_code,unsigned long address)
@@ -297,6 +393,17 @@ if (!current->executable || tmp >= current->end_data) {
 }
 ```
 
+否则尝试共享页面。所谓共享页面就是去查看当前系统的其他进程里，是否加载了相同的页面到内存，如果有，则可以进行共享。
+```c
+if (share_page(tmp))
+    return;
+```
+
+如果共享失败，那么则尝试申请一个物理内存页。如果申请失败，抛出out-of-memory，程序退出。
+```c
+if (!(page = get_free_page()))
+    oom();
+```
 
 接下来的工作就是将磁盘中的内容读取到内存中。可执行文件的header会占用一个block，使用tmp/1024 + 1就可以得到tmp地址是该文件的第几个block块。 接下来使用bmap函数得到可执行文件的第block块数据位于磁盘上的位置。 接下来使用bread_page读取4k的内容到内存中。
 ```c
