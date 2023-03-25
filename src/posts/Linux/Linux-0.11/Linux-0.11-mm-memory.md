@@ -239,33 +239,115 @@ void do_wp_page(unsigned long error_code,unsigned long address)
 ```c
 void write_verify(unsigned long address)
 ```
-
+该函数的作用就是在程序进行内存写操作的时候，判断是否可写，不可写则复制页面。
 
 ### get_empty_page
 ```c
 void get_empty_page(unsigned long address)
 ```
+该函数容易与get_free_page混淆。
 
+get_empty_page内部调用get_free_page申请内存页，并调用put_page建立页表项到物理地址的映射。
 
 ### try_to_share
 ```c
 static int try_to_share(unsigned long address, struct task_struct * p)
 ```
 
+这里的入参address指的是逻辑地址(偏移量)。
+
+
 ### do_no_page 
 ```c
 void do_no_page(unsigned long error_code,unsigned long address)
 ```
-**作用**: 执行缺页处理
+该函数的作用是执行**缺页处理**。
+
+入参中的address是**线性地址**。
+
+将线性地址减去进程在进程空间的首地址，即可得到逻辑地址(偏移量)。
+
+```c
+int nr[4];
+unsigned long tmp;
+unsigned long page;
+int block,i;
+
+address &= 0xfffff000;//取出address的页起始地址
+tmp = address - current->start_code;//得到address的逻辑地址(偏移量)
+```
+
+```c
+if (!current->executable || tmp >= current->end_data) {
+    get_empty_page(address);
+    return;
+}
+```
 
 
+接下来的工作就是将磁盘中的内容读取到内存中。可执行文件的header会占用一个block，使用tmp/1024 + 1就可以得到tmp地址是该文件的第几个block块。 接下来使用bmap函数得到可执行文件的第block块数据位于磁盘上的位置。 接下来使用bread_page读取4k的内容到内存中。
+```c
+block = 1 + tmp/BLOCK_SIZE;
+for (i=0 ; i<4 ; block++,i++)
+    nr[i] = bmap(current->executable,block);
+bread_page(page,current->executable->i_dev,nr);
+i = tmp + 4096 - current->end_data;
+tmp = page + 4096;
+while (i-- > 0) {
+    tmp--;
+    *(char *)tmp = 0;
+}
+```
+
+最后调用put_page在页表中建立映射关系。
+```c
+if (put_page(page,address))
+    return;
+```
 ### mem_init
 ```c
 void mem_init(long start_mem, long end_mem)
 ```
 
+```c
+HIGH_MEMORY = end_mem;//16M
+for (i=0 ; i<PAGING_PAGES ; i++)//15M内存包含多少个4K，即3840
+    mem_map[i] = USED;  //将这些页面都标记为USED状态(100)
+i = MAP_NR(start_mem);//计算start_mem在数组中的起始位置
+end_mem -= start_mem;
+end_mem >>= 12;//计算总共多少个页面
+while (end_mem-->0)
+    mem_map[i++]=0;//将这些页面标记为0，未使用。
+```
 
 ### calc_mem
 ```c
 void calc_mem(void)
+```
+
+该函数统计内存的空闲情况。
+
+首先遍历物理内存使用数组mem_map，获取其中为0的项目的总数，即统计出有多少4k物理页面还没有使用。
+
+```c
+int i,j,k,free=0;
+long * pg_tbl;
+
+for(i=0 ; i<PAGING_PAGES ; i++)
+    if (!mem_map[i]) free++;
+printk("%d pages free (of %d)\n\r",free,PAGING_PAGES);
+```
+
+
+接下来进行遍历， 查看每个页目录项对应的页表占用了多少个物理内存页。
+```c
+for(i=2 ; i<1024 ; i++) {
+    if (1&pg_dir[i]) {
+        pg_tbl=(long *) (0xfffff000 & pg_dir[i]);
+        for(j=k=0 ; j<1024 ; j++)
+            if (pg_tbl[j]&1)
+                k++;
+        printk("Pg-dir[%d] uses %d pages\n",i,k);
+    }
+}
 ```
