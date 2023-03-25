@@ -67,6 +67,9 @@ panic("trying to free free page");
 ```c
 int free_page_tables(unsigned long from,unsigned long size)
 ```
+该函数用于释放起始位置为from，长度为size的**线性地址**所对应的物理地址。
+
+入参中的from代表的是线性地址。
 
 ```c
 unsigned long *pg_table;
@@ -78,18 +81,19 @@ if (!from)
     panic("Trying to free up swapper memory space");
 ```
 
-这里是计算大小为size的内存空间占据多少个页目录项。一个页目录项可以管理4M的内存，因此移位```c>>22```可以计算size占用多少个4M，
-而其中加上0x3fffff是采用了进1法计算占用空间。
+下面计算大小为size的内存空间占据多少个页目录项。
 
-例如size =  4M + 1byte(0x400001)，
+一个页目录项可以管理4M的内存，因此移位```c>>22```可以计算size占用多少个4M，而其中加上0x3fffff是采用了进1法计算占用空间。
 
-那么(size + 0x3fffff) >> 22 = (0x400001 + 0x3fffff) >> 22  = 2
+例如```size =  4M + 1byte(0x400001)```，
+
+那么(size + 0x3fffff) >> 22 = (0x400001 + 0x3fffff) >> 22  = 2。
 
 ```c
 size = (size + 0x3fffff) >> 22;
 ```
 
-下面的代码用于计算from所在的页目录项的地址。
+接下来的代码用于计算from所在的页目录项的地址。
 
 其中，(from>>20) & 0xffc 等同于 (from >> 22) << 2
 ```c
@@ -112,6 +116,9 @@ for ( ; size-->0 ; dir++) {//遍历dir
     *dir = 0;
 }
 ```
+整个过程如下图所示：
+
+![free_page_tables](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-memory/free_page_tables.png)
 
 ### copy_page_tables
 ```c
