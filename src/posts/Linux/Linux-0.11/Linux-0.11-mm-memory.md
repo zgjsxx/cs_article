@@ -156,12 +156,44 @@ for ( ; nr-- > 0 ; from_page_table++,to_page_table++) {
 ```c
 unsigned long put_page(unsigned long page,unsigned long address)
 ```
+该函数的作用是将**物理内存页**映射到**线性地址**中。
 
-### do_wp_page
+程序的开始是对一些边界值做一些校验。
 ```c
-void do_wp_page(unsigned long error_code,unsigned long address)
+unsigned long tmp, *page_table;
+
+/* NOTE !!! This uses the fact that _pg_dir=0 */
+
+if (page < LOW_MEM || page >= HIGH_MEMORY)
+    printk("Trying to put page %p at %p\n",page,address);
+if (mem_map[(page-LOW_MEM)>>12] != 1)
+    printk("mem_map disagrees with %p at %p\n",page,address);
 ```
 
+首先取出addr所在的页目录表，这里再看到复杂的移位和与操作就不再陌生了，在上面的函数中已经多次见到。
+```c
+page_table = (unsigned long *) ((address>>20) & 0xffc);
+```
+
+如果页目录项的存在位为1， 也页表已经存在， 那么取出页表的地址。 如果存在为0， 即页表不存在，那么就新建页表，让页目录表指向该页表。
+```c
+if ((*page_table)&1)
+    page_table = (unsigned long *) (0xfffff000 & *page_table);
+else {
+    if (!(tmp=get_free_page()))
+        return 0;
+    *page_table = tmp|7;
+    page_table = (unsigned long *) tmp;
+}
+```
+
+从上面的步骤我们已经将页表的地址放在了page_table中，下面要做的就是从页表中建立线性地址和物理页的映射。
+
+```(address>>12) & 0x3ff```的作用是取出中间的是个bit位，其代表在页表中的序号。
+
+```c
+page_table[(address>>12) & 0x3ff] = page | 7;
+```
 
 ### un_wp_page
 ```c
@@ -169,7 +201,56 @@ void un_wp_page(unsigned long * table_entry)
 ```
 **作用**: 取消写保护异常，用于页异常中断过程中写保护异常的处理(写时复制)
 
+入参table_entry指的是页表项的地址。 *table_entry解除引用得到映射的物理页帧。
 
+```c
+unsigned long old_page,new_page;
+
+old_page = 0xfffff000 & *table_entry;
+if (old_page >= LOW_MEM && mem_map[MAP_NR(old_page)]==1) {
+    *table_entry |= 2;
+    invalidate();
+    return;
+}
+```
+
+接下来申请一个新的内存页面用于复制。
+```c
+if (!(new_page=get_free_page()))
+    oom();
+```
+
+接下来将页表项指向新页面，并进行内容的拷贝。
+```c
+*table_entry = new_page | 7;
+invalidate();
+copy_page(old_page,new_page);
+```
+
+
+### do_wp_page
+```c
+void do_wp_page(unsigned long error_code,unsigned long address)
+```
+该函数的内部调用un_wp_page进行写保护异常的处理。
+
+
+### write_verify
+```c
+void write_verify(unsigned long address)
+```
+
+
+### get_empty_page
+```c
+void get_empty_page(unsigned long address)
+```
+
+
+### try_to_share
+```c
+static int try_to_share(unsigned long address, struct task_struct * p)
+```
 
 ### do_no_page 
 ```c
@@ -177,3 +258,14 @@ void do_no_page(unsigned long error_code,unsigned long address)
 ```
 **作用**: 执行缺页处理
 
+
+### mem_init
+```c
+void mem_init(long start_mem, long end_mem)
+```
+
+
+### calc_mem
+```c
+void calc_mem(void)
+```
