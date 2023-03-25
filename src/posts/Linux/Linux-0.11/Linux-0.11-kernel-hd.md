@@ -6,6 +6,11 @@ tag:
 ---
 # Linux-0.11 kernel目录hd.c详解
 
+
+## sys_setup
+```c
+int sys_setup(void * BIOS)
+```
 ## read_intr
 ```c
 static void read_intr(void)
@@ -124,10 +129,6 @@ static int win_result(void)
 static int controller_ready(void)
 ```
 
-## sys_setup
-```c
-int sys_setup(void * BIOS)
-```
 ## hd_init
 ```c
 void hd_init(void)
