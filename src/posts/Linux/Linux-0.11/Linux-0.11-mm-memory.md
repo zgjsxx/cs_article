@@ -267,6 +267,9 @@ invalidate();
 copy_page(old_page,new_page);
 ```
 
+写时复制的过程如下图所示：
+
+![copy_page_tables_process](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-memory/copy_on_write.png)
 
 ### do_wp_page
 ```c
@@ -323,7 +326,6 @@ static int try_to_share(unsigned long address, struct task_struct * p)
 ```
 
 这里的入参address指的是逻辑地址(偏移量)。
-
 
 由于address是偏移量，因此在计算address对应的页目录地址时，需要加上进程的起始地址start_code。
 ```c
