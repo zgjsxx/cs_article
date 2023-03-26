@@ -11,11 +11,65 @@ tag:
 ```c
 int sys_setup(void * BIOS)
 ```
+该函数在main.c文件中的init方法中被调用。
+
+```c
+void init(void)
+{
+	int pid,i;
+	setup((void *) &drive_info);
+	...
+}
+```
+从调用关系可以得出， 入参BIOS指针指向drive_info。
+
+该方法的最先定义了一些变量，其中利用static变量callable控制该方法只会被调用一次。
+```c
+static int callable = 1;
+int i,drive;
+unsigned char cmos_disks;
+struct partition *p;
+struct buffer_head * bh;
+
+if (!callable)
+	return -1;
+callable = 0;
+```
+
+接下来如果定义了HD_TYPE，则一次去BIOS内存地址出去读取数据拷贝到hd_info变量中。
+```c
+#ifndef HD_TYPE
+	for (drive=0 ; drive<2 ; drive++) {
+		hd_info[drive].cyl = *(unsigned short *) BIOS;//柱面数
+		hd_info[drive].head = *(unsigned char *) (2+BIOS);//磁头数
+		hd_info[drive].wpcom = *(unsigned short *) (5+BIOS);//写前预补偿柱面号
+		hd_info[drive].ctl = *(unsigned char *) (8+BIOS);//控制字节
+		hd_info[drive].lzone = *(unsigned short *) (12+BIOS);//磁头着陆区柱面号
+		hd_info[drive].sect = *(unsigned char *) (14+BIOS);//每磁道扇区数
+		BIOS += 16;
+	}
+	if (hd_info[1].cyl)
+		NR_HD=2;//磁盘数
+	else
+		NR_HD=1;
+#endif
+```
+
+接下来设置硬盘分区数据
+```c
+	for (i=0 ; i<NR_HD ; i++) {
+		hd[i*5].start_sect = 0;
+		hd[i*5].nr_sects = hd_info[i].head*
+				hd_info[i].sect*hd_info[i].cyl;
+	}
+
+```
+
 ## read_intr
 ```c
 static void read_intr(void)
 ```
-该函数是磁盘的读中断调用函数。
+该函数是磁盘的**读中断调用函数**。
 
 将HD_DATA端口依次读取256个字（512字节）到buffer中。
 ```c
@@ -41,13 +95,14 @@ do_hd_request();//再次调用do_hd_request去处理其他硬盘请求项
 ```c
 static void write_intr(void)
 ```
+该函数是磁盘的写终端调用函数。
 
 ```c
-if (--CURRENT->nr_sectors) {
-  CURRENT->sector++;
-  CURRENT->buffer += 512;
-  do_hd = &write_intr;
-  port_write(HD_DATA,CURRENT->buffer,256);
+if (--CURRENT->nr_sectors) {//如果还有扇区要写
+  CURRENT->sector++;//当前请求扇区号+1
+  CURRENT->buffer += 512;//当前请求缓冲区指针增加512
+  do_hd = &write_intr; //设置函数指针位write_intr
+  port_write(HD_DATA,CURRENT->buffer,256);//向数据端口写256字（512字节）
   return;
 }
 ```
