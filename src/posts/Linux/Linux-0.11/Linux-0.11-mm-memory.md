@@ -7,7 +7,7 @@ tag:
 
 # Linux-0.11 memory.c详解
 
-memory.c负责内存分页机制的管理。
+memory.c负责内存分页机制的管理。其中un_wp_page，copy_page_tables, do_no_page等函数较为重要。
 
 ## 概述
 
@@ -16,15 +16,17 @@ memory.c负责内存分页机制的管理。
 ![memory-area](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-memory/mem-area.png)
 
 
-在Linux-0.11内核中，所有进程都使用一个页目录表，而每个进程都有自己的页表。
+在Linux-0.11内核中，所有进程都使用一个页目录表，而每个进程都有自己的页表。 这与最新的操作系统是不一样的，最新的操作系统通常是每个进程有一套独立的页表。
 
-页目录表和页表的格式如下所示：
+在Linux-0.11中， 页表为两级结构， 第一级是页目录表， 第二级是页表。页目录表和页表中的每一项为4个字节(32位)，页目录表和页表的格式如下所示：
 
 ![memory-area](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-memory/page_frame.png)
 
 图中页表项的第0位P代表**存在位**，该位表示这个页表项是否可以用于地址转换，P=1代表该项可用， 当目录表项或者第二级表项的P=0时，代表该项是无效的，不能用于地址转换。
 
-当P=0时， 处理器会发出缺页异常的信号， 缺页中断的异常处理程序就可以将所请求的页面加入到物理内存中。
+当访问的内存页P=0时，处理器会发出缺页异常的信号， 缺页中断的异常处理程序就可以将所请求的页面加入到物理内存中。
+
+页表项中的第1位R/W表示内存的读写权限，当它被设置为0时，说明该页面只能读而不能写，如果设置为1，说明可读可写。copy-on-write（写时复制将利用到这一点）。
 
 ## 函数分析
 
@@ -165,16 +167,18 @@ for( ; size-->0 ; from_dir++,to_dir++) {
 		from_page_table = (unsigned long *) (0xfffff000 & *from_dir);//取出源地址的页表起始的位置
 		if (!(to_page_table = (unsigned long *) get_free_page()))//申请一个4k内存页面，作为目的地址的页表
 			return -1;	/* Out of memory, see freeing */
+		*to_dir = ((unsigned long) to_page_table) | 7;//将存在位设置为1，将R/W设置为1，代表可写，将U/S为设置为1，代表为用户态内存
+		nr = (from==0)?0xA0:1024;
 ```
 
-下面这里依次拷贝页表中的每一项。
+下面这里依次拷贝页表中的每一项。 拷贝页表项的过程中，会将页表项的存在位(R/W位)设置位0，当后面修改到该段内存时，将会触发写时复制。
 
 ```c
 for ( ; nr-- > 0 ; from_page_table++,to_page_table++) {
     this_page = *from_page_table;
     if (!(1 & this_page))
         continue;
-    this_page &= ~2;
+    this_page &= ~2;//存在位设置位0，后面触发写时复制。
     *to_page_table = this_page;
     if (this_page > LOW_MEM) {
         *from_page_table = this_page;
