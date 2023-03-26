@@ -76,7 +76,7 @@ int free_page_tables(unsigned long from,unsigned long size)
 
 首先检查参数合法性，检查from参数，其值是否是 4MB、8MB、12MB、16MB，即4M的倍数。一个页表项可以管理4M的内存，因此这里检查from是否是4M的倍数。
 
-同时还检查其是否是 0，如果是0则出错，说明试图释放内核和缓冲所在空间。
+同时还检查其是否是0，如果是0则出错，说明试图释放内核和缓冲所在空间。
 
 ```c
 unsigned long *pg_table;
@@ -90,7 +90,7 @@ if (!from)
 
 接下来计算大小为size的内存空间占据多少个页目录项。
 
-一个页目录项可以管理4M的内存，因此移位```c>>22```可以计算size占用多少个4M，而其中加上0x3fffff是采用了进1法计算占用空间。
+一个页目录项可以管理4M的内存，因此移位```>>22```可以计算size占用多少个4M，而其中加上0x3fffff是采用了进1法计算占用空间。
 
 例如```size =  4M + 1byte(0x400001)```，
 
@@ -102,7 +102,8 @@ size = (size + 0x3fffff) >> 22;
 
 接下来的代码用于计算from所在的页目录项的地址。
 
-其中，(from>>20) & 0xffc 等同于 (from >> 22) << 2
+其中，```(from>>20) & 0xffc``` 等同于 ```(from >> 22) << 2```。
+
 ```c
 dir = (unsigned long *) ((from>>20) & 0xffc); /* _pg_dir = 0 */
 ```
@@ -116,11 +117,11 @@ for ( ; size-->0 ; dir++) {//遍历dir
     for (nr=0 ; nr<1024 ; nr++) {
         if (1 & *pg_table)//判断存在位是否为1
             free_page(0xfffff000 & *pg_table);//释放该页表对应的内存
-        *pg_table = 0;
-        pg_table++;
+        *pg_table = 0;//将该页表项清零
+        pg_table++;//指向下一个页表项
     }
-    free_page(0xfffff000 & *dir);
-    *dir = 0;
+    free_page(0xfffff000 & *dir);//释放该内存
+    *dir = 0;//页目录表清零
 }
 ```
 整个过程如下图所示：
@@ -236,7 +237,7 @@ else {
 ```(address>>12) & 0x3ff```的作用是取出中间的是个bit位，其代表在页表中的序号。
 
 ```c
-page_table[(address>>12) & 0x3ff] = page | 7;
+page_table[(address>>12) & 0x3ff] = page | 7;//设置页表项的值，同时设置存在位，R/W位和U/S位。
 ```
 
 ### un_wp_page
@@ -379,7 +380,6 @@ mem_map[phys_addr]++;
 static int share_page(unsigned long address)
 ```
 当发生缺页异常时，该函数将尝试从其他进程中共享内存页面。因为系统中可能会有多个进程执行相同的可执行文件。
-
 
 首先进行一些边界判断，如果进程的executable inode为0，则返回。 如果executable inode的icount<2， 说明没有执行相同可执行文件的其他进程，直接返回。
 ```c
