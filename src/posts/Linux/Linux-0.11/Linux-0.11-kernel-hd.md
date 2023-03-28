@@ -265,21 +265,87 @@ if (win_result())
 	bad_rw_intr();
 do_hd_request();
 ```
+
+
 ## do_hd_request
 ```c
 void do_hd_request(void)
 ```
 该函数是硬盘设备的读写函数。
 
-首先对读写请求进行校验。
+首先对读写请求进行校验。如果请求队列中没有硬盘的读写任务，则退出。
+
+请求的起始扇区+至少读写2扇区(1K)不能大于磁盘分区的最后一个扇区。
 ```c
+block+2 > hd[dev].nr_sects
+```
+
+```c
+int i,r = 0;
+unsigned int block,dev;
+unsigned int sec,head,cyl;
+unsigned int nsect;
+
 INIT_REQUEST;
 dev = MINOR(CURRENT->dev);
-block = CURRENT->sector;
+block = CURRENT->sector;//请求的起始扇区
 if (dev >= 5*NR_HD || block+2 > hd[dev].nr_sects) {
 	end_request(0);
 	goto repeat;
 }
+```
+
+下面是本函数的一个难点，将绝对的块号转换为磁盘的(柱面C， 磁头H ，扇区S)。
+
+其中， block与(C，H，S)的换算公式如下所示:
+
+```
+block=C*总磁头数*每磁道扇区数+H*每磁道扇区数+S
+```
+
+可以看出前两项都是每磁道扇区数的倍数， 因此使用block除以每磁道扇区数，其余数就是扇区号S，
+其商如下所示:
+
+```c
+block = block/每磁道扇区数 = C*总磁头数 + H
+```
+使用除数除以总磁头数， 那么其余数就是H， 商就是C。
+
+下面看代码，
+输入eax = block， edx = 0， ```divl %4```中的%4就是```hd_info[dev].sect```， 代表每磁道扇区数，结果将余数赋值给变量sec， 商赋值给block。 这与我们上面的步骤是一致的。
+```c
+__asm__("divl %4"
+		:"=a" (block),"=d" (sec)
+		:"0" (block),"1" (0),"r" (hd_info[dev].sect));
+```
+
+
+接下来输入edx = block， eax = 0， ```divl %4```中的%4就是hd_info[dev].head， 代表系统中的总磁头数，结果将余数赋值给head， 商赋值给cyl，这与我们的分析也一致。
+```c
+__asm__("divl %4"
+	:"=a" (cyl),"=d" (head)
+	:"0" (block),"1" (0),
+	"r" (hd_info[dev].head));
+```
+
+如果此时的复位标志是1， 那么就调用reset_hd进行硬盘的复位。
+```c
+if (reset) {
+	reset = 0;
+	recalibrate = 1;
+	reset_hd(CURRENT_DEV);
+	return;
+}
+```
+
+如果此时重新校正标志是置位的， 则首先复位该标志， 然后向硬盘控制器发送重新校正的命令。
+```c
+if (recalibrate) {
+	recalibrate = 0;
+	hd_out(dev,hd_info[CURRENT_DEV].sect,0,0,0,
+		WIN_RESTORE,&recal_intr);
+	return;
+}	
 ```
 
 
@@ -293,7 +359,7 @@ if (CURRENT->cmd == WRITE) {//如果是写请求
 		goto repeat;
 	}
 	port_write(HD_DATA,CURRENT->buffer,256);
-} else if (CURRENT->cmd == READ) {
+} else if (CURRENT->cmd == READ) { //如果是读请求
 	hd_out(dev,nsect,sec,head,cyl,WIN_READ,&read_intr);
 } else
 	panic("unknown hd-command");
