@@ -326,6 +326,12 @@ static void read_intr(void)
 ```
 该函数是磁盘的**读中断调用函数**。
 
+硬盘的中断处理函数是hd_interrupt，这个是在hd_init函数中设置的。当硬盘中断发生的时候，将调用do_hd指向的函数， 而do_hd则是在do_hd_request函数中通过hd_out进行设置的。
+
+因此当do_hd_request要去读扇区时，就会设置do_hd为read_intr，这样当硬盘中断到来时，就会调用read_intr进行处理。器处理流程如下图所示：
+
+![read_intr](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/Linux-0.11-kernel/block/read_intr_flow.png)
+
 首先检查硬盘控制器是否返回错误信息。
 
 ```c
