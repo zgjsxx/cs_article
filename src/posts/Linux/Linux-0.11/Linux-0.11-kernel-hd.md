@@ -6,6 +6,57 @@ tag:
 ---
 # Linux-0.11 kernel目录hd.c详解
 
+在讲解hd.c的函数之前，需要先介绍一些宏定义，inb, inb_p, outb, outb_p。
+
+**inb**宏的作用是去IO端口读取一个byte的数据。
+
+在内嵌汇编中， ```:"d" (port))```是输入，将port值写入了edx。 ```:"=a" (_v)```是输出，即将AL的值写入_v中。
+
+而汇编指令```inb %%dx,%%al```的作用是从端口dx中读取一个字节放入al中。
+
+```c
+#define inb(port) ({ \
+unsigned char _v; \
+__asm__ volatile ("inb %%dx,%%al"
+		:"=a" (_v)
+		:"d" (port)); \
+_v; \
+})
+```
+
+**inb_p**宏的作用也是去IO端口读取一个字节的数据，但是其使用两个jmp 1f进行延迟。
+```c
+#define inb_p(port) ({ \
+unsigned char _v; \
+__asm__ volatile ("inb %%dx,%%al\n" \
+    "\tjmp 1f\n" \
+    "1:\tjmp 1f\n" \
+    "1:"
+	:"=a" (_v)
+	:"d" (port)); \
+_v; \
+})
+```
+
+**outb**宏的作用是向IO端口写入一个字节的数据。
+将value写入al中，将port写入edx中，最后使用汇编指令outb向port写入数据内容。
+```c
+#define outb(value,port) \
+__asm__ ("outb %%al,%%dx"
+			:
+			:"a" (value),"d" (port))
+```
+
+**outb_p**宏的作用与outb作用类似，只不过使用了jmp进行延时。
+```c
+#define outb_p(value,port) \
+__asm__ ("outb %%al,%%dx\n" \
+		"\tjmp 1f\n" \
+		"1:\tjmp 1f\n" \
+		"1:"
+		:
+		:"a" (value),"d" (port))
+```
 
 ## sys_setup
 ```c
@@ -62,19 +113,63 @@ callable = 0;
 		hd[i*5].nr_sects = hd_info[i].head*
 				hd_info[i].sect*hd_info[i].cyl;
 	}
-
 ```
 
+NR_HD=0， 两个硬盘都不是AT控制器兼容的。
+```c
+if ((cmos_disks = CMOS_READ(0x12)) & 0xf0)
+	if (cmos_disks & 0x0f)
+		NR_HD = 2;
+	else
+		NR_HD = 1;
+else
+	NR_HD = 0;
+```
+
+如果NR_HD=0，则将两个硬盘的结构全部清零。如果NR_HD=1，则将第二块硬盘结构清零。
+```c
+for (i = NR_HD ; i < 2 ; i++) {
+	hd[i*5].start_sect = 0;
+	hd[i*5].nr_sects = 0;
+}
+```
+
+接下来就是获取硬盘的分区表信息。
+```c
+for (drive=0 ; drive<NR_HD ; drive++) {
+	if (!(bh = bread(0x300 + drive*5,0))) {//300 305是设别号
+		printk("Unable to read partition table of drive %d\n\r",
+			drive);
+		panic("");
+	}
+	if (bh->b_data[510] != 0x55 || (unsigned char)
+		bh->b_data[511] != 0xAA) {//硬盘标志位0xAA55
+		printk("Bad partition table on drive %d\n\r",drive);
+		panic("");
+	}
+	p = 0x1BE + (void *)bh->b_data;
+	for (i=1;i<5;i++,p++) {
+		hd[i+5*drive].start_sect = p->start_sect;
+		hd[i+5*drive].nr_sects = p->nr_sects;
+	}
+	brelse(bh);
+}
+```
+
+最后将加载虚拟盘和挂载根文件系统。
+```c
+if (NR_HD)
+	printk("Partition table%s ok.\n\r",(NR_HD>1)?"s":"");
+rd_load();//加载虚拟盘
+mount_root();//挂载根文件系统。
+```
 ## controller_ready
 ```c
 static int controller_ready(void)
 ```
 该函数的作用就是循环等待硬盘控制器就绪。
 
-硬盘控制器状态寄存器端口是0x1f7, 
-```c
-#define HD_STATUS	0x1f7	/* see status-bits */
-```
+硬盘控制器状态寄存器端口是0x1f7, 从该端口中读取一个字节的数据，并检查其最高位是否为0，如果为0，就代表已经就绪，如果为1， 则代表尚未就绪。
 
 ```c
 int retries=100000;
@@ -87,8 +182,9 @@ return (retries);
 ```c
 static int win_result(void)
 ```
-该函数的作用是检查硬盘执行命令后的结果。
+该函数的作用是检查硬盘执行命令后的结果。0为正常， 1为错误。
 
+首先使用inb_p去读取HD_STATUS的值，如果控制器忙， 读写错误或命令执行错误， 则返回1。如果没有错误，则返回0.
 ```c
 int i=inb_p(HD_STATUS);//取出硬盘控制器的状态信息。
 
@@ -107,6 +203,17 @@ static void hd_out(unsigned int drive,unsigned int nsect,unsigned int sect,
 ```
 该函数的作用是向硬盘控制器发送命令。
 
+该函数的开头对参数进行校验，如果不合法则抛出内核错误。
+```c
+register int port asm("dx");//定义局部变量，并放入寄存器dx中。
+
+if (drive>1 || head>15)//驱动器号大于1(驱动器号只能是0或者1)， 磁头号大于15.
+  panic("Trying to write bad sector");
+if (!controller_ready())//控制器没有准备好
+  panic("HD controller not ready");
+```
+
+接下来就要对一些IO端口进行写数据，首先我们先了解一下这些端口。
 
 |端口|名称|读操作|写操作|
 |--|--|--|--|
@@ -121,30 +228,28 @@ static void hd_out(unsigned int drive,unsigned int nsect,unsigned int sect,
 |0x3f6|HD_CMD| |硬盘控制寄存器|
 |0x3f7||数字输入寄存器 ||
 
-```c
-register int port asm("dx");
+hd_out接下来的过程就是向这些端口依次写入数据。
 
-if (drive>1 || head>15)
-  panic("Trying to write bad sector");
-if (!controller_ready())
-  panic("HD controller not ready");
+```c
 do_hd = intr_addr; // do_hd 函数指针将在硬盘中断程序中被调用
 outb_p(hd_info[drive].ctl,HD_CMD); //向控制寄存器(0x3f6)输出控制字节
 port=HD_DATA;  //置dx 为数据寄存器端口(0x1f0)
-outb_p(hd_info[drive].wpcom>>2,++port);
-outb_p(nsect,++port);  //参数：读/写扇区总数
-outb_p(sect,++port);   //参数：起始扇区
-outb_p(cyl,++port);    //参数：柱面号低8 位
-outb_p(cyl>>8,++port); //参数：柱面号高8 位
-outb_p(0xA0|(drive<<4)|head,++port);  //参数：驱动器号+磁头号
-outb(cmd,++port);      //命令：硬盘控制命令
+outb_p(hd_info[drive].wpcom>>2,++port);  //0x1f1
+outb_p(nsect,++port);  //参数：读/写扇区总数 0x1f2
+outb_p(sect,++port);   //参数：起始扇区 0x1f3
+outb_p(cyl,++port);    //参数：柱面号低8 位  0x1f4
+outb_p(cyl>>8,++port); //参数：柱面号高8 位  0x1f5
+outb_p(0xA0|(drive<<4)|head,++port);  //参数：驱动器号+磁头号 0x1f6
+outb(cmd,++port);      //命令：硬盘控制命令 0x1f7
 ```
-
 
 ## drive_busy
 ```c
 static int drive_busy(void)
 ```
+该函数的作用是**等待硬盘就绪**。
+
+该函数循环检查硬盘的状态寄存器的忙标志位。如果busy位复位，则返回0。如果没有复位，则返回1。
 
 ```c
 unsigned int i;
@@ -185,9 +290,9 @@ static void reset_hd(int nr)
 该函数的作用是复位硬盘。
 
 ```c
-reset_controller();
+reset_controller();//复位硬盘控制器
 hd_out(nr,hd_info[nr].sect,hd_info[nr].sect,hd_info[nr].head-1,
-	hd_info[nr].cyl,WIN_SPECIFY,&recal_intr);
+	hd_info[nr].cyl,WIN_SPECIFY,&recal_intr);//发送硬盘控制命令， recal_intr是硬盘中断处理函数中调用的函数
 ```
 
 ## unexpected_hd_interrupt
@@ -204,6 +309,9 @@ printk("Unexpected HD interrupt\n\r");
 ```c
 static void bad_rw_intr(void)
 ```
+该函数是读写硬盘失败的处理函数。如果读写扇区出错次数大于等于7次时，结束当前请求项，并唤醒等待该请求的进程。
+
+如果读写扇区的时候，出错次数超过了3次，则对硬盘控制器进行复位。
 
 ```c
 if (++CURRENT->errors >= MAX_ERRORS)
@@ -218,6 +326,16 @@ static void read_intr(void)
 ```
 该函数是磁盘的**读中断调用函数**。
 
+首先检查硬盘控制器是否返回错误信息。
+
+```c
+if (win_result()) {
+	bad_rw_intr();
+	do_hd_request();
+	return;
+}
+```
+
 将HD_DATA端口依次读取256个字（512字节）到buffer中。
 ```c
 port_read(HD_DATA,CURRENT->buffer,256);
@@ -227,11 +345,8 @@ port_read(HD_DATA,CURRENT->buffer,256);
 CURRENT->errors = 0;//清除出错次数
 CURRENT->buffer += 512;//调整buffer指针
 CURRENT->sector++;//起始扇区+1
-```
-
-```c
 if (--CURRENT->nr_sectors) {
-  do_hd = &read_intr;
+  do_hd = &read_intr;//尚有数据还未读完，因此设置下一次的中断处理函数还是read_intr
   return;
 }
 end_request(1);
@@ -242,16 +357,28 @@ do_hd_request();//再次调用do_hd_request去处理其他硬盘请求项
 ```c
 static void write_intr(void)
 ```
-该函数是磁盘的写终端调用函数。
+该函数是磁盘的写中断调用函数。
+
+首先检查硬盘控制器是否返回错误信息。
+
+```c
+if (win_result()) {
+	bad_rw_intr();
+	do_hd_request();
+	return;
+}
+```
 
 ```c
 if (--CURRENT->nr_sectors) {//如果还有扇区要写
-  CURRENT->sector++;//当前请求扇区号+1
-  CURRENT->buffer += 512;//当前请求缓冲区指针增加512
-  do_hd = &write_intr; //设置函数指针位write_intr
-  port_write(HD_DATA,CURRENT->buffer,256);//向数据端口写256字（512字节）
-  return;
+    CURRENT->sector++;//当前请求扇区号+1
+    CURRENT->buffer += 512;//当前请求缓冲区指针增加512
+    do_hd = &write_intr; //设置函数指针位write_intr
+    port_write(HD_DATA,CURRENT->buffer,256);//向数据端口写256字（512字节）
+    return;
 }
+end_request(1);
+do_hd_request();
 ```
 
 ## recal_intr
