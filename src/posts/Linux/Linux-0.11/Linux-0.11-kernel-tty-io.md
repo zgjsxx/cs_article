@@ -8,6 +8,9 @@ tag:
 # Linux-0.11 kernel目录tty_io.c详解
 
 
+keyboard_interrupt -> call *key_table(,%eax,4) -> do_self -> put_queue -> (tty->read_q)-> do_tty_interrupt-> copy_to_cooked -> (tty->secondary) ->wake_up <- sys_read <- rw_char <- tty_read <- read <- (shell)
+
+
 ## tty_init
 ```c
 void tty_init(void)
