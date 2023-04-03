@@ -15,10 +15,27 @@ keyboard_interrupt -> call *key_table(,%eax,4) -> do_self -> put_queue -> (tty->
 ```c
 void tty_init(void)
 ```
+该函数用于初始化tty终端。
 
+```c
+rs_init();//初始化串口终端
+con_init();//初始化控制台终端
+```
 ## tty_intr
 ```c
 void tty_intr(struct tty_struct * tty, int mask)
+```
+键盘中断^C(Ctrl + C)的处理函数，实际就是向前台进程组发送SIGINT信号。
+
+
+```c
+int i;
+
+if (tty->pgrp <= 0)
+    return;
+for (i=0;i<NR_TASKS;i++)
+    if (task[i] && task[i]->pgrp==tty->pgrp)
+        task[i]->signal |= mask;
 ```
 
 ## sleep_if_empty
@@ -26,17 +43,36 @@ void tty_intr(struct tty_struct * tty, int mask)
 static void sleep_if_empty(struct tty_queue * queue)
 ```
 
+如果队列缓冲区为空，则让进程进入可中断睡眠状态。
+
+```c
+cli();
+while (!current->signal && EMPTY(*queue))
+    interruptible_sleep_on(&queue->proc_list);
+sti();
+```
+
 ## sleep_if_full
 ```c
 static void sleep_if_full(struct tty_queue * queue)
 ```
 
-
+```c
+if (!FULL(*queue))
+    return;
+cli();
+while (!current->signal && LEFT(*queue)<128)
+    interruptible_sleep_on(&queue->proc_list);
+sti();
+```
 ## wait_for_keypress
 ```c
 void wait_for_keypress(void)
 ```
 
+```c
+sleep_if_empty(&tty_table[0].secondary);
+```
 
 ## copy_to_cooked
 ```c
@@ -133,7 +169,7 @@ wake_up(&tty->secondary.proc_list);
 ```c
 int tty_read(unsigned channel, char * buf, int nr)
 ```
-
+该函数是终端读函数
 ## tty_write
 ```c
 int tty_write(unsigned channel, char * buf, int nr)
