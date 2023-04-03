@@ -7,9 +7,24 @@ tag:
 
 # Linux-0.11 kernel目录tty_io.c详解
 
+该章节是围绕终端读写展开的。在tty.h定义了tty_struct结构体，其中包含了三个非常重要的队列，即read_q，write_q和seconddary(辅助队列)。
+```c
+struct tty_struct {
+	struct termios termios;
+	int pgrp;
+	int stopped;
+	void (*write)(struct tty_struct * tty);
+	struct tty_queue read_q;
+	struct tty_queue write_q;
+	struct tty_queue secondary;
+	};
+```
 
-keyboard_interrupt -> call *key_table(,%eax,4) -> do_self -> put_queue -> (tty->read_q)-> do_tty_interrupt-> copy_to_cooked -> (tty->secondary) ->wake_up <- sys_read <- rw_char <- tty_read <- read <- (shell)
+下面这张图展示了关于这三个队列的数据流。当用户在键盘上敲入字符时，会先进入read_q中，这个时候时原始字符。后面会使用## copy_to_cooked进行处理之后放入secondary队列中。此时对于进程而言，如果调用了read函数从终端读数据，那么则会通过系统调用调用到tty_read函数，tty_read将会从secondary中读取数据。
 
+如果进程需要向终端打印一些信息，那么会使用通过系统调用从而调用到tty_write函数，向write_q中写入数据，最后再根据终端类型调用con_write或者rs_write向显示器打印出数据。
+
+![tty_flow](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/tty/tty_flow.png)
 
 ## tty_init
 ```c
