@@ -97,7 +97,28 @@ return retval;
 ```
 
 ## tell_father
+```c
+static void tell_father(int pid)
+```
+该函数用于向父进程发送SIGCHLD信号。
 
+```c
+	int i;
+
+	if (pid)
+		for (i=0;i<NR_TASKS;i++) {
+			if (!task[i])
+				continue;
+			if (task[i]->pid != pid)
+				continue;
+			task[i]->signal |= (1<<(SIGCHLD-1));
+			return;
+		}
+/* if we don't find any fathers, we just release ourselves */
+/* This is not really OK. Must change it to make father 1 */
+	printk("BAD BAD - no father found\n\r");
+	release(current);
+```
 ## do_exit
 ```c
 int do_exit(long code)
