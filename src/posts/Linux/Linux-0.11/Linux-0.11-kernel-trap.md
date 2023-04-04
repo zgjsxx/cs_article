@@ -8,6 +8,8 @@ tag:
 
 # Linux-0.11 kernel目录进程管理trap.c详解
 
+## 模块简介
+
 ## 函数详解
 
 ### die
