@@ -144,7 +144,7 @@ void do_signal(long signr,long eax, long ebx, long ecx, long edx,
 
 在系统调用过程中，内核栈的情况如下图所示：
 
-![do_signal1](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/signal/signal_raw.png)
+![do_signal1](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/signal/signal_raw.png)
 
 在该函数中，首先根据信号的id，取出对应的sigaction结构。
 ```c
@@ -203,12 +203,12 @@ current->blocked |= sa->sa_mask;
 
 其最终的效果如下图所示:
 
-![do_after](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/signal/signal_after.png)
+![do_after](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/signal/signal_after.png)
 
 
 当信号处理函数执行完毕，通过return返回时，就会去执行sa_restorer处的代码。
 
-![sa_restore](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/signal/sa_restore.png)
+![sa_restore](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/signal/sa_restore.png)
 
 下面就将解答之前在sys_signal中抛出的问题，sa_restorer是干什么的？ 
 
@@ -279,4 +279,4 @@ ret_from_sys_call->do_signal->iret->handler->return->sa_restorer->return->origin
 
 如下图所示:
 
-![do_signal_flow](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/signal/do_signal_flow.png)
+![do_signal_flow](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/signal/do_signal_flow.png)

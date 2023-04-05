@@ -247,7 +247,7 @@ int main(int argc,char ** argv)
 ```
 可以看出最后的顺序是50->60->80->20->30， 实际上效果就是单方向移动到最后一个位置，再复位进行扫描，再次沿同方向扫描。
 
-![c-san算法示意图](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/block/c-scan.png)
+![c-san算法示意图](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/block/c-scan.png)
 
 ## make_request
 ```c

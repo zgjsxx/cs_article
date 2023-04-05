@@ -24,7 +24,7 @@ struct tty_struct {
 
 如果进程需要向终端打印一些信息，那么会使用通过系统调用从而调用到tty_write函数，向write_q中写入数据，最后再根据终端类型调用con_write或者rs_write向显示器打印出数据。
 
-![tty_flow](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/tty/tty_flow.png)
+![tty_flow](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/tty/tty_flow.png)
 
 ## tty_init
 ```c

@@ -49,7 +49,7 @@ else
 
 这主要是因为物理内存中640K-1M的区域内存放了显存和BIOS ROM，因此当buffer_end=1M， 高速缓冲区是一块， 如果buffer_end>1M， 那么高速缓冲区是两块， 这个点通过下面这张图可以清晰的了解到。
 
-![buffer_init](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/buffer/buffer_init.png)
+![buffer_init](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-fs/buffer/buffer_init.png)
 
 经过上述步骤。 h指针(头指针)指向了高速缓冲区的起点， b指针(数据块指针)指向了高速缓冲区的终点。
 
@@ -85,7 +85,7 @@ if (b == (void *) 0x100000)
 ```
 h指针和b指针移动进行初始化的效果如下图所示：
 
-![buffer_init](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/buffer/buffer_init2.png)
+![buffer_init](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-fs/buffer/buffer_init2.png)
 
 最后这段代码， 将free_list指向了第一个buffer_header块。然后让首尾两个buffer_header相接， 形成完整的双向链表。 最后的话，将高速哈希表中的每一行初始化为NULL。
 ```c
@@ -106,7 +106,7 @@ static struct buffer_head * find_buffer(int dev, int block)
 
 首先根据设备号和块号查找到哈希数组的下标，找到下标对应的bh， 遍历该bh通过b_next连接起来的链表， 看该链表中是否有匹配的。如下图所示：
 
-![find_buffer](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-fs/buffer/find_buffer.png)
+![find_buffer](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-fs/buffer/find_buffer.png)
 
 这个过程的代码如下：
 

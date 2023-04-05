@@ -13,14 +13,14 @@ memory.c负责内存分页机制的管理。其中un_wp_page，copy_page_tables,
 
 在Linux-0.11中，内存区域划分如下图所示：
 
-![memory-area](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-memory/mem-area.png)
+![memory-area](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-memory/mem-area.png)
 
 
 在Linux-0.11内核中，所有进程都使用一个页目录表，而每个进程都有自己的页表。 这与最新的操作系统是不一样的，最新的操作系统通常是每个进程有一套独立的页表。
 
 在Linux-0.11中， 页表为两级结构， 第一级是页目录表， 第二级是页表。页目录表和页表中的每一项为4个字节(32位)，页目录表和页表的格式如下所示：
 
-![memory-area](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-memory/page_frame.png)
+![memory-area](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-memory/page_frame.png)
 
 图中页表项的第0位P代表**存在位**，该位表示这个页表项是否可以用于地址转换，P=1代表该项可用， 当目录表项或者第二级表项的P=0时，代表该项是无效的，不能用于地址转换。
 
@@ -40,7 +40,7 @@ unsigned long get_free_page(void)
 
 这里将edi的值指向了mem_map数组的尾,如下图所示：
 
-![get_free_page](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-memory/get_free_page.png)
+![get_free_page](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-memory/get_free_page.png)
 
 查找的过程就是从mem_map的尾部向前搜寻为0的值，0值代表物理内存是空闲的。
 
@@ -126,7 +126,7 @@ for ( ; size-->0 ; dir++) {//遍历dir
 ```
 整个过程如下图所示：
 
-![free_page_tables](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-memory/free_page_tables.png)
+![free_page_tables](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-memory/free_page_tables.png)
 
 ### copy_page_tables
 ```c
@@ -191,10 +191,10 @@ for ( ; nr-- > 0 ; from_page_table++,to_page_table++) {
 ```
 整个拷贝过程如下图所示:
 
-![copy_page_tables_process](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-memory/copy_page_tables1.png)
+![copy_page_tables_process](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-memory/copy_page_tables1.png)
 
 拷贝结束后的结果如下图所示，实现了from和to对应的线性地址指向了相同的物理地址
-![copy_page_tables_result](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-memory/copy_page_tables2.png)
+![copy_page_tables_result](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-memory/copy_page_tables2.png)
 
 ### put_page
 ```c
@@ -274,7 +274,7 @@ copy_page(old_page,new_page);
 
 写时复制的过程如下图所示：
 
-![copy_page_tables_process](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-memory/copy_on_write.png)
+![copy_page_tables_process](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-memory/copy_on_write.png)
 
 ### do_wp_page
 ```c

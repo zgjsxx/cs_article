@@ -330,7 +330,7 @@ static void read_intr(void)
 
 因此当do_hd_request要去读扇区时，就会设置do_hd为read_intr，这样当硬盘中断到来时，就会调用read_intr进行处理。器处理流程如下图所示：
 
-![read_intr](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/Linux-0.11-kernel/block/read_intr_flow.png)
+![read_intr](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/block/read_intr_flow.png)
 
 首先检查硬盘控制器是否返回错误信息。
 

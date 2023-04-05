@@ -10,7 +10,7 @@ tag:
 
 ## 模块简介
 
-![启动中内存分布变化](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-boot/boot.png)
+![启动中内存分布变化](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/boot.png)
 
 ## 过程详解
 

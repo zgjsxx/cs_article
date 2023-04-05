@@ -80,7 +80,7 @@ i=0;
 
 此时j指向PCB所在内存页的顶部， i指向task_struct结构体的下一个字节。下面这段代码的所用实际就是统计内核栈中空闲大小。
 
-![show_task](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/sched/show_task.png)
+![show_task](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/sched/show_task.png)
 
 ```c
 while (i<j && !((char *)(p+1))[i])
@@ -125,7 +125,7 @@ void sleep_on(struct task_struct **p)
 ```
 该函数的作用是将当前的task置为**不可中断的等待状态**， 直到被wake_up唤醒再继续执行。入参p是等待任务队列的头指针。通过p指针和tmp变量将等待的任务串在了一起。
 
-![sleep_on示意图](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/sched/sleep_on.png)
+![sleep_on示意图](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/sched/sleep_on.png)
 
 该函数首先对一些异常情况进行了处理他， 例如p是空指针。或者当前task是任务0。
 
@@ -161,7 +161,7 @@ void interruptible_sleep_on (struct task_struct **p)
 ```
 该函数与sleep_on类似，但是该函数会将任务的状态修改为**可中断的等待状态**， 而sleep_on则是将任务修改为**不可中断的等待状态**。因此通过interruptible_sleep_on而等待的task是可以被信号唤醒的。 而通过sleep_on而等待的task是**不会被信号唤醒的**，只能通过wake_up函数唤醒。
 
-![interruptible_sleep_on示意图](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/sched/interruptible_sleep_on.png)
+![interruptible_sleep_on示意图](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/sched/interruptible_sleep_on.png)
 
 下面这段代码与sleep_on并无太大区别， 只是将进程的状态修改为可中断的等待状态。
 
@@ -284,7 +284,7 @@ next_timer = p;
 
 由于next_timer这个链表上的jiffies是一个相对值，即相对于前面一个timer还有多久到期。因此上面步骤的timer也需要进行转换。
 
-![timer移动示意图](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/sched/add_timer.png)
+![timer移动示意图](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/sched/add_timer.png)
 ```c
 while (p->next && p->next->jiffies < p->jiffies) {
 	p->jiffies -= p->next->jiffies;//减去下一个timer的jiffies
@@ -351,7 +351,7 @@ current->alarm的单位也是系统滴答数。
 
 而设置alarm值则需要加上系统当前的滴答数据jiffies， 如下图所示:
 
-![sys_alarm](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/sched/sys_alarm.png)
+![sys_alarm](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/sched/sys_alarm.png)
 
 
 ## sys_getpid

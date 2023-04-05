@@ -17,7 +17,7 @@ tag:
 
 对于一些异常而言，CPU在出现这些异常时不会将error code压入栈中。其和一般的中断类似，会将ss,esp,eflags,cs,eip这几个寄存器的值压入内核栈中。如下图所示：
 
-![无错误码的情景](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/trap/no_error.png)
+![无错误码的情景](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/trap/no_error.png)
 
 接下来，以divide_error为例，其会将do_divide_error的地址压入内核栈中， no_error_code第一步便是将do_divide_error的值存入eax中。
 
@@ -81,7 +81,7 @@ iret
 
 对于一些异常而言，CPU在出现这些异常除了会将ss,esp,eflags,cs,eip这几个寄存器的值压入内核栈中以外，还会将error_code压入内核栈中。如下图所示：
 
-![有错误码的情景](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/trap/has_error.png)
+![有错误码的情景](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/trap/has_error.png)
 
 
 以double_fault为例，出现该异常时，会将do_double_fault的地址压入栈中。

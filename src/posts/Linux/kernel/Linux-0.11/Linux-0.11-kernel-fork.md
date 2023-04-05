@@ -21,7 +21,7 @@ int copy_process(int nr,long ebp,long edi,long esi,long gs,long none,
 
 copy_process从INT 0x80中断触发system_call系统调用，进而调用sys_fork。此时内核栈的状态如下所示：
 
-![内核栈的状态](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/fork/system_call_stack.png)
+![内核栈的状态](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/fork/system_call_stack.png)
 
 这与copy_process的参数是一致的。
 
@@ -54,7 +54,7 @@ p->start_time = jiffies;//进程的开始时间设置为系统的滴答数。
 下面一段是设置PCB中有关TSS寄存器的值。下面也通过注释进行详解。
 
 首先设置了内核栈的栈
-![内核栈示意图](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/fork/kernel_stack.png)
+![内核栈示意图](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/fork/kernel_stack.png)
 ```c
 p->tss.back_link = 0;
 p->tss.esp0 = PAGE_SIZE + (long) p;//进程的内核栈栈顶指针
@@ -96,7 +96,7 @@ GDT表中每一项是8个字节，每个进程拥有一个TSS和LDT，因此每�
 
 如对上述知识遗忘，可以通过下面这张图进行温故。
 
-![LDT.png](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/fork/LDT.png)
+![LDT.png](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/fork/LDT.png)
 
 
 下面这里进程内存的拷贝， 实际上确定进行进程新的线性地址， 并进行页表的拷贝。详见本文中copy_mem的讲解。
@@ -170,7 +170,7 @@ addr是指在进程线性地址中相对于起始位置的偏移量， size指�
 
 由于检测判断是以4K页为单位进行操作的，因此程序需要找出addr所在页的起始地址，如下图所示。
 
-![verify_area](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/Linux-0.11-kernel/fork/verify_area.png)
+![verify_area](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/fork/verify_area.png)
 
 
 下面这段代码就是去寻找addr所在的内存页的起始地址， 即start。
