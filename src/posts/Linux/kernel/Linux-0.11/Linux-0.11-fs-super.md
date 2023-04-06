@@ -15,7 +15,15 @@ tag:
 ```c
 static void lock_super(struct super_block * sb)
 ```
+该函数的作用是锁定bh块。
 
+```c
+cli();//关中断
+while (sb->s_lock)//如果已经被锁定
+    sleep_on(&(sb->s_wait));//将当前任务置为不可中断的等待状态，并添加到该超级快等待队列。
+sb->s_lock = 1;//锁定该超级快
+sti();//关中断
+```
 
 ### free_super
 ```c
