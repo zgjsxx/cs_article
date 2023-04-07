@@ -1,6 +1,31 @@
 
 # Linux-0.11中的汇编
 
+
+## 内嵌汇编
+基本的格式是：
+```c
+asm ( "statements" 
+    : output_regs 
+    : input_regs 
+    : clobbered_regs
+    );
+```
+
+
+其中符号"c"(count)指示要把count的值放入ecx寄存器
+类似的还有：
+a        eax
+b        ebx
+c        ecx
+d        edx
+S        esi
+D        edi
+I        常数值，(0 - 31)
+q,r        动态分配的寄存器
+g        eax,ebx,ecx,edx或内存变量
+A        把eax和edx合成一个64位的寄存器(use long longs)
+
 ## mov(x)
 
 movb:复制8位数据(1个字节)
