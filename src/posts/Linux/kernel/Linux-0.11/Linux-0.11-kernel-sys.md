@@ -9,6 +9,9 @@ tag:
 
 ## 模块简介
 
+
+## 函数详解
+
 ### sys_ftime
 ```c
 int sys_ftime()
@@ -133,9 +136,18 @@ int sys_uname()
 
 ### sys_umask
 ```c
-int sys_umask()
+int sys_umask(int mask)
+```
+设置当前进程创建文件的属性屏蔽码为```(mask & 0777)```。
+
+```0777```代表数字是一个八进制数字，即000111111111。
+
+```c
+int old = current->umask;
+
+current->umask = mask & 0777;
+return (old);
 ```
 
-## 函数详解
 
 ## Q & A
