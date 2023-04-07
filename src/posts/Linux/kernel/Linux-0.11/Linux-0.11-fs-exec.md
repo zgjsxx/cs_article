@@ -37,4 +37,21 @@ static unsigned long change_ldt(unsigned long text_size,unsigned long * page)
 int do_execve(unsigned long * eip,long tmp,char * filename,
 	char ** argv, char ** envp)
 ```
+根据文件的路径获取i节点。
+
+         |   段描述符索引           |TI | RPL |
+0x0017 = |0 0 0 0 0 0 0 0 0 0 0 1 0| 1 | 1 1 |
+0x000f = |0 0 0 0 0 0 0 0 0 0 0 0 1| 1 | 1 1 |
+
+
+```c
+if (!(inode=namei(filename)))		/* get executables inode */
+    return -ENOENT;
+```
+
+统计参数和环境变量的个数。
+```c
+argc = count(argv);
+envc = count(envp);
+```
 ## Q & A
