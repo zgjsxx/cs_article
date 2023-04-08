@@ -168,3 +168,6 @@ read_it实际上就是将system模块存放在0x1000:0x0000处。
 	ljmp	$SETUPSEG, $0
 ```
 ## Q & A
+
+
+https://github.com/Wangzhike/HIT-Linux-0.11/blob/master/1-boot/OS-booting.md
