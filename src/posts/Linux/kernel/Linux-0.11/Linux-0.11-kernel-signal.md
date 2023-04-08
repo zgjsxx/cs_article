@@ -252,7 +252,7 @@ __sig_restore和__masksig_restore的定义如下所示:
 
 其二者区别就在于栈中的参数是7个还是8个。
 
-```asm
+```x86asm
 .globl __sig_restore
 .globl __masksig_restore
 # 若没有blocked，则使用这个restorer函数
