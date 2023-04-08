@@ -168,7 +168,7 @@ p += change_ldt(ex.a_text,page)-MAX_ARG_PAGES*PAGE_SIZE;
 p = (unsigned long) create_tables((char *)p,argc,envc);
 ```
 
-
+接下来重新设置进程个字段的值。例如brk=a_text+a_data+a_bss
 ```c
 current->brk = ex.a_bss +
     (current->end_data = ex.a_data +
@@ -176,6 +176,10 @@ current->brk = ex.a_bss +
 current->start_stack = p & 0xfffff000;
 current->euid = e_uid;
 current->egid = e_gid;
+```
+
+如果执行文件的代码段加上数据段长度不在页面的边界上，则将剩余部分置为0。
+```c
 i = ex.a_text+ex.a_data;
 while (i&0xfff)
     put_fs_byte(0,(char *) (i++));
