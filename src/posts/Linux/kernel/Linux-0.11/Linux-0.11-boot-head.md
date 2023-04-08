@@ -44,3 +44,85 @@ setup_paging:
 
 
 ## Q & A
+
+### setup_paging在建立页表时会将head.s的部分代码覆盖，怎么保证不会把正在执行的代码覆盖？
+可以通过反汇编查看一下system模块的内存分布
+```shell
+objdump -d tools/system
+```
+
+如下所示：
+```
+00000000 <pg_dir>:
+       0:	b8 10 00 00 00       	mov    $0x10,%eax
+       5:	8e d8                	mov    %eax,%ds
+	   ...
+0000005a <check_x87>:
+      5a:	db e3                	fninit 
+      5c:	9b df e0             	fstsw  %ax
+      5f:	3c 00                	cmp    $0x0,%al
+	  ...
+00000071 <setup_idt>:
+      71:	8d 15 28 54 00 00    	lea    0x5428,%edx
+      77:	b8 00 00 08 00       	mov    $0x80000,%eax
+	  ...
+0000008e <rp_sidt>:
+      8e:	89 07                	mov    %eax,(%edi)
+      90:	89 57 04             	mov    %edx,0x4(%edi)
+	  ...
+000000a1 <setup_gdt>:
+      a1:	0f 01 15 b2 54 00 00 	lgdtl  0x54b2
+      a8:	c3                   	ret    
+	...
+00001000 <pg0>:
+	...
+
+00002000 <pg1>:
+	...
+
+00003000 <pg2>:
+	...
+
+00004000 <pg3>:
+	...
+00005000 <tmp_floppy_area>:
+	...
+00005400 <after_page_tables>:
+    5400:	6a 00                	push   $0x0
+    5402:	6a 00                	push   $0x0
+	...
+00005412 <L6>:
+    5412:	eb fe                	jmp    5412 <L6>
+00005414 <int_msg>:
+    5414:	55                   	push   %ebp
+    5415:	6e                   	outsb  %ds:(%esi),(%dx)
+	...
+00005428 <ignore_int>:
+    5428:	50                   	push   %eax
+    5429:	51                   	push   %ecx
+	...
+0000544e <setup_paging>:
+    544e:	b9 00 14 00 00       	mov    $0x1400,%ecx
+    5453:	31 c0                	xor    %eax,%eax
+    5455:	31 ff                	xor  
+	...
+000054aa <idt_descr>:
+    54aa:	ff 07                	incl   (%edi)
+    54ac:	b8 54 00 00 00       	mov    $0x54,%eax
+	...
+
+000054b2 <gdt_descr>:
+    54b2:	ff 07                	incl   (%edi)
+    54b4:	b8                   	.byte 0xb8
+    54b5:	5c                   	pop    %esp
+	...
+
+000054b8 <idt>:
+	...
+
+00005cb8 <gdt>:
+	...
+    5cc0:	ff 0f                	decl   (%edi)
+```
+
+可以看到代码标号setup_page的起始地址是0000544e，而内存页表和页目录表的地址范围是0x0000-0x5000。因此当程序执行到setup_page时，将建立页目录表和页表， 这将会覆盖0x0000-0x5000的部分代码，即pg_dir，check_x87，setup_idt，rp_sidt，setup_gdt， 并不会覆盖到setup_page的代码，head.s在代码的分布计算上确实是费了一番功夫。
