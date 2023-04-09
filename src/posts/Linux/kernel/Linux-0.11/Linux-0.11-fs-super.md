@@ -120,11 +120,142 @@ static struct super_block * read_super(int dev)
 int sys_umount(char * dev_name)
 ```
 
+该函数用于卸载一个文件系统。
+
+程序的开始定义了一些变量，接着通过设备名称获取其i节点。
+```c
+	struct m_inode * inode;
+	struct super_block * sb;
+	int dev;
+
+	if (!(inode=namei(dev_name)))
+		return -ENOENT;
+```
+
+对于设备节点而言，其设备号存放在i节点的```i_zone[0]```中。如果该i节点不是一个块设备文件，则不能进行卸载，于是返回错误。
+```c
+	dev = inode->i_zone[0];
+	if (!S_ISBLK(inode->i_mode)) {
+		iput(inode);
+		return -ENOTBLK;
+	}
+	iput(inode);
+```
+
+如果该设备号存放的是根文件系统，则不能进行卸载。
+```c
+	if (dev==ROOT_DEV)
+		return -EBUSY;
+```
+
+接下来根据设备号取出其超级块，如果该超级块中的s_imount为NULL，也就是该设备没有被挂载，则不能进行卸载。
+```c
+	if (!(sb=get_super(dev)) || !(sb->s_imount))
+		return -ENOENT;
+```
+
+如果挂载的目录节点的i_mount字段为0，则需要打印日志提示。
+```c
+	if (!sb->s_imount->i_mount)
+		printk("Mounted inode has i_mount=0\n");
+```
+
+接下来遍历inode表，查看该设备节点是否被占用，如果被占用则返回错误。
+```c
+	for (inode=inode_table+0 ; inode<inode_table+NR_INODE ; inode++)
+		if (inode->i_dev==dev && inode->i_count)
+				return -EBUSY;
+```
+
+程序运行到这里，就开始正式的卸载。首先将挂载的目录节点的i_mount标记为0，随后放回该挂载目录节点。随后将超级块的s_imount字段标记为NULL，并将该文件系统的根i节点进行放回。
+```c
+	sb->s_imount->i_mount=0;
+	iput(sb->s_imount);
+	sb->s_imount = NULL;
+	iput(sb->s_isup);
+	sb->s_isup = NULL;
+```
+最后释放该设备上的超级块以及位图中占用的高速缓冲块，并对该设备进行数据同步。
+```c
+	put_super(dev);
+	sync_dev(dev);
+```
 ### sys_mount
 ```c
 int sys_mount(char * dev_name, char * dir_name, int rw_flag)
 ```
+该函数的作用是用于安装文件系统。
 
+函数的开始定义了一些变量，接着通过设备名称获取其i节点。
+```c
+	struct m_inode * dev_i, * dir_i;
+	struct super_block * sb;
+	int dev;
+
+	if (!(dev_i=namei(dev_name)))
+		return -ENOENT;
+```
+
+对于设备类型的i节点，其```i_zone[0]```存放的是设备号dev。接着判断该设备是否是一个块设备文件，如果不是块设备文件，是不能挂在文件系统的，就会返回权限错误。如果权限校验没有问题，就把dev_i节点放回。
+
+```c
+	dev = dev_i->i_zone[0];
+	if (!S_ISBLK(dev_i->i_mode)) {
+		iput(dev_i);
+		return -EPERM;
+	}
+	iput(dev_i);
+```
+
+接下来获取dir_name对应的i节点dir_i。
+```c
+	if (!(dir_i=namei(dir_name)))
+		return -ENOENT;
+```
+
+如果dir_i这个i节点的引用计数不为1，也就是说这个i节点还被其他进程使用，或者dir_i节点是根文件系统的1号i节点，则不能进行挂载。
+```c
+	if (dir_i->i_count != 1 || dir_i->i_num == ROOT_INO) {
+		iput(dir_i);
+		return -EBUSY;
+	}
+```
+
+此外，如果该i节点不是一个目录节点，则也不能进行挂载。
+```c
+	if (!S_ISDIR(dir_i->i_mode)) {
+		iput(dir_i);
+		return -EPERM;
+	}
+```
+
+当运行到这里时，就意味着对挂载设备和挂载目录的校验就通过了。接下来，读取设备dev的超级块。
+```c
+	if (!(sb=read_super(dev))) {
+		iput(dir_i);
+		return -EBUSY;
+	}
+```
+
+如果该超级块已经挂载到某个目录下，那么将返回错误。如果该目录已经挂载了其他的块设备，也返回错误。
+```c
+	if (sb->s_imount) {
+		iput(dir_i);
+		return -EBUSY;
+	}
+	if (dir_i->i_mount) {
+		iput(dir_i);
+		return -EPERM;
+	}
+```
+
+最后便开始进行真正的挂载步骤，其实就是将超级块sb的s_imount指向挂载的目录i节点dir_i。接着将目录i节点dir_i的i_mount字段标记为1，也将i_dirt标记为1。这些执行完毕之后，将返回0。
+```c
+	sb->s_imount=dir_i;
+	dir_i->i_mount=1;
+	dir_i->i_dirt=1;
+	return 0;
+```
 ### mount_root
 ```c
 void mount_root(void)
