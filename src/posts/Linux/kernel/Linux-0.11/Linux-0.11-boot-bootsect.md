@@ -163,6 +163,99 @@ ax =  0x1000, es = 0x1000
 read_it实际上就是将system模块存放在0x1000:0x0000处。
 
 
+test执行的是0x1000 & 0x0fff = 0x0000,
+```x86asm
+read_it:
+	mov	%es, %ax
+	test	$0x0fff, %ax
+die:	jne 	die			# es must be at 64kB boundary
+	xor 	%bx, %bx		# bx is starting address within segment
+```
+
+接着判断是否已经读入了所有的数据。比较ax和ENDSEG的值，如果不相等，则跳转到ok1_read中执行。
+```x86asm
+rp_read:
+	mov 	%es, %ax
+ 	cmp 	$ENDSEG, %ax		# have we loaded all yet?
+	jb	ok1_read
+	ret
+```
+
+```x86asm
+ok1_read:
+	#seg cs
+	mov	%cs:sectors+0, %ax !获取每柱面的扇区数
+	sub	sread, %ax         !减去当前磁道已读扇区数(bootsect + setup)
+	mov	%ax, %cx           !cx = ax = 当前柱面未读扇区数
+	shl	$9, %cx            !cx = cx * 512字节 + 段内偏移
+	add	%bx, %cx
+	jnc 	ok2_read
+	je 	ok2_read
+	xor 	%ax, %ax
+	sub 	%bx, %ax
+	shr 	$9, %ax
+```
+
+```x86asm
+ok2_read:
+	call 	read_track   !读当前柱面上指定开始扇区和要读的扇区数
+	mov 	%ax, %cx
+	add 	sread, %ax
+	#seg cs
+	cmp 	%cs:sectors+0, %ax
+	jne 	ok3_read
+	mov 	$1, %ax
+	sub 	head, %ax
+	jne 	ok4_read
+	incw    track 
+```
+
+
+```x86asm
+ok4_read:
+	mov	%ax, head
+	xor	%ax, %ax
+ok3_read:
+	mov	%ax, sread
+	shl	$9, %cx
+	add	%cx, %bx
+	jnc	rp_read
+	mov	%es, %ax
+	add	$0x1000, %ax
+	mov	%ax, %es
+	xor	%bx, %bx
+	jmp	rp_read
+```
+
+接下来的read_track的作用是读取当前柱面上的数据到es:bx处。
+
+ah = 0x02 读磁盘到内存   al = 4 读4个扇区
+ch: 柱面号的低8位， cl: 0-5位代表开始扇区， 6-7位 代表磁道号的高2位代表柱面的高2位。
+dh 磁头号       dl 驱动器号。
+
+```x86asm
+read_track:
+	push	%ax
+	push	%bx
+	push	%cx
+	push	%dx
+	mov	track, %dx
+	mov	sread, %cx
+	inc	%cx
+	mov	%dl, %ch
+	mov	head, %dx
+	mov	%dl, %dh
+	mov	$0, %dl
+	and	$0x0100, %dx
+	mov	$2, %ah
+	int	$0x13
+	jc	bad_rt
+	pop	%dx
+	pop	%cx
+	pop	%bx
+	pop	%ax
+	ret
+```
 程序的最后，通过ljmp跳转到setup位置执行setup.s中的代码。
 ```x86asm
 	ljmp	$SETUPSEG, $0
