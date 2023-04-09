@@ -8,9 +8,10 @@ tag:
 
 # Linux-0.11 kernel目录进程管理system_call.s详解
 
+## 模块简介
 
-
-## system_call
+## 过程分析
+### system_call
 
 当0x80号中断发生的时候，CPU除了切入内核态之外，还会自动完成下列几件事：
 
