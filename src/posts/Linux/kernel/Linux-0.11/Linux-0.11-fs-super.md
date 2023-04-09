@@ -76,22 +76,33 @@ struct super_block * get_super(int dev)
 ```c
 void put_super(int dev)
 ```
-
+该函数用于放回指定设备的超级块。
 ```c
 	struct super_block * sb;
 	/* struct m_inode * inode;*/
 	int i;
+```
 
+首先判断该设备是否是根文件系统设备，如果是，则直接返回。
+```c
 	if (dev == ROOT_DEV) {
 		printk("root diskette changed: prepare for armageddon\n\r");
 		return;
 	}
+```
+
+接着开始读取该设备的超级块。如果该超级块的挂载位置i节点s_imount还没有处理，则打印告警并返回。
+```c
 	if (!(sb = get_super(dev)))
 		return;
 	if (sb->s_imount) {
 		printk("Mounted disk changed - tssk, tssk\n\r");
 		return;
 	}
+```
+
+找到该设备的超级块这时候，首先需要锁定该超级块。接着释放i节点位图和逻辑块位图。结束之后，对该超级块进行解锁，并返回。
+```c	
 	lock_super(sb);
 	sb->s_dev = 0;
 	for(i=0;i<I_MAP_SLOTS;i++)
@@ -106,14 +117,96 @@ void put_super(int dev)
 ```c
 static struct super_block * read_super(int dev)
 ```
+该函数的作用是用于读取指定设备的超级块。
 
-读取该设备的第一个磁盘块。第0个磁盘块是引导，第一个磁盘块是超级块。
+程序的开始定义了一些变量，对进行一些校验。
+```c
+	struct super_block * s;
+	struct buffer_head * bh;
+	int i,block;
+
+	if (!dev)
+		return NULL;
+	check_disk_change(dev);
+```
+
+接着从超级块数组中获取一个超级块。如果已经存在，则直接返回该超级块的指针。如果不存在，则找出一个空闲的位置（s_dev=0）。找到之后边进行初始化。
+```c
+	if ((s = get_super(dev)))
+		return s;
+	for (s = 0+super_block ;; s++) {
+		if (s >= NR_SUPER+super_block)
+			return NULL;
+		if (!s->s_dev)
+			break;
+	}
+	s->s_dev = dev;
+	s->s_isup = NULL;
+	s->s_imount = NULL;
+	s->s_time = 0;
+	s->s_rd_only = 0;
+	s->s_dirt = 0;
+```
+
+接下来就是读取该设备的第一个磁盘块到内存中。（第0个磁盘块是引导，第一个磁盘块是超级块。）
 ```c
 	if (!(bh = bread(dev,1))) {
 		s->s_dev=0;
 		free_super(s);
 		return NULL;
 	}
+	*((struct d_super_block *) s) =
+		*((struct d_super_block *) bh->b_data);
+	brelse(bh);
+```
+
+接下俩检查其魔数，如果不是0x137F，则不能处理。
+```c
+	if (s->s_magic != SUPER_MAGIC) {
+		s->s_dev = 0;
+		free_super(s);
+		return NULL;
+	}
+```
+
+接下来开始读取i节点位图和逻辑块位图数据。i节点位图在设备的第2号块开始，共占用s_imap_blocks块。逻辑块位图在i节点位图之后，共占用s_zmap_blocks块。
+```c
+	for (i=0;i<I_MAP_SLOTS;i++)
+		s->s_imap[i] = NULL;
+	for (i=0;i<Z_MAP_SLOTS;i++)
+		s->s_zmap[i] = NULL;
+	block=2;
+	for (i=0 ; i < s->s_imap_blocks ; i++)
+		if ((s->s_imap[i]=bread(dev,block)))
+			block++;
+		else
+			break;
+	for (i=0 ; i < s->s_zmap_blocks ; i++)
+		if ((s->s_zmap[i]=bread(dev,block)))
+			block++;
+		else
+			break;
+```
+
+接下来如果文件系统信息有问题，则意味着初始化失败，则进行失败的处理。
+```c
+	if (block != 2+s->s_imap_blocks+s->s_zmap_blocks) {
+		for(i=0;i<I_MAP_SLOTS;i++)
+			brelse(s->s_imap[i]);
+		for(i=0;i<Z_MAP_SLOTS;i++)
+			brelse(s->s_zmap[i]);
+		s->s_dev=0;
+		free_super(s);
+		return NULL;
+	}
+```
+
+程序运行到这里，说明一切正常。因为0号i节点和0号数据块是不能使用的，因此将i节点位图和逻辑块位图的0号位置设置为1。
+```c
+	s->s_imap[0]->b_data[0] |= 1;
+	s->s_zmap[0]->b_data[0] |= 1;
+	free_super(s);
+	return s;
 ```
 ### sys_umount
 ```c
