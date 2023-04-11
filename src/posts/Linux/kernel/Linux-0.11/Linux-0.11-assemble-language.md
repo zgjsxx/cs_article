@@ -34,6 +34,22 @@ movw:复制16位数据(2个字节)
 
 movl:复制32位数据(4个字节)
 
+
+
+## AND 
+调用格式：
+
+```x86asm
+AND source destination
+```
+对两个操作数对应位之间进行按位逻辑与操作，并将操作存放在目标操作数之中。
+
+
+例如bootsect.s， 将dx和0x0100进行按位与，并将值放入到dx中。
+```x86asm
+and	$0x0100, %dx
+```
+
 ## std和cld
 
 CLD： 设置DF=0
