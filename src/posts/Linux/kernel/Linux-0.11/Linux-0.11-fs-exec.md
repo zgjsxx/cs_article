@@ -26,6 +26,13 @@ static int count(char ** argv)
 static unsigned long copy_strings(int argc,char ** argv,unsigned long *page,
 		unsigned long p, int from_kmem)
 ```
+该函数的作用是从用户拷贝参数和环境字符串拷贝到内核空间。
+```text
+ * from_kmem     argv *        argv **
+ *    0          user space    user space
+ *    1          kernel space  user space
+ *    2          kernel space  kernel space
+```
 
 ### change_ldt
 ```c
