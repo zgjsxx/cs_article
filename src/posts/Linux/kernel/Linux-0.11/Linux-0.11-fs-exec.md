@@ -15,10 +15,57 @@ tag:
 ```c
 static unsigned long * create_tables(char * p,int argc,int envc)
 ```
+该函数的作用是建立参数和环境变量指针表。
+
+create_table的作用就是建立指针表去指向copy_string拷贝的字符串。
+
+![create_tables](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-fs/exec/create_table.png)
+
+```c
+	unsigned long *argv,*envp;
+	unsigned long * sp;
+
+	sp = (unsigned long *) (0xfffffffc & (unsigned long) p);
+	sp -= envc+1;
+	envp = sp;
+	sp -= argc+1;
+	argv = sp;
+	put_fs_long((unsigned long)envp,--sp);
+	put_fs_long((unsigned long)argv,--sp);
+	put_fs_long((unsigned long)argc,--sp);
+	while (argc-->0) {
+		put_fs_long((unsigned long) p,argv++);
+		while (get_fs_byte(p++)) /* nothing */ ;
+	}
+	put_fs_long(0,argv);
+	while (envc-->0) {
+		put_fs_long((unsigned long) p,envp++);
+		while (get_fs_byte(p++)) /* nothing */ ;
+	}
+	put_fs_long(0,envp);
+	return sp;
+```
 
 ### count
 ```c
 static int count(char ** argv)
+```
+该函数用于计算参数的个数。
+
+argv数组的最后一项是NULL，以此作为循环终止的条件。
+
+![count](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-fs/exec/count.png)
+
+
+```c
+	int i=0;
+	char ** tmp;
+
+	if ((tmp = argv))
+		while (get_fs_long((unsigned long *) (tmp++)))
+			i++;
+
+	return i;
 ```
 
 ### copy_strings
@@ -26,17 +73,100 @@ static int count(char ** argv)
 static unsigned long copy_strings(int argc,char ** argv,unsigned long *page,
 		unsigned long p, int from_kmem)
 ```
-该函数的作用是从用户拷贝参数和环境字符串拷贝到内核空间。
-```text
+该函数的作用是从用户拷贝命令行参数和环境字符串拷贝到内核空间。
+
+在do_execve函数中定义了一个page数组```unsigned long page[MAX_ARG_PAGES]```，该数组定义在内核空间中，用于存储用户态传递过来的环境参数和命令行参数。初始时，程序定义了一个指向该空间末端(128k-4)处的空间偏移量p, 当随着环境参数和命令行参数的拷贝，p指针将向前进行移动， 如下图所示：
+
+![copy_strings](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-fs/exec/copy_strings.png)
+
+在函数的内部，考虑了参数不处于用户空间的场景，使用from_kmen，为了便于理解，可以默认from_kmen=0。
+```c
  * from_kmem     argv *        argv **
  *    0          user space    user space
  *    1          kernel space  user space
  *    2          kernel space  kernel space
 ```
 
+该函数在开始处，定义了一些参数，并获取处ds寄存器和fs寄存器的值。
+```c
+	char *tmp, *pag=NULL;
+	int len, offset = 0;
+	unsigned long old_fs, new_fs;
+
+	if (!p)
+		return 0;	/* bullet-proofing */
+	new_fs = get_ds();
+	old_fs = get_fs();
+	if (from_kmem==2)
+		set_fs(new_fs);
+```
+
+接下来,因此传入的参数的数量argc个，因此对其进行遍历，依次将其拷贝到page数组中。
+```c
+	while (argc-- > 0) {
+		if (from_kmem == 1)
+			set_fs(new_fs);
+		if (!(tmp = (char *)get_fs_long(((unsigned long *)argv)+argc)))
+			panic("argc is wrong");
+		if (from_kmem == 1)
+			set_fs(old_fs);
+		len=0;		/* remember zero-padding */
+		do {
+			len++;
+		} while (get_fs_byte(tmp++));//将tmp指向字符串的末端
+		if (p-len < 0) {	/* this shouldn't happen - 128kB */
+			set_fs(old_fs);
+			return 0;
+		}
+		while (len) {//逐字节拷贝
+			--p; --tmp; --len;
+			if (--offset < 0) {
+				offset = p % PAGE_SIZE;
+				if (from_kmem==2)
+					set_fs(old_fs);
+				if (!(pag = (char *) page[p/PAGE_SIZE]) &&
+				    !(pag = (char *) (page[p/PAGE_SIZE] =
+				      get_free_page()))) 
+					return 0;
+				if (from_kmem==2)
+					set_fs(new_fs);
+
+			}
+			*(pag + offset) = get_fs_byte(tmp);
+		}
+	}
+	if (from_kmem==2)
+		set_fs(old_fs);
+	return p;
+```
+
 ### change_ldt
 ```c
 static unsigned long change_ldt(unsigned long text_size,unsigned long * page)
+```
+该函数的作用是修改LDT中段基址和段限长度， 同时将参数和环境空间放置在数据段的末端。
+```c
+	unsigned long code_limit,data_limit,code_base,data_base;
+	int i;
+
+	code_limit = text_size+PAGE_SIZE -1;
+	code_limit &= 0xFFFFF000;
+	data_limit = 0x4000000;
+	code_base = get_base(current->ldt[1]);
+	data_base = code_base;
+	set_base(current->ldt[1],code_base);
+	set_limit(current->ldt[1],code_limit);
+	set_base(current->ldt[2],data_base);
+	set_limit(current->ldt[2],data_limit);
+/* make sure fs points to the NEW data segment */
+	__asm__("pushl $0x17\n\tpop %%fs"::);
+	data_base += data_limit;
+	for (i=MAX_ARG_PAGES-1 ; i>=0 ; i--) {
+		data_base -= PAGE_SIZE;
+		if (page[i])
+			put_page(page[i],data_base);
+	}
+	return data_limit;
 ```
 
 ### do_execve

@@ -316,4 +316,63 @@ int sys_unlink(const char * name)
 int sys_link(const char * oldname, const char * newname)
 ```
 
+```c
+	struct dir_entry * de;
+	struct m_inode * oldinode, * dir;
+	struct buffer_head * bh;
+	const char * basename;
+	int namelen;
+
+	oldinode=namei(oldname);
+	if (!oldinode)
+		return -ENOENT;
+	if (S_ISDIR(oldinode->i_mode)) {
+		iput(oldinode);
+		return -EPERM;
+	}
+	dir = dir_namei(newname,&namelen,&basename);
+	if (!dir) {
+		iput(oldinode);
+		return -EACCES;
+	}
+	if (!namelen) {
+		iput(oldinode);
+		iput(dir);
+		return -EPERM;
+	}
+	if (dir->i_dev != oldinode->i_dev) {
+		iput(dir);
+		iput(oldinode);
+		return -EXDEV;
+	}
+	if (!permission(dir,MAY_WRITE)) {
+		iput(dir);
+		iput(oldinode);
+		return -EACCES;
+	}
+	bh = find_entry(&dir,basename,namelen,&de);
+	if (bh) {
+		brelse(bh);
+		iput(dir);
+		iput(oldinode);
+		return -EEXIST;
+	}
+	bh = add_entry(dir,basename,namelen,&de);
+	if (!bh) {
+		iput(dir);
+		iput(oldinode);
+		return -ENOSPC;
+	}
+	de->inode = oldinode->i_num;
+	bh->b_dirt = 1;
+	brelse(bh);
+	iput(dir);
+	oldinode->i_nlinks++;
+	oldinode->i_ctime = CURRENT_TIME;
+	oldinode->i_dirt = 1;
+	iput(oldinode);
+	return 0;
+```
+
+
 ## Q & A
