@@ -280,6 +280,19 @@ if (N_TXTOFF(ex) != BLOCK_SIZE) {
 }
 ```
 
+如果sh_bang标志没有设置，则复制指定个数的命令行参数和环境字符串到参数和环境空间。如果sh_bang为true，代表是运行的脚本程序，此时命令行参数和环境字符串已经进行了复制。
+```c
+	if (!sh_bang) {
+		p = copy_strings(envc,envp,page,p,0);//拷贝环境字符串
+		p = copy_strings(argc,argv,page,p,0);//拷贝命令行参数
+		if (!p) {
+			retval = -ENOMEM;
+			goto exec_error2;
+		}
+	}
+```
+
+这里放回进程原来所需要执行的程序的i节点，并让进程executable指向新执行文件的i节点。然后复位原进程的所有信号处理句柄。再根据执行时关闭文件句柄close_on_exec位图标志，关闭指定的打开文件，并复位该标志。
 ```c
 if (current->executable)
     iput(current->executable);

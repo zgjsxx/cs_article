@@ -15,6 +15,32 @@ tag:
 ```c
 static int permission(struct m_inode * inode,int mask)
 ```
+检查进程操作文件inode的权限。
+
+|mask的值|含义|
+|---|--|
+|mask = 4|检查进程是否有权限读该inode|
+|mask = 2|检查进程是否有权限写该inode|
+|mask = 1|检查进程是否有权限执行该inode|
+|mask = 5|检查进程是否有权限读和执行该inode|
+|mask = 3|检查进程是否有权限写和执行该inode|
+|mask = 6|检查进程是否有权限读和写该inode|
+|mask = 7|检查进程是否有权限读写和执行该inode|
+
+```c
+	int mode = inode->i_mode;
+
+/* special case: not even root can read/write a deleted file */
+	if (inode->i_dev && !inode->i_nlinks)
+		return 0;
+	else if (current->euid==inode->i_uid)
+		mode >>= 6;
+	else if (current->egid==inode->i_gid)
+		mode >>= 3;
+	if (((mode & mask & 0007) == mask) || suser())//访问权限和掩码相同，或者是超级用户
+		return 1;
+	return 0;
+```
 
 
 ### match
@@ -61,7 +87,7 @@ cmpsb指令用于比较ds:esi和es:edi指向的一个字节的内容。 而加�
 static struct buffer_head * find_entry(struct m_inode ** dir,
 	const char * name, int namelen, struct dir_entry ** res_dir)
 ```
-假设现在有一个路径/home/work/test.txt，dir指向的是/home，name指向的是work/test.txt，namelen=4， 那么该函数将会找到/home/work对应的dir_entry,dir_entry中包含了inode号和目录名字。
+假设现在有一个路径/home/work/test.txt，dir指向的是/home，name指向的是work/test.txt，namelen=4， 那么该函数将会找到/home/work对应的dir_entry(dir_entry中包含了inode号和目录名字)。
 
 
 刚开始定义了一些参数，并对一些参数的有效性进行了校验。 如果定义了宏NO_TRUNCATE， 如果长度超长，就直接返回NULL。如果没有定义该宏， 长度超长，则进行截断。
@@ -153,6 +179,61 @@ static struct buffer_head * add_entry(struct m_inode * dir,
 	const char * name, int namelen, struct dir_entry ** res_dir)
 ```
 
+
+```c
+	int block,i;
+	struct buffer_head * bh;
+	struct dir_entry * de;
+
+	*res_dir = NULL;
+#ifdef NO_TRUNCATE
+	if (namelen > NAME_LEN)
+		return NULL;
+#else
+	if (namelen > NAME_LEN)
+		namelen = NAME_LEN;
+#endif
+	if (!namelen)
+		return NULL;
+	if (!(block = dir->i_zone[0]))
+		return NULL;
+	if (!(bh = bread(dir->i_dev,block)))
+		return NULL;
+	i = 0;
+	de = (struct dir_entry *) bh->b_data;
+	while (1) {
+		if ((char *)de >= BLOCK_SIZE+bh->b_data) {
+			brelse(bh);
+			bh = NULL;
+			block = create_block(dir,i/DIR_ENTRIES_PER_BLOCK);
+			if (!block)
+				return NULL;
+			if (!(bh = bread(dir->i_dev,block))) {
+				i += DIR_ENTRIES_PER_BLOCK;
+				continue;
+			}
+			de = (struct dir_entry *) bh->b_data;
+		}
+		if (i*sizeof(struct dir_entry) >= dir->i_size) {
+			de->inode=0;
+			dir->i_size = (i+1)*sizeof(struct dir_entry);
+			dir->i_dirt = 1;
+			dir->i_ctime = CURRENT_TIME;
+		}
+		if (!de->inode) {
+			dir->i_mtime = CURRENT_TIME;
+			for (i=0; i < NAME_LEN ; i++)
+				de->name[i]=(i<namelen)?get_fs_byte(name+i):0;
+			bh->b_dirt = 1;
+			*res_dir = de;
+			return bh;
+		}
+		de++;
+		i++;
+	}
+	brelse(bh);
+	return NULL;
+```
 
 
 ### get_dir
