@@ -178,7 +178,7 @@ while (i < entries) {
 static struct buffer_head * add_entry(struct m_inode * dir,
 	const char * name, int namelen, struct dir_entry ** res_dir)
 ```
-
+该函数用于向指定的目录添加一个目录项。
 
 ```c
 	int block,i;
@@ -293,6 +293,10 @@ while (1) {
 static struct m_inode * dir_namei(const char * pathname,
 	int * namelen, const char ** name)
 ```
+该函数的作用是返回指定路径(pathname)所在目录的i节点， 并返回其上层目录的名称。
+
+
+例如：pathname = /home/work/test.txt， dir_namei将返回目录```/home/work```的i节点，同时设置name = "test.txt", namelen = 8。
 
 
 ```c
