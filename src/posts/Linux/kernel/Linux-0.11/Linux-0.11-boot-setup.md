@@ -15,11 +15,28 @@ setup.s用于加载操作系统的一些信息，其主要处理了如下一些�
 - 打印硬件信息
 - 重新搬运system的位置
 - 设置中断信息
+- 打开A20地址线
 - 切换32位保护模式
 - 跳转到system.s中运行
 
 ## 过程详解
 
+这里将ds设置为INITSEG(0x9000)。这个值在bootsect.s中已经设置过，Linus认为目前程序是setup.s,因此这里重新设置了ds寄存器的值。
+
+接下来利用INT 0x10中断读取光标所在的位置。
+
+INT 0x10：
+功能号ah = 0x03 作用读光标位置
+输入： bh=页号
+输出: ch=扫描开始线  cl=扫描结束线  dh=行号 dl=列号
+```x86asm
+	mov	$INITSEG, %ax	# this is done in bootsect already, but...
+	mov	%ax, %ds
+	mov	$0x03, %ah	# read cursor pos
+	xor	%bh, %bh
+	int	$0x10		# save it in known place, con_init fetches
+	mov	%dx, %ds:0	# it from 0x90000.
+```
 
 ```x86asm
 # 获取内存信息
@@ -94,6 +111,20 @@ end_move:
 	mov	%ax, %ds
 	lidt	idt_48		# load idt with 0,0
 	lgdt	gdt_48		# load gdt with whatever appropriate
+```
+
+下面这里是开启A20地址线。
+```x86asm
+	#call	empty_8042	# 8042 is the keyboard controller
+	#mov	$0xD1, %al	# command write
+	#out	%al, $0x64
+	#call	empty_8042
+	#mov	$0xDF, %al	# A20 on
+	#out	%al, $0x60
+	#call	empty_8042
+	inb     $0x92, %al	# open A20 line(Fast Gate A20).
+	orb     $0b00000010, %al
+	outb    %al, $0x92
 ```
 
 切换到32位保护模式

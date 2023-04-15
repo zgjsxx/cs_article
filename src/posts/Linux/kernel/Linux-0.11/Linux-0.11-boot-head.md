@@ -10,7 +10,98 @@ tag:
 
 ## 模块简介
 
+- 设置页表
+- 
 ## 过程详解
+
+
+```x86asm
+startup_32:
+	movl $0x10,%eax
+	mov %ax,%ds
+	mov %ax,%es
+	mov %ax,%fs
+	mov %ax,%gs
+	lss stack_start,%esp
+	call setup_idt     !设置中断
+	call setup_gdt     !设置全局描述符表
+	movl $0x10,%eax		# reload all the segment registers
+	mov %ax,%ds		# after changing gdt. CS was already
+	mov %ax,%es		# reloaded in 'setup_gdt'
+	mov %ax,%fs
+	mov %ax,%gs
+	lss stack_start,%esp
+```
+
+下面用于检测A20地址线是否已经开启。
+```x86asm
+	xorl %eax,%eax
+1:	incl %eax		# check that A20 really IS enabled
+	movl %eax,0x000000	# loop forever if it isn't
+	cmpl %eax,0x100000
+	je 1b
+```
+
+
+下面用于检查数学协处理器芯片是否存在
+```x86asm
+	movl %cr0,%eax		# check math chip
+	andl $0x80000011,%eax	# Save PG,PE,ET
+/* "orl $0x10020,%eax" here for 486 might be good */
+	orl $2,%eax		# set MP
+	movl %eax,%cr0
+	call check_x87
+	jmp after_page_tables
+
+/*
+ * We depend on ET to be correct. This checks for 287/387.
+ */
+check_x87:
+	fninit     !向协处理发出初始化命令
+	fstsw %ax  !取协处理器状态字到ax寄存器中
+	cmpb $0,%al
+	je 1f			/* no coprocessor: have to set bits */
+	movl %cr0,%eax
+	xorl $6,%eax		/* reset MP, set EM */
+	movl %eax,%cr0
+	ret
+```
+
+
+下面这里将进行页表的安装
+```x86asm
+after_page_tables:
+	pushl $0		# These are the parameters to main :-)
+	pushl $0
+	pushl $0
+	pushl $L6		# return address for main, if it decides to.
+	pushl $main
+	jmp setup_paging
+
+setup_paging:
+	movl $1024*5,%ecx		/* 5 pages - pg_dir+4 page tables */
+	xorl %eax,%eax
+	xorl %edi,%edi			/* pg_dir is at 0x000 */
+	cld;rep;stosl
+	movl $pg0+7,pg_dir		/* set present bit/user r/w */
+	movl $pg1+7,pg_dir+4		/*  --------- " " --------- */
+	movl $pg2+7,pg_dir+8		/*  --------- " " --------- */
+	movl $pg3+7,pg_dir+12		/*  --------- " " --------- */
+	movl $pg3+4092,%edi
+	movl $0xfff007,%eax		/*  16Mb - 4096 + 7 (r/w user,p) */
+	std
+1:	stosl			/* fill pages backwards - more efficient :-) */
+	subl $0x1000,%eax
+	jge 1b
+	cld
+	xorl %eax,%eax		 !设置页目录表基址寄存器cr3的值
+	movl %eax,%cr3		
+	movl %cr0,%eax       !设置启动使用分页处理
+	orl $0x80000000,%eax
+	movl %eax,%cr0		/* set paging (PG) bit */
+	ret			/* this also flushes prefetch-queue */
+```
+
 
 在setup_paging执行完毕之后，会通过ret返回，ret指令会将栈顶的内容弹出到PC指针中去执行。此时esp指向的位置存放的是main函数的地址。因此接下来会执行main函数。
 
