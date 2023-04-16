@@ -9,12 +9,15 @@ tag:
 
 
 ## 模块简介
-
-- 设置页表
-- 
+在head.s中，操作系统主要做了如下几件事：
+- 设置中断描述符和全局描述符
+- 检查A20地址线是否开启
+- 检查数学协处理器
+- 初始化页表并开启分页
+- 跳转到main函数执行
 ## 过程详解
 
-
+### 设置中断描述符和全局描述符
 ```x86asm
 startup_32:
 	movl $0x10,%eax
@@ -33,6 +36,8 @@ startup_32:
 	lss stack_start,%esp
 ```
 
+
+### 检查A20地址线是否开启
 下面用于检测A20地址线是否已经开启。
 ```x86asm
 	xorl %eax,%eax
@@ -42,6 +47,9 @@ startup_32:
 	je 1b
 ```
 
+
+
+### 检查数学协处理器
 
 下面用于检查数学协处理器芯片是否存在
 ```x86asm
@@ -67,8 +75,11 @@ check_x87:
 	ret
 ```
 
+### 初始化页表并开启分页
 
-下面这里将进行页表的安装
+下面这里将进行页表的安装，安装的过程参考下面这张图：
+![页表的设置](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/head_setup_paging.png)
+
 ```x86asm
 after_page_tables:
 	pushl $0		# These are the parameters to main :-)
@@ -102,6 +113,7 @@ setup_paging:
 	ret			/* this also flushes prefetch-queue */
 ```
 
+### 跳转到main函数执行
 
 在setup_paging执行完毕之后，会通过ret返回，ret指令会将栈顶的内容弹出到PC指针中去执行。此时esp指向的位置存放的是main函数的地址。因此接下来会执行main函数。
 
