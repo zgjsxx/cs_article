@@ -20,6 +20,7 @@ bootsect.s主要做了如下的三件事:
 
 ## 过程详解
 
+### 搬运bootsect.s代码到0x9000:0x0000处
 将ax寄存器设置为0x07c0， 接着ax寄存器的值拷贝给ds，即ds目前也为0x07c0。
 
 将ax寄存器设置为0x9000， 接着ax寄存器的值拷贝给es，即es目前也为0x9000。
@@ -55,6 +56,9 @@ go:	mov	%cs, %ax		#将ds，es，ss都设置成移动后代码所在的段处(0x9
 	mov	%ax, %ss
 	mov	$0xFF00, %sp		# arbitrary value >>512
 ```
+
+### 加载setup.s代码到0x9000:0x200处
+
 
 接下来这一部分用于加载setup.s的代码到0x9000:0200处。
 
@@ -148,6 +152,8 @@ ok_load_setup:
 	mov	$0x1301, %ax		# write string, move cursor
 	int	$0x10
 ```
+
+### 加载system模块到0x1000:0x0000处
 
 接下来，要继续读system模块到内存中。 
 

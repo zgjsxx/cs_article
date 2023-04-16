@@ -14,13 +14,15 @@ setup.s用于加载操作系统的一些信息，其主要处理了如下一些�
 
 - 打印硬件信息
 - 重新搬运system的位置
-- 设置中断信息
+- 设置IDT和GDT
 - 打开A20地址线
 - 切换32位保护模式
 - 跳转到system.s中运行
 
 ## 过程详解
 
+
+### 打印硬件信息
 这里将ds设置为INITSEG(0x9000)。这个值在bootsect.s中已经设置过，Linus认为目前程序是setup.s,因此这里重新设置了ds寄存器的值。
 
 接下来利用INT 0x10中断读取光标所在的位置。
@@ -86,6 +88,8 @@ INT 0x10：
 	movsb
 ```
 
+
+### 重新搬运system的位置
 此时ax = 0， 因此es = 0，
 
 随后ax = 0x1000, ds = 0x1000。
@@ -104,6 +108,9 @@ do_move:
 	jmp	do_move
 ```
 
+### 设置IDT和GDT
+
+因为将system模块搬运到了物理地址为0x0000处，这里原来是BIOS中断存放的位置，因此这个搬运操作实际上覆盖了BIOS中断，因此我们需要重新设置。
 接下来，将加载gdt和idt的寄存器。
 ```x86asm
 end_move:
@@ -112,6 +119,8 @@ end_move:
 	lidt	idt_48		# load idt with 0,0
 	lgdt	gdt_48		# load gdt with whatever appropriate
 ```
+
+### 打开A20地址线
 
 下面这里是开启A20地址线。
 ```x86asm
@@ -126,6 +135,7 @@ end_move:
 	orb     $0b00000010, %al
 	outb    %al, $0x92
 ```
+### 切换32位保护模式
 
 切换到32位保护模式
 ```x86asm
@@ -139,6 +149,7 @@ end_move:
 	.equ	sel_cs0, 0x0008 # select for code segment 0 (  001:0 :00) 
 ```
 
+### 跳转到system.s中运行
 跳转到sytem模块执行。
 ```x86asm
 	ljmp	$sel_cs0, $0
