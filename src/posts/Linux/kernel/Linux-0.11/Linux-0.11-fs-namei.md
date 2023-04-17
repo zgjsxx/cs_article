@@ -431,6 +431,7 @@ int sys_mknod(const char * filename, int mode, int dev)
 ```c
 int sys_mkdir(const char * pathname, int mode)
 ```
+该函数的作用是用于创建一个目录。
 
 ```c
 	const char * basename;
@@ -439,25 +440,25 @@ int sys_mkdir(const char * pathname, int mode)
 	struct buffer_head * bh, *dir_block;
 	struct dir_entry * de;
 
-	if (!suser())
+	if (!suser())  //如果不是超级用户，则返回权限问题。
 		return -EPERM;
-	if (!(dir = dir_namei(pathname,&namelen,&basename)))
+	if (!(dir = dir_namei(pathname,&namelen,&basename)))//获取该路径所在目录的i节点
 		return -ENOENT;
 	if (!namelen) {
 		iput(dir);
 		return -ENOENT;
 	}
-	if (!permission(dir,MAY_WRITE)) {
+	if (!permission(dir,MAY_WRITE)) {//如果对该目录没有写权限
 		iput(dir);
 		return -EPERM;
 	}
-	bh = find_entry(&dir,basename,namelen,&de);
+	bh = find_entry(&dir,basename,namelen,&de);//从该目录中
 	if (bh) {
 		brelse(bh);
 		iput(dir);
 		return -EEXIST;
 	}
-	inode = new_inode(dir->i_dev);
+	inode = new_inode(dir->i_dev);//创建一个新的i节点
 	if (!inode) {
 		iput(dir);
 		return -ENOSPC;
@@ -512,6 +513,7 @@ int sys_mkdir(const char * pathname, int mode)
 ```c
 static int empty_dir(struct m_inode * inode)
 ```
+该函数的作用是检查指定的目录是否为空。
 
 ```c
 	int nr,block;
@@ -521,20 +523,20 @@ static int empty_dir(struct m_inode * inode)
 
 	len = inode->i_size / sizeof (struct dir_entry);
 	if (len<2 || !inode->i_zone[0] ||
-	    !(bh=bread(inode->i_dev,inode->i_zone[0]))) {
+	    !(bh=bread(inode->i_dev,inode->i_zone[0]))) {   //如果当前目录的目录项小于两个， 获取i_zone[0]为空
 	    	printk("warning - bad directory on dev %04x\n",inode->i_dev);
 		return 0;
 	}
 	de = (struct dir_entry *) bh->b_data;
 	if (de[0].inode != inode->i_num || !de[1].inode || 
-	    strcmp(".",de[0].name) || strcmp("..",de[1].name)) {
+	    strcmp(".",de[0].name) || strcmp("..",de[1].name)) { //检查目录项是否是.或者..
 	    	printk("warning - bad directory on dev %04x\n",inode->i_dev);
 		return 0;
 	}
 	nr = 2;
 	de += 2;
 	while (nr<len) {
-		if ((void *) de >= (void *) (bh->b_data+BLOCK_SIZE)) {
+		if ((void *) de >= (void *) (bh->b_data+BLOCK_SIZE)) { //循环检测剩下所有的目录项的指向的i节点值是否会等于0
 			brelse(bh);
 			block=bmap(inode,nr/DIR_ENTRIES_PER_BLOCK);
 			if (!block) {
@@ -560,7 +562,7 @@ static int empty_dir(struct m_inode * inode)
 ```c
 int sys_rmdir(const char * name)
 ```
-
+该函数的作用是用于删除目录。
 ```c
 	const char * basename;
 	int namelen;
@@ -640,6 +642,8 @@ int sys_rmdir(const char * name)
 ```c
 int sys_unlink(const char * name)
 ```
+该函数的作用是用于删除文件的一个链接。
+
 ```c
 	const char * basename;
 	int namelen;
@@ -647,35 +651,35 @@ int sys_unlink(const char * name)
 	struct buffer_head * bh;
 	struct dir_entry * de;
 
-	if (!(dir = dir_namei(name,&namelen,&basename)))
+	if (!(dir = dir_namei(name,&namelen,&basename)))//获取文件所在目录的i节点
 		return -ENOENT;
-	if (!namelen) {
+	if (!namelen) {//如果文件名长度为0
 		iput(dir);
 		return -ENOENT;
 	}
-	if (!permission(dir,MAY_WRITE)) {
+	if (!permission(dir,MAY_WRITE)) {//检查是否有目录的写权限
 		iput(dir);
 		return -EPERM;
 	}
-	bh = find_entry(&dir,basename,namelen,&de);
+	bh = find_entry(&dir,basename,namelen,&de);//查找该文件的dir_entry
 	if (!bh) {
 		iput(dir);
 		return -ENOENT;
 	}
-	if (!(inode = iget(dir->i_dev, de->inode))) {
+	if (!(inode = iget(dir->i_dev, de->inode))) {//获取该文件的i节点
 		iput(dir);
 		brelse(bh);
 		return -ENOENT;
 	}
 	if ((dir->i_mode & S_ISVTX) && !suser() &&
 	    current->euid != inode->i_uid &&
-	    current->euid != dir->i_uid) {
+	    current->euid != dir->i_uid) {//检查用户权限
 		iput(dir);
 		iput(inode);
 		brelse(bh);
 		return -EPERM;
 	}
-	if (S_ISDIR(inode->i_mode)) {
+	if (S_ISDIR(inode->i_mode)) {//检查是否是目录
 		iput(inode);
 		iput(dir);
 		brelse(bh);
@@ -686,10 +690,10 @@ int sys_unlink(const char * name)
 			inode->i_dev,inode->i_num,inode->i_nlinks);
 		inode->i_nlinks=1;
 	}
-	de->inode = 0;
+	de->inode = 0;//将dir_entry指向的inode设置为0
 	bh->b_dirt = 1;
 	brelse(bh);
-	inode->i_nlinks--;
+	inode->i_nlinks--;//将i节点中的i_nlinks减1
 	inode->i_dirt = 1;
 	inode->i_ctime = CURRENT_TIME;
 	iput(inode);
