@@ -37,38 +37,96 @@ sti();//开中断
 static void flush(struct tty_queue * queue)
 ```
 
+```c
+	cli();
+	queue->head = queue->tail;
+	sti();
+```
 
 ### wait_until_sent
 ```c
 static void wait_until_sent(struct tty_struct * tty)
 ```
-
+未实现。
 
 ### send_break
 ```c
 static void send_break(struct tty_struct * tty)
 ```
+未实现
 
 ### get_termios
 ```c
 static int get_termios(struct tty_struct * tty, struct termios * termios)
+```
+该函数用于获取终端termios结构信息。
+```c
+	int i;
+
+	verify_area(termios, sizeof (*termios));
+	for (i=0 ; i< (sizeof (*termios)) ; i++)
+		put_fs_byte( ((char *)&tty->termios)[i] , i+(char *)termios );
+	return 0;
 ```
 
 ### set_termios
 ```c
 static int set_termios(struct tty_struct * tty, struct termios * termios)
 ```
+该函数用于设置终端termios结构信息。
+```c
+	int i;
+
+	for (i=0 ; i< (sizeof (*termios)) ; i++)
+		((char *)&tty->termios)[i]=get_fs_byte(i+(char *)termios);
+	change_speed(tty);
+	return 0;
+```
 
 ### get_termio
 ```c
 static int get_termio(struct tty_struct * tty, struct termio * termio)
 ```
+该函数的作用是读取termio结构信息。
 
+```c
+	int i;
+	struct termio tmp_termio;
+
+	verify_area(termio, sizeof (*termio));
+	tmp_termio.c_iflag = tty->termios.c_iflag;
+	tmp_termio.c_oflag = tty->termios.c_oflag;
+	tmp_termio.c_cflag = tty->termios.c_cflag;
+	tmp_termio.c_lflag = tty->termios.c_lflag;
+	tmp_termio.c_line = tty->termios.c_line;
+	for(i=0 ; i < NCC ; i++)
+		tmp_termio.c_cc[i] = tty->termios.c_cc[i];
+	for (i=0 ; i< (sizeof (*termio)) ; i++)
+		put_fs_byte( ((char *)&tmp_termio)[i] , i+(char *)termio );
+	return 0;
+```
 ### set_termio
 ```c
 static int set_termio(struct tty_struct * tty, struct termio * termio)
 ```
+该函数的作用是设置termio结构信息。
 
+```c
+	int i;
+	struct termio tmp_termio;
+
+	for (i=0 ; i< (sizeof (*termio)) ; i++)
+		((char *)&tmp_termio)[i]=get_fs_byte(i+(char *)termio);
+	*(unsigned short *)&tty->termios.c_iflag = tmp_termio.c_iflag;
+	*(unsigned short *)&tty->termios.c_oflag = tmp_termio.c_oflag;
+	*(unsigned short *)&tty->termios.c_cflag = tmp_termio.c_cflag;
+	*(unsigned short *)&tty->termios.c_lflag = tmp_termio.c_lflag;
+	tty->termios.c_line = tmp_termio.c_line;
+	for(i=0 ; i < NCC ; i++)
+		tty->termios.c_cc[i] = tmp_termio.c_cc[i];
+	change_speed(tty);
+	return 0;
+```
 ### tty_ioctl
 ```c
 int tty_ioctl(int dev, int cmd, int arg)
