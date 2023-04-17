@@ -755,7 +755,7 @@ int sys_link(const char * oldname, const char * newname)
 	bh->b_dirt = 1;//设置该目录i节点上存在脏数据
 	brelse(bh);
 	iput(dir);
-	oldinode->i_nlinks++;//将旧的i节点的硬链接数
+	oldinode->i_nlinks++;//将旧的i节点的硬链接数+1
 	oldinode->i_ctime = CURRENT_TIME;
 	oldinode->i_dirt = 1;
 	iput(oldinode);
