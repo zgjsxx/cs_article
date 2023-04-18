@@ -7,12 +7,15 @@ tag:
 
 # Linux-0.11 文件系统inode.c详解
 
+## 模块简介
+
 Linux-0.11中使用的文件系统为minix， inode.c中的函数和该文件系统强关联。 
 
 inode节点在文件系统中与文件相关联，一个文件的就由一个inode来管理，这个inode节点将记录文件的权限，大小， 文件具体存储的逻辑块位置等等信息。
 
-## read_inode
+## 函数详解
 
+### read_inode
 ```c
 static void read_inode(struct m_inode * inode);
 ```
@@ -54,7 +57,7 @@ if (!(bh=bread(inode->i_dev,block)))//读取该逻辑块的内容
         [(inode->i_num-1)%INODES_PER_BLOCK];//将该inode读取到内存中
 ```
 
-## write_inode
+### write_inode
 ```c
 static void write_inode(struct m_inode * inode)
 ```
@@ -72,7 +75,7 @@ bh->b_dirt=1;//磁盘也标记为脏页
 inode->i_dirt=0;//inode的脏数据标记为0
 ```
 
-## iget
+### iget
 
 ```c
 iget(int dev,int nr)
@@ -126,7 +129,7 @@ if (inode->i_mount) {//该inode是一个挂载节点
 ```
 
 
-## iput
+### iput
 ```c
 void iput(struct m_inode * inode)
 ```
@@ -183,7 +186,7 @@ if (inode->i_dirt) {//如果该inode为脏数据, 则写回磁盘
 inode->i_count--;//引用计数减1
 ```
 
-## get_empty_inode
+### get_empty_inode
 ```c
 struct m_inode * get_empty_inode(void)
 ```
@@ -192,7 +195,7 @@ struct m_inode * get_empty_inode(void)
 ![inode](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-fs/inode/get_empty_inode.png)
 
 
-## _bmap
+### _bmap
 ```c
 static int _bmap(struct m_inode * inode,int block,int create)
 ```
@@ -275,20 +278,20 @@ if (create && !i)
 brelse(bh);
 ```
 
-## create_block
+### create_block
 ```c
 int create_block(struct m_inode * inode, int block)
 ```
 
 create block底层调用了_bmap函数，去磁盘上申请一个逻辑块， 并与inode关联， 通过返回该逻辑块的盘块号。
 
-## bmap
+### bmap
 ```c
 int bmap(struct m_inode * inode,int block)
 ```
 该函数的作用是通过文件数据块的块号返回其磁盘上的逻辑块号。底层也是通过_bmap函数实现。
 
-## sync_inodes
+### sync_inodes
 ```c
 void sync_inodes(void)
 ```
@@ -303,7 +306,7 @@ for(i=0 ; i<NR_INODE ; i++,inode++) {
 }
 ```
 
-## invalidate_inodes
+### invalidate_inodes
 ```c
 void invalidate_inodes(int dev)
 ```
@@ -325,7 +328,7 @@ for(i=0 ; i<NR_INODE ; i++,inode++) {
 }
 ```
 
-## get_pipe_inode
+### get_pipe_inode
 ```c
 struct m_inode * get_pipe_inode(void)
 ```
@@ -342,7 +345,7 @@ PIPE_HEAD(*inode) = PIPE_TAIL(*inode) = 0;//复位管道的头尾指针
 inode->i_pipe = 1;
 ```
 
-## lock_inode
+### lock_inode
 ```c
 static inline void lock_inode(struct m_inode * inode)
 ```
@@ -359,7 +362,7 @@ inode->i_lock=1; //将该inode的锁定状态修改为1
 sti();//开中断
 ```
 
-## wait_on_inode
+### wait_on_inode
 ```c
 static inline void wait_on_inode(struct m_inode * inode)
 ```
@@ -374,7 +377,7 @@ while (inode->i_lock)
 sti();//开中断
 ```
 
-## unlock_inode
+### unlock_inode
 
 ```c
 static inline void unlock_inode(struct m_inode * inode)

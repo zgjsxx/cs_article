@@ -8,7 +8,9 @@ tag:
 # Linux-0.11 文件系统char_dev.c详解
 
 ## 模块简介
+
 char_dev.c文件主要负责字符设备的访问方法。
+
 ## 函数详解
 
 ### rw_ttyx

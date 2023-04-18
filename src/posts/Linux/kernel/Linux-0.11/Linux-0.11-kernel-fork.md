@@ -7,9 +7,13 @@ tag:
 
 # Linux-0.11 kernel目录fork.c详解
 
+## 模块简介
+
 fork.c中主要实现内核对于创建新的进程的行为。其中copy_process是其最核心的函数。
 
-## copy_process
+## 函数详解
+
+### copy_process
 ```c
 int copy_process(int nr,long ebp,long edi,long esi,long gs,long none,
 		long ebx,long ecx,long edx,
@@ -128,7 +132,7 @@ set_ldt_desc(gdt+(nr<<1)+FIRST_LDT_ENTRY,&(p->ldt));
 p->state = TASK_RUNNING;	/* do this last, just in case */
 ```
 
-## copy_mem
+### copy_mem
 ```c
 int copy_mem(int nr,struct task_struct * p)
 ```
@@ -160,7 +164,7 @@ if (copy_page_tables(old_data_base,new_data_base,data_limit)) {
 ```
 copy_page_tables在memory.c中定义。
 
-## verify_area
+### verify_area
 ```c
 void verify_area(void * addr,int size)
 ```
@@ -194,7 +198,7 @@ while (size>0) {
 ```
 write_verify函数详解可以参考memory.c文件的讲解。
 
-## find_empty_process
+### find_empty_process
 ```c
 int find_empty_process(void)
 ```

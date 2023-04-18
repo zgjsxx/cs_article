@@ -7,9 +7,9 @@ tag:
 
 # Linux-0.11 memory.c详解
 
-memory.c负责内存分页机制的管理。其中un_wp_page，copy_page_tables, do_no_page等函数较为重要。
+## 模块简介
 
-## 概述
+memory.c负责内存分页机制的管理。其中un_wp_page，copy_page_tables, do_no_page等函数较为重要。
 
 在Linux-0.11中，内存区域划分如下图所示：
 
@@ -28,7 +28,7 @@ memory.c负责内存分页机制的管理。其中un_wp_page，copy_page_tables,
 
 页表项中的第1位R/W表示内存的读写权限，当它被设置为0时，说明该页面只能读而不能写，如果设置为1，说明可读可写。copy-on-write（写时复制将利用到这一点）。
 
-## 函数分析
+## 函数详解
 
 ### get_free_page
 ```c

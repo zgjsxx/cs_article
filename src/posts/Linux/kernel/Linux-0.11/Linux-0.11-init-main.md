@@ -11,9 +11,6 @@ tag:
 
 ## 函数详解
 
-
-
-
 ### time_init
 ```c
 static void time_init(void)

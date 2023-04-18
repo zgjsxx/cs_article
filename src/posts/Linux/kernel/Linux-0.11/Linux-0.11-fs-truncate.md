@@ -7,7 +7,11 @@ tag:
 
 # Linux-0.11 文件系统truncate.c详解
 
-## free_ind
+## 模块简介
+
+## 函数详解
+
+### free_ind
 ```c
 static void free_ind(int dev,int block)
 ```
@@ -35,7 +39,7 @@ free_block(dev,block);
 ```
 
 
-## free_dind
+### free_dind
 ```c
 static void free_dind(int dev,int block)
 ```
@@ -67,7 +71,7 @@ if ((bh=bread(dev,block))) {
 free_block(dev,block);
 ```
 
-# truncate
+### truncate
 ```c
 void truncate(struct m_inode * inode)
 ```

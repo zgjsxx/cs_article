@@ -8,7 +8,11 @@ tag:
 
 # Linux-0.11 kernel目录exit.c详解
 
-## release
+## 模块简介
+
+## 函数详解
+
+### release
 ```c
 void release(struct task_struct * p)
 ```
@@ -29,7 +33,7 @@ for (i=1 ; i<NR_TASKS ; i++)
 panic("trying to release non-existent task");
 ```
 
-## send_sig
+### send_sig
 ```c
 static inline int send_sig(long sig,struct task_struct * p,int priv)
 ```
@@ -50,7 +54,7 @@ else
   return -EPERM;
 ```
 
-## kill_session
+### kill_session
 ```c
 static void kill_session(void)
 ```
@@ -64,7 +68,7 @@ while (--p > &FIRST_TASK) {
     (*p)->signal |= 1<<(SIGHUP-1);
 }
 ```
-## sys_kill
+### sys_kill
 ```c
 int sys_kill(int pid,int sig)
 ```
@@ -96,7 +100,7 @@ if (!pid) while (--p > &FIRST_TASK) {
 return retval;
 ```
 
-## tell_father
+### tell_father
 ```c
 static void tell_father(int pid)
 ```
@@ -119,7 +123,7 @@ static void tell_father(int pid)
 	printk("BAD BAD - no father found\n\r");
 	release(current);
 ```
-## do_exit
+### do_exit
 ```c
 int do_exit(long code)
 ```
@@ -141,12 +145,12 @@ for (i=0 ; i<NR_TASKS ; i++)
       (void) send_sig(SIGCHLD, task[1], 1);
   }
 ```
-## sys_exit
+### sys_exit
 ```c
 int sys_exit (int error_code)
 ```
 该函数的内部调用了do_exit函数实现进程的退出。
-## sys_waitpid
+### sys_waitpid
 ```c
 int sys_waitpid (pid_t pid, unsigned long *stat_addr, int options)
 ```
@@ -177,4 +181,3 @@ for(p = &LAST_TASK ; p > &FIRST_TASK ; --p) {
             continue;
     }
 ```
-

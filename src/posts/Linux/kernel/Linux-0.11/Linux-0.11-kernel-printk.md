@@ -8,9 +8,13 @@ tag:
 
 # Linux-0.11 kernel目录printk.c详解
 
+## 模块简介
+
 该模块只有一个函数， 即printk函数， 用于在内核中向控制台打印字符串，
 
-## printk
+## 函数详解
+
+### printk
 
 **printk 与 printf 的差异**
 

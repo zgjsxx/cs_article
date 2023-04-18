@@ -8,10 +8,13 @@ tag:
 
 # Linux-0.11 kernel目录进程管理sched.c详解
 
+## 模块简介
+
 sched.c主要功能是负责进程的调度，其最核心的函数就是**schedule**。除schedule以外， sleep_on和wake_up也是相对重要的函数。
 
+## 函数详解
 
-## schedule
+### schedule
 ```c
 void schedule(void)
 ```
@@ -64,7 +67,7 @@ while (1) {
 switch_to(next);
 ```
 
-## show_task
+### show_task
 ```c
 void show_task(int nr,struct task_struct * p)
 ```
@@ -88,7 +91,7 @@ while (i<j && !((char *)(p+1))[i])
 printk("%d (of %d) chars free in kernel stack\n\r",i,j);
 ```
 
-## show_stat
+### show_stat
 ```c
 void show_stat(void)
 ```
@@ -100,13 +103,13 @@ for (i=0;i<NR_TASKS;i++)//遍历task数组
 	if (task[i])
 		show_task(i,task[i]);//调用show_task
 ```
-## math_state_restore
+### math_state_restore
 ```c
 void math_state_restore()
 ```
 该函数的作用是将当前协处理器内容保存到老协处理器状态数组中，并将当前任务的协处理器内容加载进协处理器。
 
-## sys_pause
+### sys_pause
 ```c
 int sys_pause(void)
 ```
@@ -119,7 +122,7 @@ current->state = TASK_INTERRUPTIBLE;
 schedule();
 ```
 
-## sleep_on
+### sleep_on
 ```c
 void sleep_on(struct task_struct **p)
 ```
@@ -155,7 +158,7 @@ if (tmp)			// 若还存在等待的任务，则也将其置为就绪状态（唤
 	tmp->state = 0;
 ```
 
-## interruptible_sleep_on 
+### interruptible_sleep_on 
 ```c
 void interruptible_sleep_on (struct task_struct **p)
 ```
@@ -197,7 +200,7 @@ if (tmp)
 	tmp->state = 0;
 ```
 
-## wake_up
+### wake_up
 ```c
 void wake_up(struct task_struct **p)
 ```
@@ -212,19 +215,19 @@ if (p && *p)
 }
 ```
 
-## ticks_to_floppy_on
+### ticks_to_floppy_on
 ```c
 int ticks_to_floppy_on(unsigned int nr)
 ```
 该函数指定软盘到正常运转状态所需延迟滴答数（时间）。
 
-## floppy_on
+### floppy_on
 ```c
 void floppy_on(unsigned int nr)
 ```
 该函数等待指定软驱马达启动所需时间。
 
-## floppy_off
+### floppy_off
 ```c
 void floppy_off(unsigned int nr)
 ```
@@ -235,7 +238,7 @@ moff_timer[nr]=3*HZ;
 ```
 
 
-## do_floppy_timer
+### do_floppy_timer
 ```c
 void do_floppy_timer(void)
 ```
@@ -255,7 +258,7 @@ else if (!moff_timer[i]) {
 	outb(current_DOR,FD_DOR);
 ```
 
-## add_timer 
+### add_timer 
 ```c
 add_timer(long jiffies, void (*fn)(void))
 ```、
@@ -299,7 +302,7 @@ while (p->next && p->next->jiffies < p->jiffies) {
 }
 ```
 
-## do_timer
+### do_timer
 ```c
 void do_timer(long cpl)
 ```
@@ -336,7 +339,7 @@ if (next_timer) {
 if ((--current->counter)>0) return;
 current->counter=0;
 ```
-## sys_alarm
+### sys_alarm
 ```c
 int sys_alarm(long seconds)
 ```
@@ -354,49 +357,49 @@ current->alarm的单位也是系统滴答数。
 ![sys_alarm](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/sched/sys_alarm.png)
 
 
-## sys_getpid
+### sys_getpid
 ```c
 int sys_getpid(void)
 ```
 该函数用于获取进程的pid。
 
-## sys_getppid
+### sys_getppid
 ```c
 int sys_getppid(void)
 ```
 该函数用于获取父进程的pid。
 
-## sys_getuid
+### sys_getuid
 ```c
 int sys_getuid(void)
 ```
 该函数用于获取用户的uid。
 
-## sys_geteuid
+### sys_geteuid
 ```c
 int sys_geteuid(void)
 ```
 该函数用于获取用户的有效id(euid)。
 
-## sys_getgid
+### sys_getgid
 ```c
 int sys_getgid(void)
 ```
 获取组和id号(gid)。
 
-## sys_getegid
+### sys_getegid
 ```c
 int sys_getegid(void)
 ```
 取有效的组id(egid)
 
-## sys_nice
+### sys_nice
 ```c
 int sys_nice(long increment)
 ```
 该函数的作用是降低进程在调度时的优先级。
 
-## sched_init
+### sched_init
 ```c
 void sched_init(void)
 ```

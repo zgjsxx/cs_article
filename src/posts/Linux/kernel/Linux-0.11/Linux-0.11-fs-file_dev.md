@@ -120,7 +120,6 @@ while (c-->0)
 brelse(bh);
 ```
 
-
 ```c
 inode->i_mtime = CURRENT_TIME;
 if (!(filp->f_flags & O_APPEND)) {

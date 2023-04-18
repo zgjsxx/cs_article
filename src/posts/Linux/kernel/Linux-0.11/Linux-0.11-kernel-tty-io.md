@@ -7,6 +7,8 @@ tag:
 
 # Linux-0.11 kernel目录tty_io.c详解
 
+## 模块简介
+
 该章节是围绕终端读写展开的。在tty.h定义了tty_struct结构体，其中包含了三个非常重要的队列，即read_q，write_q和seconddary(辅助队列)。
 ```c
 struct tty_struct {
@@ -26,7 +28,9 @@ struct tty_struct {
 
 ![tty_flow](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/tty/tty_flow.png)
 
-## tty_init
+## 函数详解
+
+### tty_init
 ```c
 void tty_init(void)
 ```
@@ -36,7 +40,7 @@ void tty_init(void)
 rs_init();//初始化串口终端
 con_init();//初始化控制台终端
 ```
-## tty_intr
+### tty_intr
 ```c
 void tty_intr(struct tty_struct * tty, int mask)
 ```
@@ -53,7 +57,7 @@ for (i=0;i<NR_TASKS;i++)
         task[i]->signal |= mask;
 ```
 
-## sleep_if_empty
+### sleep_if_empty
 ```c
 static void sleep_if_empty(struct tty_queue * queue)
 ```
@@ -67,7 +71,7 @@ while (!current->signal && EMPTY(*queue))
 sti();
 ```
 
-## sleep_if_full
+### sleep_if_full
 ```c
 static void sleep_if_full(struct tty_queue * queue)
 ```
@@ -80,7 +84,8 @@ while (!current->signal && LEFT(*queue)<128)
     interruptible_sleep_on(&queue->proc_list);
 sti();
 ```
-## wait_for_keypress
+
+### wait_for_keypress
 ```c
 void wait_for_keypress(void)
 ```
@@ -89,7 +94,7 @@ void wait_for_keypress(void)
 sleep_if_empty(&tty_table[0].secondary);
 ```
 
-## copy_to_cooked
+### copy_to_cooked
 ```c
 void copy_to_cooked(struct tty_struct * tty)
 ```
@@ -180,7 +185,7 @@ while (!EMPTY(tty->read_q) && !FULL(tty->secondary)) {//如果读队列不为空
 wake_up(&tty->secondary.proc_list);
 ```
 
-## tty_read
+### tty_read
 ```c
 int tty_read(unsigned channel, char * buf, int nr)
 ```
@@ -276,7 +281,7 @@ if (current->signal && !(b-buf))
 return (b-buf);//返回已经读取的字节数
 ```
 
-## tty_write
+### tty_write
 ```c
 int tty_write(unsigned channel, char * buf, int nr)
 ```
@@ -330,7 +335,7 @@ while (nr>0) {
 return (b-buf);
 ```
 
-## do_tty_interrupt
+### do_tty_interrupt
 ```c
 void do_tty_interrupt(int tty)
 ```
@@ -342,7 +347,7 @@ void do_tty_interrupt(int tty)
 copy_to_cooked(tty_table+tty);
 ```
 
-## chr_dev_init
+### chr_dev_init
 ```c
 void chr_dev_init(void)
 ```

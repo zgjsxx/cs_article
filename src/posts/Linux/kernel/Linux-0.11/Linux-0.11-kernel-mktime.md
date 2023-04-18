@@ -7,8 +7,13 @@ tag:
 
 # Linux-0.11 kernel目录mktime.c详解
 
+## 模块简介
+
 该模块较为简单，仅有一个函数，仅在内核中使用，计算系统开机时的滴答数。
-## kernel_mktime
+
+## 函数详解
+
+### kernel_mktime
 ```c
 long kernel_mktime(struct tm * tm)
 ```

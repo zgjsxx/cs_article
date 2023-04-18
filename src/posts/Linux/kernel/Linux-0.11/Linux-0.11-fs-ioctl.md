@@ -11,7 +11,6 @@ tag:
 
 ## 函数详解
 
-
 ### sys_ioctl
 ```c
 int sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)

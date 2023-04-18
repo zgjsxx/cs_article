@@ -7,7 +7,11 @@ tag:
 
 # Linux-0.11 文件系统buffer.c详解
 
-## buffer_init
+## 模块简介
+
+## 函数详解
+
+### buffer_init
 ```c
 void buffer_init(long buffer_end)
 ```
@@ -98,7 +102,7 @@ for (i=0;i<NR_HASH;i++)
 
 这里的free_list翻译为自由链表， 实际意思就是所有的高速缓冲区构成的双向链表， 在下面的函数中的将经常出现。
 
-## find_buffer
+### find_buffer
 ```c
 static struct buffer_head * find_buffer(int dev, int block)
 ```
@@ -117,7 +121,7 @@ for (tmp = hash(dev,block) ; tmp != NULL ; tmp = tmp->b_next)//计算哈希值�
 return NULL;
 ```
 
-## get_hash_table
+### get_hash_table
 ```c
 struct buffer_head * get_hash_table(int dev, int block)
 ```
@@ -142,7 +146,7 @@ if (bh->b_dev == dev && bh->b_blocknr == block)
   return bh;
 bh->b_count--;//该block在等待中被修改。 减少其引用计数， 进入下一次循环，重新寻找符合要求的bh块。
 ```
-## getblk
+### getblk
 ```c
 struct buffer_head * getblk(int dev,int block)
 ```
@@ -208,7 +212,7 @@ bh->b_dev=dev;
 bh->b_blocknr=block;
 insert_into_queues(bh);
 ```
-## remove_from_queues
+### remove_from_queues
 ```c
 static inline void remove_from_queues(struct buffer_head * bh)
 ```
@@ -234,7 +238,7 @@ if (free_list == bh)
   free_list = bh->b_next_free;
 ```
 
-## insert_into_queues
+### insert_into_queues
 ```c
 static inline void insert_into_queues(struct buffer_head * bh)
 ```
@@ -258,7 +262,7 @@ hash(bh->b_dev,bh->b_blocknr) = bh;
 bh->b_next->b_prev = bh;
 ```
 
-## brelse
+### brelse
 ```c
 void brelse(struct buffer_head * buf)
 ```
@@ -271,7 +275,7 @@ if (!(buf->b_count--))
 ```
 
 
-## bread
+### bread
 ```c
 struct buffer_head * bread(int dev,int block)
 ```
@@ -288,7 +292,7 @@ if (bh->b_uptodate)//如果缓冲区已经更新， 则直接返回
   return bh;
 ```
 
-## bread_page
+### bread_page
 ```c
 void bread_page(unsigned long address,int dev,int b[4])
 ```
@@ -316,7 +320,7 @@ for (i=0 ; i<4 ; i++,address += BLOCK_SIZE)
   }
 ```
 
-## breada
+### breada
 ```c
 struct buffer_head * breada(int dev,int first, ...)
 ```
@@ -348,7 +352,7 @@ if (bh->b_uptodate)
 brelse(bh);
 return (NULL);
 ```
-## wait_on_buffer
+### wait_on_buffer
 ```c
 static inline void wait_on_buffer(struct buffer_head * bh)
 ```
@@ -364,7 +368,7 @@ sti();//开中断
 
 答案是不会，因为sleep_on将该进程挂起后，会触发调度器进行一次重调度，当选择新进程放入CPU运行时，需要对当前进程的上下文进程保存，当然也包括EFLAGS，而cli()改变的正是EFLAGS中的IF位。也就是说新切换进来的进程使用的是自己原有的EFLAGS，原有的IF是开中断状态，此时就是开中断状态，原有是关中断状态，此时就是关中断状态，和之前进程的中断是否开启无关。
 
-## sys_sync
+### sys_sync
 ```c
 int sys_sync(void)
 ```
@@ -386,7 +390,7 @@ for (i=0 ; i<NR_BUFFERS ; i++,bh++) {
     ll_rw_block(WRITE,bh);
 }
 ```
-## sync_dev
+### sync_dev
 ```c
 int sync_dev(int dev)
 ```
@@ -394,13 +398,13 @@ int sync_dev(int dev)
 
 该函数总体与sync_sys类似，只不过在其中增加了dev号的判断。
 
-## invalidate_buffer
+### invalidate_buffer
 ```c
 static void inline invalidate_buffers(int dev)
 ```
 该函数的作用是将所有某个设备的bh块中的b_uptodate和b_dirt置为0。
 
-## check_disk_change
+### check_disk_change
 ```c
 void check_disk_change(int dev)
 ```

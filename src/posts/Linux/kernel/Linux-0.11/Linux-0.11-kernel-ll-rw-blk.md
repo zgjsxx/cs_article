@@ -7,9 +7,13 @@ tag:
 
 # Linux-0.11 kernel目录ll_rw_blk.c详解
 
+## 模块简介
+
+## 函数详解
+
 该模块的作用是处理块设备的读写，其中最重要的函数就是电梯算法**add_request**函数和**ll_rw_block**函数。
 
-## add_request
+### add_request
 ```c
 static void add_request(struct blk_dev_struct * dev, struct request * req)
 ```
@@ -249,7 +253,7 @@ int main(int argc,char ** argv)
 
 ![c-san算法示意图](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/block/c-scan.png)
 
-## make_request
+### make_request
 ```c
 static void make_request(int major,int rw, struct buffer_head * bh)
 ```
@@ -319,7 +323,7 @@ if ((rw == WRITE && !bh->b_dirt) || (rw == READ && bh->b_uptodate)) {
 	req->next = NULL;
 	add_request(major+blk_dev,req);
 ```
-## ll_rw_block
+### ll_rw_block
 ```c
 void ll_rw_block(int rw, struct buffer_head * bh)
 ```
@@ -339,7 +343,7 @@ if ((major=MAJOR(bh->b_dev)) >= NR_BLK_DEV ||
 make_request(major,rw,bh);
 ```
 
-## blk_dev_init
+### blk_dev_init
 ```c
 void blk_dev_init(void)
 ```
@@ -353,7 +357,7 @@ for (i=0 ; i<NR_REQUEST ; i++) {
 }
 ```
 
-## lock_buffer
+### lock_buffer
 ```c
 static inline void lock_buffer(struct buffer_head * bh)
 ```
@@ -366,7 +370,7 @@ bh->b_lock=1;//立即锁定缓冲区
 sti();//开中断
 ```
 
-## unlock_buffer
+### unlock_buffer
 ```c
 static inline void unlock_buffer(struct buffer_head * bh)
 ```

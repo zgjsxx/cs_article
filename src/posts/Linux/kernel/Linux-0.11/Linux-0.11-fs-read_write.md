@@ -7,7 +7,11 @@ tag:
 
 # Linux-0.11 文件系统read_write.c详解
 
-## sys_read
+## 模块简介
+
+## 函数详解
+
+### sys_read
 ```c
 int sys_read(unsigned int fd,char * buf,int count)
 ```
@@ -45,7 +49,7 @@ if (S_ISDIR(inode->i_mode) || S_ISREG(inode->i_mode)) {
         return 0;
     return file_read(inode,file,buf,count);
 ```
-## sys_write
+### sys_write
 ```c
 int sys_write(unsigned int fd,char * buf,int count)
 ```

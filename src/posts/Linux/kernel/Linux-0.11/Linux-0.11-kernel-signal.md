@@ -8,9 +8,13 @@ tag:
 
 # Linux-0.11 kernel目录进程管理signal.c详解
 
+## 模块简介
+
 signal.c主要涉及的是进程的信号处理。该章节中最难理解的是**do_signal**函数。
 
-## sys_sgetmask
+## 函数详解
+
+### sys_sgetmask
 ```c
 int sys_sgetmask()
 ```
@@ -20,7 +24,8 @@ int sys_sgetmask()
 ```c
 return current->blocked;
 ```
-## sys_ssetmask
+
+### sys_ssetmask
 ```c
 int sys_ssetmask(int newmask)
 ```
@@ -34,7 +39,7 @@ int old=current->blocked;//保存旧的信号屏蔽位
 current->blocked = newmask & ~(1<<(SIGKILL-1));//设置新的信号屏蔽位
 return old;
 ```
-## save_old
+### save_old
 ```c
 static inline void save_old(char * from,char * to)
 ```
@@ -53,7 +58,7 @@ for (i=0 ; i< sizeof(struct sigaction) ; i++) {
 	to++;
 }
 ```
-## get_new
+### get_new
 ```c
 static inline void get_new(char * from,char * to)
 ```
@@ -69,7 +74,7 @@ for (i=0 ; i< sizeof(struct sigaction) ; i++)
 	*(to++) = get_fs_byte(from++);//拷贝用户空间的一个字节
 ```
 
-## sys_signal
+### sys_signal
 ```c
 int sys_signal(int signum, long handler, long restorer)
 ```
@@ -105,7 +110,8 @@ tmp.sa_restorer = (void (*)(void)) restorer;
 handler = (long) current->sigaction[signum-1].sa_handler;
 current->sigaction[signum-1] = tmp;
 ```
-## sys_sigaction
+
+### sys_sigaction
 ```c
 int sys_sigaction(int signum, const struct sigaction * action,
 	struct sigaction * oldaction)
@@ -133,7 +139,7 @@ else
 	current->sigaction[signum-1].sa_mask |= (1<<(signum-1));
 ```
 
-## do_signal
+### do_signal
 ```c
 void do_signal(long signr,long eax, long ebx, long ecx, long edx,
 	long fs, long es, long ds,

@@ -6,6 +6,8 @@ tag:
 ---
 # Linux-0.11 kernel目录hd.c详解
 
+## 模块简介
+
 在讲解hd.c的函数之前，需要先介绍一些宏定义，inb, inb_p, outb, outb_p。
 
 **inb**宏的作用是去IO端口读取一个byte的数据。
@@ -58,7 +60,9 @@ __asm__ ("outb %%al,%%dx\n" \
 		:"a" (value),"d" (port))
 ```
 
-## sys_setup
+## 函数详解
+
+### sys_setup
 ```c
 int sys_setup(void * BIOS)
 ```
@@ -178,7 +182,7 @@ while (--retries && (inb_p(HD_STATUS)&0x80));//检查状态寄存器busy位（�
 return (retries);
 ```
 
-## win_result
+### win_result
 ```c
 static int win_result(void)
 ```
@@ -195,7 +199,7 @@ if (i&1) i=inb(HD_ERROR);//如果ERR_STAT置位
 return (1);
 ```
 
-## hd_out
+### hd_out
 ```c
 static void hd_out(unsigned int drive,unsigned int nsect,unsigned int sect,
 		unsigned int head,unsigned int cyl,unsigned int cmd,
@@ -243,7 +247,7 @@ outb_p(0xA0|(drive<<4)|head,++port);  //参数：驱动器号+磁头号 0x1f6
 outb(cmd,++port);      //命令：硬盘控制命令 0x1f7
 ```
 
-## drive_busy
+### drive_busy
 ```c
 static int drive_busy(void)
 ```
@@ -265,7 +269,7 @@ printk("HD controller times out\n\r");//打印等待超时
 return(1);
 ```
 
-## reset_controller
+### reset_controller
 ```c
 static void reset_controller(void)
 ```
@@ -283,7 +287,7 @@ if ((i = inb(HD_ERROR)) != 1)
 	printk("HD-controller reset failed: %02x\n\r",i);
 ```
 
-## reset_hd
+### reset_hd
 ```c
 static void reset_hd(int nr)
 ```
@@ -295,7 +299,7 @@ hd_out(nr,hd_info[nr].sect,hd_info[nr].sect,hd_info[nr].head-1,
 	hd_info[nr].cyl,WIN_SPECIFY,&recal_intr);//发送硬盘控制命令， recal_intr是硬盘中断处理函数中调用的函数
 ```
 
-## unexpected_hd_interrupt
+### unexpected_hd_interrupt
 ```c
 void unexpected_hd_interrupt(void)
 ```
@@ -305,7 +309,7 @@ void unexpected_hd_interrupt(void)
 printk("Unexpected HD interrupt\n\r");
 ```
 
-## bad_rw_intr
+### bad_rw_intr
 ```c
 static void bad_rw_intr(void)
 ```
@@ -320,7 +324,7 @@ if (CURRENT->errors > MAX_ERRORS/2)
 	reset = 1;
 ```
 
-## read_intr
+### read_intr
 ```c
 static void read_intr(void)
 ```
@@ -359,7 +363,7 @@ end_request(1);
 do_hd_request();//再次调用do_hd_request去处理其他硬盘请求项
 ```
 
-## write_intr
+### write_intr
 ```c
 static void write_intr(void)
 ```
@@ -387,7 +391,7 @@ end_request(1);
 do_hd_request();
 ```
 
-## recal_intr
+### recal_intr
 ```c
 static void recal_intr(void)
 ```
@@ -400,7 +404,7 @@ do_hd_request();
 ```
 
 
-## do_hd_request
+### do_hd_request
 ```c
 void do_hd_request(void)
 ```
@@ -498,7 +502,7 @@ if (CURRENT->cmd == WRITE) {//如果是写请求
 	panic("unknown hd-command");
 ```
 
-## hd_init
+### hd_init
 ```c
 void hd_init(void)
 ```
@@ -522,5 +526,3 @@ outb(inb_p(0xA1)&0xbf,0xA1);//允许硬盘的中断
 
 
 有关更多8259A中断控制器， 可以阅读 [详解8259A](https://blog.csdn.net/longintchar/article/details/79439466)
-
-
