@@ -91,7 +91,7 @@ if (len < NAME_LEN && de->name[len])
 其中，esi指向name，edi指向de->name, ecx的值为len， 将eax的值赋值给same。
 ```c
 __asm__("cld\n\t"//清方向位
-	"fs ; repe ; cmpsb\n\t"//用户空间 执行循环比较 while(ecx--) esi++ == edi++
+	"fs ; repe ; cmpsb\n\t"//用户空间 执行循环比较 while(ecx--) fs:esi++ == es:edi++
 	"setz %%al"//如果结果一样，则设置al = 1
 	:"=a" (same)
 	:"0" (0),"S" ((long) name),"D" ((long) de->name),"c" (len)
@@ -100,7 +100,7 @@ return same;
 ```
 
 其中，下面这行汇编较难理解，
-```c
+```x86asm
 fs ; repe ; cmpsb
 ```
 
