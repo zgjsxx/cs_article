@@ -9,6 +9,22 @@ tag:
 
 ## 模块简介
 
+namei.c是整个linux-0.11版本的内核中最长的函数，总长度为700+行。其核心是**namei函数**，即根据文件路径寻找对应的i节点。 除此以外，该模块还包含一些创建目录，删除目录，创建目录项等系统调用。 
+
+在接触本模块的具体函数之前，可以回顾一下不同的i节点，这将对理解本模块的函数非常有帮助。
+
+对于目录节点，其```i_zone[0]```指向的block中存放的是dir_entry。
+
+对于文件节点，其```i_zone[0] - i_zone[6]```是直接寻址块。```i_zone[7]```是一次间接寻址块，```i_zone[8]```是二次间接寻址块。
+
+对于设备节点， 其```i_zone[0]```存放的是设备号。
+
+对于管道节点， 其```i_size```指向的是管道缓冲区的起始位置，```i_zone[0]```为已用缓冲区的头指针， ```i_zone[1]```是已用缓冲区的尾指针。
+
+![不同的inode节点](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-fs/inode/inode_type.png)
+
+
+
 ## 函数详解
 
 ### permission
