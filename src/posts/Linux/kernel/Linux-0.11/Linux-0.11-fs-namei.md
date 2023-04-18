@@ -23,15 +23,22 @@ namei.c是整个linux-0.11版本的内核中最长的函数，总长度为700+�
 
 ![不同的inode节点](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-fs/inode/inode_type.png)
 
-
-
 ## 函数详解
 
 ### permission
 ```c
 static int permission(struct m_inode * inode,int mask)
 ```
-检查进程操作文件inode的权限。
+该函数用于检查进程操作文件inode的权限。
+
+inode的权限存储在i_mode字段中，其是一个16位长度的无符号整型数据。其0-2位代表其他用户对该i节点的操作权限，其3-5位代表同一个用户组的用户对该i节点的操作权限，其6-8位代表文件所属用户的对i节点的操作权限。如下图所示：
+
+![inode权限](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-fs/namei/permission.png)
+
+
+有了对i_mode的理解之后，可以更好地理解permission函数。
+
+入参mask用于检查权限，其检查内容可以从下表中获取。
 
 |mask的值|含义|
 |---|--|
@@ -43,21 +50,22 @@ static int permission(struct m_inode * inode,int mask)
 |mask = 6|检查进程是否有权限读和写该inode|
 |mask = 7|检查进程是否有权限读写和执行该inode|
 
+下面开始理解permission中的代码。
+
 ```c
-	int mode = inode->i_mode;
+	int mode = inode->i_mode;//首先从inode节点中的i_mode字段获取i节点权限
 
 /* special case: not even root can read/write a deleted file */
-	if (inode->i_dev && !inode->i_nlinks)
+	if (inode->i_dev && !inode->i_nlinks)//如果一个i节点已经被删除是不可以被读取的
 		return 0;
-	else if (current->euid==inode->i_uid)
+	else if (current->euid==inode->i_uid)//如果用户id相同，向右移动6位
 		mode >>= 6;
-	else if (current->egid==inode->i_gid)
+	else if (current->egid==inode->i_gid)//如果组id相同，向右移动3位
 		mode >>= 3;
 	if (((mode & mask & 0007) == mask) || suser())//访问权限和掩码相同，或者是超级用户
 		return 1;
 	return 0;
 ```
-
 
 ### match
 ```c
@@ -103,8 +111,13 @@ cmpsb指令用于比较ds:esi和es:edi指向的一个字节的内容。 而加�
 static struct buffer_head * find_entry(struct m_inode ** dir,
 	const char * name, int namelen, struct dir_entry ** res_dir)
 ```
-假设现在有一个路径/home/work/test.txt，dir指向的是/home，name指向的是work/test.txt，namelen=4， 那么该函数将会找到/home/work对应的dir_entry(dir_entry中包含了inode号和目录名字)。
+该函数的作用是是去指定的目录下用文件名搜索相应的文件，返回对应的dir_entry结构。
 
+假设现在有一个路径```/home/work/test.txt```，dir指向的是```/home```，name指向的是```work/test.txt```，namelen=4， 那么该函数将会找到```/home/work```对应的dir_entry(dir_entry中包含了inode号和目录名字)。
+
+整个find的过程可以参考下面这张图：
+
+![find_entry的执行过程](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-fs/namei/find_entry.png)
 
 刚开始定义了一些参数，并对一些参数的有效性进行了校验。 如果定义了宏NO_TRUNCATE， 如果长度超长，就直接返回NULL。如果没有定义该宏， 长度超长，则进行截断。
 ```c
@@ -302,7 +315,6 @@ while (1) {
 		return NULL;
 }
 ```
-
 
 ### dir_namei
 ```c
@@ -784,3 +796,20 @@ int sys_link(const char * oldname, const char * newname)
 
 
 ## Q & A
+
+### S_ISREG/S_ISDIR/S_ISCHR/S_ISBLK/S_ISFIFO 是如何判断文件类型的？
+
+这里需要再次重温一下i节点的i_mode的格式， 如下图所示，其中最高的四个bit位代表文件的类型：
+
+![inode权限](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-fs/namei/permission.png)
+
+这四个位所表示的文件类型可以参考下面这张表：
+
+|bit值    |     含义          |
+|    --   |     --       |
+| 1 0 0 0 | 普通文件     |
+| 0 1 0 0 | 目录文件     |
+| 0 0 1 0 | 字符设备文件 |
+| 0 1 1 0 | 块设备文件   |
+| 0 0 0 1 | 管道文件     |
+
