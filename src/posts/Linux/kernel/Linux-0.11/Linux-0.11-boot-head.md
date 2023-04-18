@@ -131,6 +131,7 @@ setup_paging:
 	pushl $L6
 ```
 这里就需要回顾一下c语言的调用规约，如下图所示：
+
 ![启动中内存分布变化](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/head_caller_stack.png)
 
 因此这里可以得到L6是main函数的返回值。立即数0，0，0将会被作为main函数的入参。
