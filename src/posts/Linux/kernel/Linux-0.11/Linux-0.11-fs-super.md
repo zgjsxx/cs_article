@@ -277,7 +277,7 @@ int sys_umount(char * dev_name)
 ```c
 int sys_mount(char * dev_name, char * dir_name, int rw_flag)
 ```
-该函数的作用是用于安装文件系统。
+该函数的作用是用于安装文件系统。该函数是sys_开头的，是一个系统调用。
 
 函数的开始定义了一些变量，接着通过设备名称获取其i节点。
 ```c
@@ -292,17 +292,17 @@ int sys_mount(char * dev_name, char * dir_name, int rw_flag)
 对于设备类型的i节点，其```i_zone[0]```存放的是设备号dev。接着判断该设备是否是一个块设备文件，如果不是块设备文件，是不能挂在文件系统的，就会返回权限错误。如果权限校验没有问题，就把dev_i节点放回。
 
 ```c
-	dev = dev_i->i_zone[0];
-	if (!S_ISBLK(dev_i->i_mode)) {
+	dev = dev_i->i_zone[0];   //获取其设备号dev
+	if (!S_ISBLK(dev_i->i_mode)) { //判断该i节点是否是一个设备节点，如果不是则返回权限错误
 		iput(dev_i);
 		return -EPERM;
 	}
-	iput(dev_i);
+	iput(dev_i);  //获取到dev_i
 ```
 
 接下来获取dir_name对应的i节点dir_i。
 ```c
-	if (!(dir_i=namei(dir_name)))
+	if (!(dir_i=namei(dir_name))) //获取dir_name的i节点
 		return -ENOENT;
 ```
 
@@ -316,7 +316,7 @@ int sys_mount(char * dev_name, char * dir_name, int rw_flag)
 
 此外，如果该i节点不是一个目录节点，则也不能进行挂载。
 ```c
-	if (!S_ISDIR(dir_i->i_mode)) {
+	if (!S_ISDIR(dir_i->i_mode)) { //判断dir_i的类型，如果不是目录节点则不能进行挂载
 		iput(dir_i);
 		return -EPERM;
 	}
@@ -324,7 +324,7 @@ int sys_mount(char * dev_name, char * dir_name, int rw_flag)
 
 当运行到这里时，就意味着对挂载设备和挂载目录的校验就通过了。接下来，读取设备dev的超级块。
 ```c
-	if (!(sb=read_super(dev))) {
+	if (!(sb=read_super(dev))) {//读取dev设备的超级块
 		iput(dir_i);
 		return -EBUSY;
 	}
@@ -332,11 +332,11 @@ int sys_mount(char * dev_name, char * dir_name, int rw_flag)
 
 如果该超级块已经挂载到某个目录下，那么将返回错误。如果该目录已经挂载了其他的块设备，也返回错误。
 ```c
-	if (sb->s_imount) {
+	if (sb->s_imount) {//超级块的s_imount不为空，代表该超级块已经挂载到某个目录下，则返回EBUSY
 		iput(dir_i);
 		return -EBUSY;
 	}
-	if (dir_i->i_mount) {
+	if (dir_i->i_mount) {//目标的目录节点已经挂载了其他的设备，则返回EPERM
 		iput(dir_i);
 		return -EPERM;
 	}

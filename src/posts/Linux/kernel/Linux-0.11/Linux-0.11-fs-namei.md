@@ -144,11 +144,11 @@ if (!namelen)
 	return NULL;
 ```
 
-接下来对一些特别的场景进行处理。
+接下来对一些特别的场景进行处理，即当```name=..```的情况。
 
 首先，假设一个进程的根目录是```/home/work```,但是目前访问的地址是```/home/work/..```, 这种情况是不被允许的，因此这里会将```/home/work/..```处理成```/home/work/.```。
 
-另外，如果该目录的i节点号等于1，说明是文件系统的根inode节点。则取出文件系统的超级块，查看该文件系统被安装到了哪个inode节点上，如果该节点是存在的，那么会将(*dir)指向安装的inode节点。
+另外，如果该目录的i节点号等于1,说明是某个文件系统的根inode节点。这个时候如果要执行..操作就需要特殊处理。 首先取出文件系统的超级块，查看该文件系统被安装到了哪个inode节点上，如果该节点是存在的，那么会将(*dir)指向安装的inode节点。
 
 ```c
 /* check for '..', as we might have to do some "magic" for it */
@@ -169,6 +169,7 @@ if (!namelen)
 	}
 ```
 
+如果name不为..，则进入下面的逻辑。
 
 接着取出dir对应的inode节点对应的数据块的内容(dir目录下的文件)。
 ```c
@@ -193,7 +194,7 @@ while (i < entries) {
 		}
 		de = (struct dir_entry *) bh->b_data;
 	}
-	if (match(namelen,name,de)) {
+	if (match(namelen,name,de)) { //如果匹配上了，就返回对应的dir_entry
 		*res_dir = de;
 		return bh;
 	}
@@ -208,6 +209,8 @@ static struct buffer_head * add_entry(struct m_inode * dir,
 	const char * name, int namelen, struct dir_entry ** res_dir)
 ```
 该函数用于向指定的目录添加一个目录项。
+
+刚开始定义了一些参数，并对一些参数的有效性进行了校验。 如果定义了宏NO_TRUNCATE， 如果长度超长，就直接返回NULL。如果没有定义该宏， 长度超长，则进行截断。
 
 ```c
 	int block,i;
@@ -224,12 +227,22 @@ static struct buffer_head * add_entry(struct m_inode * dir,
 #endif
 	if (!namelen)
 		return NULL;
+```
+
+下面从读取```i_zone[0]```对应的磁盘块，其中存储了dir_entry。
+```c
 	if (!(block = dir->i_zone[0]))
 		return NULL;
 	if (!(bh = bread(dir->i_dev,block)))
 		return NULL;
 	i = 0;
 	de = (struct dir_entry *) bh->b_data;
+```
+
+接下来的过程便是遍历所有的目录项，从中找到空的目录项，用于创建新的目录项。
+
+如果当前目录项的所有数据块都已经搜索完毕，但是还是没有找到需要的空目录，则会去下一个逻辑块中查找。如果下一个逻辑块不存在则会进行创建。
+```c
 	while (1) {
 		if ((char *)de >= BLOCK_SIZE+bh->b_data) {
 			brelse(bh);
@@ -274,25 +287,30 @@ static struct m_inode * get_dir(const char * pathname)
 例如pathname是/home/work/test.txt，那么get_dir将返回/home/work目录的inode。
 
 ```c
-char c;
-const char * thisname;
-struct m_inode * inode;
-struct buffer_head * bh;
-int namelen,inr,idev;
-struct dir_entry * de;
+	char c;
+	const char * thisname;
+	struct m_inode * inode;
+	struct buffer_head * bh;
+	int namelen,inr,idev;
+	struct dir_entry * de;
 
-if (!current->root || !current->root->i_count)
-	panic("No root inode");
-if (!current->pwd || !current->pwd->i_count)
-	panic("No cwd inode");
-if ((c=get_fs_byte(pathname))=='/') {
-	inode = current->root;
-	pathname++;
-} else if (c)
-	inode = current->pwd;
-else
-	return NULL;	/* empty name is bad */
-inode->i_count++;
+	if (!current->root || !current->root->i_count)
+		panic("No root inode");
+	if (!current->pwd || !current->pwd->i_count)
+		panic("No cwd inode");
+	if ((c=get_fs_byte(pathname))=='/') {
+		inode = current->root;
+		pathname++;
+	} else if (c)
+		inode = current->pwd;
+	else
+		return NULL;	/* empty name is bad */
+	inode->i_count++;
+```
+
+在iget函数内部会处理挂载目录的情况，即当一个目录是另一个文件系统的挂载节点的时候，就会去超级块中寻找真正的i节点。
+
+```c
 while (1) {
 	thisname = pathname;
 	if (!S_ISDIR(inode->i_mode) || !permission(inode,MAY_EXEC)) {
