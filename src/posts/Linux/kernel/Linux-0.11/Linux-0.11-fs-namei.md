@@ -277,14 +277,19 @@ static struct buffer_head * add_entry(struct m_inode * dir,
 	return NULL;
 ```
 
-
 ### get_dir
 ```c
 static struct m_inode * get_dir(const char * pathname)
 ```
 该函数的作用是搜寻最下层的目录的inode号。
 
-例如pathname是/home/work/test.txt，那么get_dir将返回/home/work目录的inode。
+如果pathname是/home/work/test.txt，那么get_dir将返回/home/work目录的inode。
+
+如果pathname是/home/work/test，那么get_dir将返回/home/work目录的inode。
+
+如果pathname是/home/work/test/，那么get_dir将返回/home/work/test目录的inode。
+
+程序的开始检测路径是绝对路径还是相对路径。绝对路径就从current->root开始寻找，相对路径就从current->pwd开始寻找。
 
 ```c
 	char c;
@@ -294,21 +299,23 @@ static struct m_inode * get_dir(const char * pathname)
 	int namelen,inr,idev;
 	struct dir_entry * de;
 
-	if (!current->root || !current->root->i_count)
+	if (!current->root || !current->root->i_count)//对current->root进行校验
 		panic("No root inode");
-	if (!current->pwd || !current->pwd->i_count)
+	if (!current->pwd || !current->pwd->i_count)//对current->pwd进行校验
 		panic("No cwd inode");
-	if ((c=get_fs_byte(pathname))=='/') {
+	if ((c=get_fs_byte(pathname))=='/') {// 起始字符是/，说明是绝对路径
 		inode = current->root;
 		pathname++;
-	} else if (c)
+	} else if (c) //否则是相对路径
 		inode = current->pwd;
 	else
 		return NULL;	/* empty name is bad */
 	inode->i_count++;
 ```
 
-在iget函数内部会处理挂载目录的情况，即当一个目录是另一个文件系统的挂载节点的时候，就会去超级块中寻找真正的i节点。
+接下来进行循环，每次读取路径中的一个目录(文件)名。 因为路径名是以/进行分割的，因此可以将/作为标记进行寻找。当c=get_fs_byte(pathname++) = NULL时，寻找结束，代表已经到达了pathname字符串的末尾。
+
+这里需要考虑目录名是其他文件系统的挂载节点的场景， 这个场景在iget函数内部会进行处理，即当一个目录是另一个文件系统的挂载节点的时候，就会去超级块中寻找真正的i节点。
 
 ```c
 while (1) {
@@ -339,59 +346,58 @@ while (1) {
 static struct m_inode * dir_namei(const char * pathname,
 	int * namelen, const char ** name)
 ```
-该函数的作用是返回指定路径(pathname)所在目录的i节点， 并返回其上层目录的名称。
-
+该函数的作用是返回指定路径(pathname)所在目录的i节点， 并返回pathname路径最末端的文件名。
 
 例如：pathname = /home/work/test.txt， dir_namei将返回目录```/home/work```的i节点，同时设置name = "test.txt", namelen = 8。
 
-
 ```c
-char c;
-const char * basename;
-struct m_inode * dir;
+	char c;
+	const char * basename;
+	struct m_inode * dir;
 
-if (!(dir = get_dir(pathname)))
-	return NULL;
-basename = pathname;
-while ((c=get_fs_byte(pathname++)))
-	if (c=='/')
-		basename=pathname;
-*namelen = pathname-basename-1;
-*name = basename;
-return dir;
+	if (!(dir = get_dir(pathname)))//调用get_dir函数获取靠近末端的上层目录的i节点
+		return NULL;
+	basename = pathname;
+	while ((c=get_fs_byte(pathname++)))
+		if (c=='/')
+			basename=pathname;
+	*namelen = pathname-basename-1; //获取路径中最右侧的文件名
+	*name = basename;
+	return dir;
 ```
+
 ### namei
 ```c
 struct m_inode * namei(const char * pathname)
 ```
-根据路径名字获取文件的inode节点。
+该函数的作用是根据路径名字获取文件的inode节点，是该文件中最重要的函数。namei综合运行了上面的dir_namei和find_entry函数。
 
 ```c
-const char * basename;
-int inr,dev,namelen;
-struct m_inode * dir;
-struct buffer_head * bh;
-struct dir_entry * de;
+	const char * basename;
+	int inr,dev,namelen;
+	struct m_inode * dir;
+	struct buffer_head * bh;
+	struct dir_entry * de;
 
-if (!(dir = dir_namei(pathname,&namelen,&basename)))
-	return NULL;
-if (!namelen)			/* special case: '/usr/' etc */
-	return dir;
-bh = find_entry(&dir,basename,namelen,&de);
-if (!bh) {
+	if (!(dir = dir_namei(pathname,&namelen,&basename)))//调用dir_namei获取上层目录的i节点和最右侧文件的名字。
+		return NULL;
+	if (!namelen)			/* special case: '/usr/' etc */
+		return dir;
+	bh = find_entry(&dir,basename,namelen,&de);//获取文件的dir_entry项
+	if (!bh) {
+		iput(dir);
+		return NULL;
+	}
+	inr = de->inode;//从dir_entry中获取i节点编号
+	dev = dir->i_dev;//从目录的i节点中获取设备号
+	brelse(bh);
 	iput(dir);
-	return NULL;
-}
-inr = de->inode;
-dev = dir->i_dev;
-brelse(bh);
-iput(dir);
-dir=iget(dev,inr);
-if (dir) {
-	dir->i_atime=CURRENT_TIME;
-	dir->i_dirt=1;
-}
-return dir;
+	dir=iget(dev,inr);//调用iget获取i节点
+	if (dir) {
+		dir->i_atime=CURRENT_TIME;
+		dir->i_dirt=1;
+	}
+	return dir;
 ```
 ### open_namei
 ```c
@@ -401,27 +407,93 @@ int open_namei(const char * pathname, int flag, int mode,
 该函数作用是根据文件路径pathname打开一个文件，找到其inode。是open函数使用的namei函数。
 
 ```c
-const char * basename;
-int inr,dev,namelen;
-struct m_inode * dir, *inode;
-struct buffer_head * bh;
-struct dir_entry * de;
+	const char * basename;
+	int inr,dev,namelen;
+	struct m_inode * dir, *inode;
+	struct buffer_head * bh;
+	struct dir_entry * de;
 
-if ((flag & O_TRUNC) && !(flag & O_ACCMODE))
-	flag |= O_WRONLY;
-mode &= 0777 & ~current->umask;
-mode |= I_REGULAR;
+	if ((flag & O_TRUNC) && !(flag & O_ACCMODE))
+		flag |= O_WRONLY;
+	mode &= 0777 & ~current->umask;
+	mode |= I_REGULAR;
 ```
 
 ```c
 if (!(dir = dir_namei(pathname,&namelen,&basename)))
 	return -ENOENT;
 ```
+
+
+```c
+	if (!namelen) {			/* special case: '/usr/' etc */
+		if (!(flag & (O_ACCMODE|O_CREAT|O_TRUNC))) {
+			*res_inode=dir;
+			return 0;
+		}
+		iput(dir);
+		return -EISDIR;
+	}
+	bh = find_entry(&dir,basename,namelen,&de);
+	if (!bh) {
+		if (!(flag & O_CREAT)) {
+			iput(dir);
+			return -ENOENT;
+		}
+		if (!permission(dir,MAY_WRITE)) {
+			iput(dir);
+			return -EACCES;
+		}
+		inode = new_inode(dir->i_dev);
+		if (!inode) {
+			iput(dir);
+			return -ENOSPC;
+		}
+		inode->i_uid = current->euid;
+		inode->i_mode = mode;
+		inode->i_dirt = 1;
+		bh = add_entry(dir,basename,namelen,&de);
+		if (!bh) {
+			inode->i_nlinks--;
+			iput(inode);
+			iput(dir);
+			return -ENOSPC;
+		}
+		de->inode = inode->i_num;
+		bh->b_dirt = 1;
+		brelse(bh);
+		iput(dir);
+		*res_inode = inode;
+		return 0;
+	}
+	inr = de->inode;
+	dev = dir->i_dev;
+	brelse(bh);
+	iput(dir);
+	if (flag & O_EXCL)
+		return -EEXIST;
+	if (!(inode=iget(dev,inr)))
+		return -EACCES;
+	if ((S_ISDIR(inode->i_mode) && (flag & O_ACCMODE)) ||
+	    !permission(inode,ACC_MODE(flag))) {
+		iput(inode);
+		return -EPERM;
+	}
+	inode->i_atime = CURRENT_TIME;
+	if (flag & O_TRUNC)
+		truncate(inode);
+	*res_inode = inode;
+	return 0;
+```
 ### sys_mknod
 ```c
 int sys_mknod(const char * filename, int mode, int dev)
 ```
 该函数的作用是创建一个设备特殊文件或者普通文件节点。
+
+根据mode的值的不同会创建不同的节点，当mode为块设备或者是字符设备，则是创建一个设备i节点，除此以外，其他mode将会创建普通i节点。
+
+**设备节点和普通节点的区别**可以参考Q&A 1.S_ISREG/S_ISDIR/S_ISCHR/S_ISBLK/S_ISFIFO 是如何判断文件类型的。
 
 ```c
 	const char * basename;
@@ -432,13 +504,13 @@ int sys_mknod(const char * filename, int mode, int dev)
 	
 	if (!suser())//如果不是超级用户，返回出错
 		return -EPERM;
-	if (!(dir = dir_namei(filename,&namelen,&basename)))
+	if (!(dir = dir_namei(filename,&namelen,&basename)))///获取上层的目录i节点
 		return -ENOENT;
 	if (!namelen) {
 		iput(dir);
 		return -ENOENT;
 	}
-	if (!permission(dir,MAY_WRITE)) {//检查权限
+	if (!permission(dir,MAY_WRITE)) {//检查是否有上层目录的写权限
 		iput(dir);
 		return -EPERM;
 	}
@@ -456,8 +528,8 @@ int sys_mknod(const char * filename, int mode, int dev)
 	inode->i_mode = mode;
 	if (S_ISBLK(mode) || S_ISCHR(mode))
 		inode->i_zone[0] = dev;  //i_zone存放设备号
-	inode->i_mtime = inode->i_atime = CURRENT_TIME;
-	inode->i_dirt = 1;
+	inode->i_mtime = inode->i_atime = CURRENT_TIME; //修改时间
+	inode->i_dirt = 1;//将该i节点标记为含有脏数据
 	bh = add_entry(dir,basename,namelen,&de);//添加到目录下
 	if (!bh) {
 		iput(dir);
@@ -465,7 +537,7 @@ int sys_mknod(const char * filename, int mode, int dev)
 		iput(inode);
 		return -ENOSPC;
 	}
-	de->inode = inode->i_num;
+	de->inode = inode->i_num;//将dir_entry中的i节点序号指向inode->i_num
 	bh->b_dirt = 1;
 	iput(dir);
 	iput(inode);
@@ -747,7 +819,6 @@ int sys_unlink(const char * name)
 	return 0;
 ```
 
-
 ### sys_link
 ```c
 int sys_link(const char * oldname, const char * newname)
@@ -815,7 +886,7 @@ int sys_link(const char * oldname, const char * newname)
 
 ## Q & A
 
-### S_ISREG/S_ISDIR/S_ISCHR/S_ISBLK/S_ISFIFO 是如何判断文件类型的？
+### 1.S_ISREG/S_ISDIR/S_ISCHR/S_ISBLK/S_ISFIFO 是如何判断文件类型的？
 
 这里需要再次重温一下i节点的i_mode的格式， 如下图所示，其中最高的四个bit位代表文件的类型：
 
