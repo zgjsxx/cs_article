@@ -75,7 +75,13 @@ free_block(dev,block);
 ```c
 void truncate(struct m_inode * inode)
 ```
-该函数的作用是释放该inode所占据的磁盘空间。 该函数在iput函数(inode.c)中如果文件的链接数为0的时候被调用。
+该函数的作用是释放该inode所占据的磁盘空间(清空文件内容)。 
+
+该函数在open_namei函数中被调用，如果设置了O_TRUNC标记，则会在打开文件时，调用truncate将文件进行清空。
+```c
+	if (flag & O_TRUNC)  //如果设置了截0标记
+		truncate(inode); //调用truncate将文件长度截为0
+```
 
 代码最开始检查如果不是**常规文件**或者是**目录文件**，就跳过。
 ```c
