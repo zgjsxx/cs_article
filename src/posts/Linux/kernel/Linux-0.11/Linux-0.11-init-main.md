@@ -15,32 +15,35 @@ tag:
 ```c
 static void time_init(void)
 ```
+该函数读取CMOS时钟信息作为系统的开机时间。
 
 ```c
 	struct tm time;
 
 	do {
-		time.tm_sec = CMOS_READ(0);
-		time.tm_min = CMOS_READ(2);
-		time.tm_hour = CMOS_READ(4);
-		time.tm_mday = CMOS_READ(7);
-		time.tm_mon = CMOS_READ(8);
-		time.tm_year = CMOS_READ(9);
+		time.tm_sec = CMOS_READ(0);//当前的秒数
+		time.tm_min = CMOS_READ(2);//当前分钟值
+		time.tm_hour = CMOS_READ(4);//当前小时数
+		time.tm_mday = CMOS_READ(7);//当前的天数
+		time.tm_mon = CMOS_READ(8);//当前的月份
+		time.tm_year = CMOS_READ(9);//当前的年份
 	} while (time.tm_sec != CMOS_READ(0));
-	BCD_TO_BIN(time.tm_sec);
+	BCD_TO_BIN(time.tm_sec); //转换成二进制数值
 	BCD_TO_BIN(time.tm_min);
 	BCD_TO_BIN(time.tm_hour);
 	BCD_TO_BIN(time.tm_mday);
 	BCD_TO_BIN(time.tm_mon);
 	BCD_TO_BIN(time.tm_year);
 	time.tm_mon--;
-	startup_time = kernel_mktime(&time);
+	startup_time = kernel_mktime(&time);//调用kernel_mktime构建时间，详情参考Linux-0.11 kernel目录mktime.c详解
 ```
 
 ### main
 ```c
 void main(void)	
 ```
+在head.s中会跳转main函数中进行执行。
+
 ```c
 if (memory_end > 16*1024*1024)
     memory_end = 16*1024*1024;
