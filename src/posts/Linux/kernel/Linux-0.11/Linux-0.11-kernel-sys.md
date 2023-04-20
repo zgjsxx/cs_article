@@ -10,6 +10,7 @@ tag:
 ## 模块简介
 
 在sys.c模块中，有很多关于进程id、进程组id、用户id、用户组id的系统调用。 另外在该文件，诸如sys_ftime，sys_break等函数在Linux-0.11版本中尚未实现。
+
 ## 函数详解
 
 ### sys_ftime
