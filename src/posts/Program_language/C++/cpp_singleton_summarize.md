@@ -41,7 +41,7 @@ private:
     static Singleton* m_singletonInstance;
 };
 
-Singleton* Singleton::m_singletonInstance = NULL;
+Singleton* Singleton::m_singletonInstance = nullptr;
 
 Singleton* Singleton::getInstance()
 {
@@ -83,12 +83,175 @@ int main()
 
 ## 加锁懒汉
 
+加锁懒汉的最经典的实现是Double-Checked Locking Pattern (DCLP)，如下所示：
+
+```cpp
+#include <iostream>
+#include <mutex>
+
+class Singleton
+{
+public:
+    static Singleton* getInstance();
+    static void destroy();
+
+public:
+    Singleton(const Singleton& instance) = delete;
+    const Singleton& operator=(const Singleton& instance) = delete;
+
+private:
+    Singleton();
+    ~Singleton();
+private:
+    static Singleton* m_singletonInstance;
+    static std::mutex m_Mutex;
+};
+
+Singleton* Singleton::m_singletonInstance = nullptr;
+std::mutex Singleton::m_Mutex;
+
+Singleton* Singleton::getInstance()
+{
+    if(nullptr == m_singletonInstance)
+    {
+        std::unique_lock<std::mutex> lk(m_Mutex);
+        if(nullptr == m_singletonInstance)
+        {
+            m_singletonInstance = new Singleton; 
+        }
+
+    }
+    return m_singletonInstance;
+}
+
+void Singleton::destroy()
+{
+    std::unique_lock<std::mutex> lk(m_Mutex);
+    if(m_singletonInstance)
+    {
+        delete m_singletonInstance;
+        m_singletonInstance = nullptr;
+    }
+}
+Singleton::Singleton()
+{
+    std::cout << "create instance" << std::endl;
+}
+
+Singleton::~Singleton()
+{
+    std::cout << "destroy instance" << std::endl;
+}
+
+int main()
+{
+    Singleton* instance = Singleton::getInstance();
+    instance->destroy();
+}
+```
+
+在单例创建时，使用了mutex进行加锁操作，可以一定程度上保证线程安全。但是要注意这种方式也不能完全保证线程安全。
+
+可以使用volatile进行优化
 
 ## 静态内部变量
 
+```cpp
+#include <iostream>
+#include <mutex>
+
+class Singleton
+{
+public:
+    static Singleton& getInstance();
+
+public:
+    Singleton(const Singleton& instance) = delete;
+    const Singleton& operator=(const Singleton& instance) = delete;
+
+private:
+    Singleton();
+    ~Singleton();
+
+};
+
+
+Singleton& Singleton::getInstance()
+{
+    static Singleton singleton;
+    return singleton;
+}
+
+
+Singleton::Singleton()
+{
+    std::cout << "create instance" << std::endl;
+}
+
+Singleton::~Singleton()
+{
+    std::cout << "destroy instance" << std::endl;
+}
+
+int main()
+{
+    Singleton& instance = Singleton::getInstance();
+}
+```
+
 ## 饿汉单例
 
+```cpp
+#include <iostream>
 
+class Singleton
+{
+public:
+    static Singleton* getInstance();
+    static void destroy();
+
+public:
+    Singleton(const Singleton& instance) = delete;
+    const Singleton& operator=(const Singleton& instance) = delete;
+
+private:
+    Singleton();
+    ~Singleton();
+private:
+    static Singleton* m_singletonInstance;
+};
+
+Singleton* Singleton::m_singletonInstance = new Singleton;
+
+Singleton* Singleton::getInstance()
+{
+    return m_singletonInstance;
+}
+
+void Singleton::destroy()
+{
+    if(m_singletonInstance)
+    {
+        delete m_singletonInstance;
+        m_singletonInstance = nullptr;
+    }
+}
+Singleton::Singleton()
+{
+    std::cout << "create instance" << std::endl;
+}
+
+Singleton::~Singleton()
+{
+    std::cout << "destroy instance" << std::endl;
+}
+
+int main()
+{
+    Singleton* instance = Singleton::getInstance();
+    instance->destroy();
+}
+```
 ## std::call_once单例
 
 
