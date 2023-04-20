@@ -281,7 +281,7 @@ static struct buffer_head * add_entry(struct m_inode * dir,
 ```c
 static struct m_inode * get_dir(const char * pathname)
 ```
-该函数的作用是搜寻最下层的目录的inode号。
+该函数的作用是搜寻最下层的目录的inode号。 该函数将在dir_namei中被调用。
 
 如果pathname是/home/work/test.txt，那么get_dir将返回/home/work目录的inode。
 
@@ -406,6 +406,9 @@ int open_namei(const char * pathname, int flag, int mode,
 ```
 该函数作用是根据文件路径pathname打开一个文件，找到其inode。是open函数使用的namei函数。
 
+函数的开始对文件的flag对一些检查，关于这些flag的含义可以参考 Q & A 2.open 文件时的一些flag的作用。
+
+如果文件访问模式是只读， 但是文件截0标志O_TRUNC却置位了，则需要在文件打开标志中增加只写标志O_WRONLY，原因是截0操作必须要有文件可写。
 ```c
 	const char * basename;
 	int inr,dev,namelen;
@@ -414,33 +417,34 @@ int open_namei(const char * pathname, int flag, int mode,
 	struct dir_entry * de;
 
 	if ((flag & O_TRUNC) && !(flag & O_ACCMODE))
-		flag |= O_WRONLY;
-	mode &= 0777 & ~current->umask;
-	mode |= I_REGULAR;
+		flag |= O_WRONLY;  //增加可写的标记
+	mode &= 0777 & ~current->umask; //和进程的打开文件的掩码相与
+	mode |= I_REGULAR;//创建普通文件
 ```
 
+接下来根据路径名寻找文件上层目录的i节点。需要处理路径为/usr/这种以/结尾的路径。
 ```c
-if (!(dir = dir_namei(pathname,&namelen,&basename)))
-	return -ENOENT;
-```
-
-
-```c
+	if (!(dir = dir_namei(pathname,&namelen,&basename)))
+		return -ENOENT;
 	if (!namelen) {			/* special case: '/usr/' etc */
-		if (!(flag & (O_ACCMODE|O_CREAT|O_TRUNC))) {
+		if (!(flag & (O_ACCMODE|O_CREAT|O_TRUNC))) { //如果路径是/usr/， 若操作不是读写，创建和文件长度截0，则表示是在打开一个目录名文件操作。
 			*res_inode=dir;
 			return 0;
 		}
 		iput(dir);
 		return -EISDIR;
 	}
-	bh = find_entry(&dir,basename,namelen,&de);
-	if (!bh) {
-		if (!(flag & O_CREAT)) {
+```
+
+下面使用find_entry查看要打开的文件是否已经存在。下面这段是文件不存在进行创建的逻辑。
+```c
+	bh = find_entry(&dir,basename,namelen,&de);//查找打开文件的dir_entry
+	if (!bh) {   //不存在
+		if (!(flag & O_CREAT)) {  //检查0_CREAT标记
 			iput(dir);
 			return -ENOENT;
 		}
-		if (!permission(dir,MAY_WRITE)) {
+		if (!permission(dir,MAY_WRITE)) {//检查目录写权限
 			iput(dir);
 			return -EACCES;
 		}
@@ -452,7 +456,7 @@ if (!(dir = dir_namei(pathname,&namelen,&basename)))
 		inode->i_uid = current->euid;
 		inode->i_mode = mode;
 		inode->i_dirt = 1;
-		bh = add_entry(dir,basename,namelen,&de);
+		bh = add_entry(dir,basename,namelen,&de);//添加到目录中
 		if (!bh) {
 			inode->i_nlinks--;
 			iput(inode);
@@ -466,6 +470,10 @@ if (!(dir = dir_namei(pathname,&namelen,&basename)))
 		*res_inode = inode;
 		return 0;
 	}
+```
+
+下面这段逻辑要打开的文件已经存在的逻辑。通过iget返回文件的i节点。
+```c
 	inr = de->inode;
 	dev = dir->i_dev;
 	brelse(bh);
@@ -480,11 +488,12 @@ if (!(dir = dir_namei(pathname,&namelen,&basename)))
 		return -EPERM;
 	}
 	inode->i_atime = CURRENT_TIME;
-	if (flag & O_TRUNC)
-		truncate(inode);
+	if (flag & O_TRUNC)  //如果设置了截0标记
+		truncate(inode); //调用truncate将文件长度截为0
 	*res_inode = inode;
 	return 0;
 ```
+
 ### sys_mknod
 ```c
 int sys_mknod(const char * filename, int mode, int dev)
@@ -581,7 +590,7 @@ int sys_mkdir(const char * pathname, int mode)
 		iput(dir);
 		return -ENOSPC;
 	}
-	inode->i_size = 32;
+	inode->i_size = 32;     //设置目录的大小，因为有两个默认的目录.和..
 	inode->i_dirt = 1;
 	inode->i_mtime = inode->i_atime = CURRENT_TIME;
 	if (!(inode->i_zone[0]=new_block(inode->i_dev))) {
@@ -599,11 +608,11 @@ int sys_mkdir(const char * pathname, int mode)
 		return -ERROR;
 	}
 	de = (struct dir_entry *) dir_block->b_data;
-	de->inode=inode->i_num;
-	strcpy(de->name,".");
+	de->inode=inode->i_num;     
+	strcpy(de->name,".");   //创建.目录项
 	de++;
 	de->inode = dir->i_num;
-	strcpy(de->name,"..");
+	strcpy(de->name,"..");  //创建..目录项
 	inode->i_nlinks = 2;
 	dir_block->b_dirt = 1;
 	brelse(dir_block);
@@ -688,7 +697,7 @@ int sys_rmdir(const char * name)
 	struct buffer_head * bh;
 	struct dir_entry * de;
 
-	if (!suser())
+	if (!suser())   //如果不是超级用户，返回权限错误
 		return -EPERM;
 	if (!(dir = dir_namei(name,&namelen,&basename)))
 		return -ENOENT;
@@ -696,7 +705,7 @@ int sys_rmdir(const char * name)
 		iput(dir);
 		return -ENOENT;
 	}
-	if (!permission(dir,MAY_WRITE)) {
+	if (!permission(dir,MAY_WRITE)) {//检查是否有目录的写权限
 		iput(dir);
 		return -EPERM;
 	}
@@ -746,7 +755,7 @@ int sys_rmdir(const char * name)
 	de->inode = 0;
 	bh->b_dirt = 1;
 	brelse(bh);
-	inode->i_nlinks=0;
+	inode->i_nlinks=0; //将i节点的链接数设置为0
 	inode->i_dirt=1;
 	dir->i_nlinks--;
 	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
@@ -902,3 +911,9 @@ int sys_link(const char * oldname, const char * newname)
 | 0 1 1 0 | 块设备文件   |
 | 0 0 0 1 | 管道文件     |
 
+
+### 2.open 文件时的一些flag的作用
+
+**O_TRUNC标志**：
+
+使用这个标志，在调用open函数打开文件的时候会将文件原本内容全部丢弃，文件大小变为0;
