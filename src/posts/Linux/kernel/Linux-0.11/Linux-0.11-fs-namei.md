@@ -628,7 +628,7 @@ int sys_mkdir(const char * pathname, int mode)
 	}
 	de->inode = inode->i_num;
 	bh->b_dirt = 1;
-	dir->i_nlinks++;
+	dir->i_nlinks++;//新建目录项会增加上层目录的链接数，与此对应的是删除目录的时候会减少上层目录的链接数
 	dir->i_dirt = 1;
 	iput(dir);
 	iput(inode);
@@ -699,7 +699,7 @@ int sys_rmdir(const char * name)
 
 	if (!suser())   //如果不是超级用户，返回权限错误
 		return -EPERM;
-	if (!(dir = dir_namei(name,&namelen,&basename)))
+	if (!(dir = dir_namei(name,&namelen,&basename)))//获取路径的上一层目录的i节点
 		return -ENOENT;
 	if (!namelen) {
 		iput(dir);
@@ -709,18 +709,18 @@ int sys_rmdir(const char * name)
 		iput(dir);
 		return -EPERM;
 	}
-	bh = find_entry(&dir,basename,namelen,&de);
+	bh = find_entry(&dir,basename,namelen,&de);//查找目录项dir_entry项
 	if (!bh) {
 		iput(dir);
 		return -ENOENT;
 	}
-	if (!(inode = iget(dir->i_dev, de->inode))) {
+	if (!(inode = iget(dir->i_dev, de->inode))) {//获取目录项对应的i节点
 		iput(dir);
 		brelse(bh);
 		return -EPERM;
 	}
-	if ((dir->i_mode & S_ISVTX) && current->euid &&
-	    inode->i_uid != current->euid) {
+	if ((dir->i_mode & S_ISVTX) && current->euid && //如果目录设置了SBIT， 如果当前有效用户不等于该i节点的用户，并且不是root用户，则无权进行删除
+	    inode->i_uid != current->euid) {   
 		iput(dir);
 		iput(inode);
 		brelse(bh);
@@ -732,36 +732,36 @@ int sys_rmdir(const char * name)
 		brelse(bh);
 		return -EPERM;
 	}
-	if (inode == dir) {	/* we may not delete ".", but "../dir" is ok */
+	if (inode == dir) {	//如果删除的是.目录
 		iput(inode);
 		iput(dir);
 		brelse(bh);
 		return -EPERM;
 	}
-	if (!S_ISDIR(inode->i_mode)) {
-		iput(inode);
-		iput(dir);
-		brelse(bh);
+	if (!S_ISDIR(inode->i_mode)) {//如果该i节点不是一个目录类型的i节点，则不能进行操作。
+		iput(inode);       //放回i节点
+		iput(dir);         //放回目录节点
+		brelse(bh);        //释放高速缓冲块
 		return -ENOTDIR;
 	}
-	if (!empty_dir(inode)) {
-		iput(inode);
-		iput(dir);
-		brelse(bh);
+	if (!empty_dir(inode)) {  //如果被删除的目录不是一个空目录则不能进行删除
+		iput(inode);       //放回i节点
+		iput(dir);         //放回目录节点
+		brelse(bh);        //释放高速缓冲块
 		return -ENOTEMPTY;
 	}
 	if (inode->i_nlinks != 2)
 		printk("empty directory has nlink!=2 (%d)",inode->i_nlinks);
-	de->inode = 0;
-	bh->b_dirt = 1;
-	brelse(bh);
+	de->inode = 0;     //将目录项指向的i节点设置为0
+	bh->b_dirt = 1;    //将bh块设置为有脏数据
+	brelse(bh);        //释放该bh块
 	inode->i_nlinks=0; //将i节点的链接数设置为0
-	inode->i_dirt=1;
-	dir->i_nlinks--;
-	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
-	dir->i_dirt=1;
-	iput(dir);
-	iput(inode);
+	inode->i_dirt=1;   //将i节点设置为有脏数据
+	dir->i_nlinks--;   //减少目录节点的链接数
+	dir->i_ctime = dir->i_mtime = CURRENT_TIME;   //修改目录i节点的修改时间
+ 	dir->i_dirt=1;    //将目录i节点设置为有脏数据
+	iput(dir);         //放回要删除的目录的上层目录的i节点
+	iput(inode);       //放回要删除的目录的i节点
 	return 0;
 ```
 
@@ -917,3 +917,41 @@ int sys_link(const char * oldname, const char * newname)
 **O_TRUNC标志**：
 
 使用这个标志，在调用open函数打开文件的时候会将文件原本内容全部丢弃，文件大小变为0;
+
+
+
+
+### 3.Linux的特殊权限位
+
+对于一个文件的i节点，其9-11位是3个特殊权限位，SUID，SGID，SBIT。SUID和SGID用于执行时进行提权。
+
+![inode权限](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-fs/namei/permission.png)
+
+
+**对于SUID**:
+
+- SUID 权限仅对二进制可执行文件有效
+- 如果执行者对于该二进制可执行文件具有 x 的权限，执行者将具有该文件的所有者的权限
+- 本权限仅在执行该二进制可执行文件的过程中有效
+
+提权过程对二进制文件有效， **对于shell等脚本文件可能不生效**。
+
+**对于SGUID**:
+
+当 SGID 作用于普通文件时，和 SUID 类似，在执行该文件时，用户将获得该文件所属组的权限。
+
+当 SGID 作用于目录时，意义就非常重大了。当用户对某一目录有写和执行权限时，该用户就可以在该目录下建立文件，如果该目录用 SGID 修饰，则该用户在这个目录下建立的文件都是属于这个目录所属的组。
+
+**对于SBIT**：
+
+SBIT 与 SUID 和 SGID 的关系并不大。
+
+SBIT 是 the  restricted  deletion  flag  or  sticky  bit 的简称。
+
+SBIT 目前只对目录有效，用来阻止非文件的所有者删除文件。比较常见的例子就是 /tmp 目录，
+```shell
+[xu@localhost shell_proj]$ ls / -al |grep tmp
+drwxrwxrwt.  23 root root 4096 Apr 20 22:50 tmp
+```
+
+权限信息中最后一位 t 表明该目录被设置了 SBIT 权限。SBIT 对目录的作用是：当用户在该目录下创建新文件或目录时，仅有自己和 root 才有权力删除。
