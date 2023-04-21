@@ -71,7 +71,7 @@ inode的权限存储在i_mode字段中，其是一个16位长度的无符号整�
 ```c
 static int match(int len,const char * name,struct dir_entry * de)
 ```
-该函数用于比较name的和de->name的前len个字符是否相等。(注意name处于用户空间)
+该函数用于比较name的和de->name的前len个字符是否相等。(注意name处于用户空间)。
 
 首先对参数进行校验。如果目录项指针de为空， 或者de中的inode节点指针为空，或者长度len大于文件名的最大长度，则直接返回0。
 

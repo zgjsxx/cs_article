@@ -54,13 +54,14 @@ int sys_utime(char * filename, struct utimbuf * times)
 	} else//如果times指针为空，则直接从系统时间获取
 		actime = modtime = CURRENT_TIME;
 ```
+
 接着将i节点的访问时间和修改时间进行修改， 并设置该i节点有脏数据。
 
 ```c
-	inode->i_atime = actime;
-	inode->i_mtime = modtime;
-	inode->i_dirt = 1;
-	iput(inode);
+	inode->i_atime = actime;      //设置访问时间
+	inode->i_mtime = modtime;     //设置修改时间
+	inode->i_dirt = 1;            //设置i节点有脏数据
+	iput(inode);                  //放回i节点
 	return 0;
 ```
 
@@ -68,53 +69,55 @@ int sys_utime(char * filename, struct utimbuf * times)
 ```c
 int sys_access(const char * filename,int mode)
 ```
-
+该函数的作用是检查文件的访问权限。
 ```c
-struct m_inode * inode;
-int res, i_mode;
+	struct m_inode * inode;
+	int res, i_mode;
 
-mode &= 0007;
-if (!(inode=namei(filename)))
-    return -EACCES;
-i_mode = res = inode->i_mode & 0777;
-iput(inode);
-if (current->uid == inode->i_uid)
-    res >>= 6;
-else if (current->gid == inode->i_gid)
-    res >>= 6;
-if ((res & 0007 & mode) == mode)
-    return 0;
-/*
-    * XXX we are doing this test last because we really should be
-    * swapping the effective with the real user id (temporarily),
-    * and then calling suser() routine.  If we do call the
-    * suser() routine, it needs to be called last. 
-    */
-if ((!current->uid) &&
-    (!(mode & 1) || (i_mode & 0111)))
-    return 0;
-return -EACCES;
+	mode &= 0007;
+	if (!(inode=namei(filename)))
+		return -EACCES;
+	i_mode = res = inode->i_mode & 0777;
+	iput(inode);
+	if (current->uid == inode->i_uid)
+		res >>= 6;
+	else if (current->gid == inode->i_gid)
+		res >>= 6;   //这里似乎是一个bug， 应该是>>3， namei中的permission函数没有这个问题
+	if ((res & 0007 & mode) == mode)
+		return 0;
+	/*
+		* XXX we are doing this test last because we really should be
+		* swapping the effective with the real user id (temporarily),
+		* and then calling suser() routine.  If we do call the
+		* suser() routine, it needs to be called last. 
+		*/
+	if ((!current->uid) &&
+		(!(mode & 1) || (i_mode & 0111)))
+		return 0;
+	return -EACCES;
 ```
 ### sys_chdir
 ```c
 int sys_chdir(const char * filename)
 ```
-该函数的作用是改变当前进程的工作目录。
+该函数的作用是**改变当前进程的工作目录**。
 
 首先通过namei找到路径filename对应的i节点。节点将该i节点设置给PCB中的pwd字段。
-```c
-struct m_inode * inode;
 
-if (!(inode = namei(filename)))
-    return -ENOENT;
-if (!S_ISDIR(inode->i_mode)) {
-    iput(inode);
-    return -ENOTDIR;
-}
-iput(current->pwd);
-current->pwd = inode;
-return (0);
+```c
+	struct m_inode * inode;
+
+	if (!(inode = namei(filename)))
+		return -ENOENT;
+	if (!S_ISDIR(inode->i_mode)) { //如果给定的filename对应的不是一个目录i节点，则返回错误
+		iput(inode);
+		return -ENOTDIR;
+	}
+	iput(current->pwd);
+	current->pwd = inode;  //将当前进程的工作路径设置为filename对应的i节点
+	return (0);
 ```
+
 ### sys_chroot
 ```c
 int sys_chroot(const char * filename)
@@ -124,17 +127,17 @@ int sys_chroot(const char * filename)
 
 首先通过namei找到路径filename对应的i节点。节点将该i节点设置给PCB中的root字段。
 ```c
-struct m_inode * inode;
+	struct m_inode * inode;
 
-if (!(inode=namei(filename)))
-    return -ENOENT;
-if (!S_ISDIR(inode->i_mode)) {
-    iput(inode);
-    return -ENOTDIR;
-}
-iput(current->root);
-current->root = inode;
-return (0);
+	if (!(inode=namei(filename)))
+		return -ENOENT;
+	if (!S_ISDIR(inode->i_mode)) {//如果给定的filename对应的不是一个目录i节点，则返回错误
+		iput(inode);
+		return -ENOTDIR;
+	}
+	iput(current->root);
+	current->root = inode;//将当前进程的根路径设置为filename对应的i节点
+	return (0);
 ```
 
 ### sys_chmod
@@ -144,38 +147,38 @@ int sys_chmod(const char * filename,int mode)
 该函数的作用是用于修改文件的权限。
 
 ```c
-struct m_inode * inode;
+	struct m_inode * inode;
 
-if (!(inode=namei(filename)))
-    return -ENOENT;
-if ((current->euid != inode->i_uid) && !suser()) {
-    iput(inode);
-    return -EACCES;
-}
-inode->i_mode = (mode & 07777) | (inode->i_mode & ~07777);
-inode->i_dirt = 1;
-iput(inode);
-return 0;
+	if (!(inode=namei(filename))) //先查找出filename对应的i节点
+		return -ENOENT;
+	if ((current->euid != inode->i_uid) && !suser()) { //如果当前进程的有效用户不等于i节点用户，并且也不是超级用户，则没有操作该i节点的权限
+		iput(inode);
+		return -EACCES;
+	}
+	inode->i_mode = (mode & 07777) | (inode->i_mode & ~07777);//否则重新设置该i节点的文件属性，并设置该i节点含有脏数据
+	inode->i_dirt = 1;
+	iput(inode);
+	return 0;
 ```
 
 ### sys_chown
 ```c
 int sys_chown(const char * filename,int uid,int gid)
 ```
+该函数的作用是修改文件的**拥有用户**和**拥有组**。
 
-该函数的作用是修改文件的拥有用户和拥有组。
 ```c
 	struct m_inode * inode;
 
-	if (!(inode=namei(filename)))
+	if (!(inode=namei(filename)))//获取filename对应的i节点
 		return -ENOENT;
-	if (!suser()) {
+	if (!suser()) {//如果不是超级用户则不能操作
 		iput(inode);
 		return -EACCES;
 	}
-	inode->i_uid=uid;
-	inode->i_gid=gid;
-	inode->i_dirt=1;
+	inode->i_uid=uid;//设置uid
+	inode->i_gid=gid;//设置gid
+	inode->i_dirt=1;//设置有脏数据
 	iput(inode);
 	return 0;
 ```
@@ -183,17 +186,18 @@ int sys_chown(const char * filename,int uid,int gid)
 ```c
 int sys_open(const char * filename,int flag,int mode)
 ```
+该函数的作用是用于打开一个文件。该函数是打开文件的系统调用。
 
 ```c
 	struct m_inode * inode;
 	struct file * f;
 	int i,fd;
 
-	mode &= 0777 & ~current->umask;
-	for(fd=0 ; fd<NR_OPEN ; fd++)
-		if (!current->filp[fd])
+	mode &= 0777 & ~current->umask; //mode和进程的屏蔽码相与
+	for(fd=0 ; fd<NR_OPEN ; fd++)   //从进程的fd数组中找到一个空闲项
+		if (!current->filp[fd]) 
 			break;
-	if (fd>=NR_OPEN)
+	if (fd>=NR_OPEN) //如果超过了进程最大可以打开的文件数则返回错误
 		return -EINVAL;
 	current->close_on_exec &= ~(1<<fd);
 	f=0+file_table;
@@ -202,19 +206,19 @@ int sys_open(const char * filename,int flag,int mode)
 	if (i>=NR_FILE)
 		return -EINVAL;
 	(current->filp[fd]=f)->f_count++;
-	if ((i=open_namei(filename,flag,mode,&inode))<0) {
+	if ((i=open_namei(filename,flag,mode,&inode))<0) {//调用open_namei打开filename对应的i节点
 		current->filp[fd]=NULL;
 		f->f_count=0;
 		return i;
 	}
 /* ttys are somewhat special (ttyxx major==4, tty major==5) */
 	if (S_ISCHR(inode->i_mode)) {
-		if (MAJOR(inode->i_zone[0])==4) {
+		if (MAJOR(inode->i_zone[0])==4) {//ttyxx  major = 4
 			if (current->leader && current->tty<0) {
 				current->tty = MINOR(inode->i_zone[0]);
 				tty_table[current->tty].pgrp = current->pgrp;
 			}
-		} else if (MAJOR(inode->i_zone[0])==5)
+		} else if (MAJOR(inode->i_zone[0])==5)//tty major=5
 			if (current->tty<0) {
 				iput(inode);
 				current->filp[fd]=NULL;
@@ -232,6 +236,7 @@ int sys_open(const char * filename,int flag,int mode)
 	f->f_pos = 0;
 	return (fd);
 ```
+
 ### sys_creat
 ```c
 int sys_creat(const char * pathname, int mode)
@@ -241,7 +246,7 @@ int sys_creat(const char * pathname, int mode)
 其内部调用了sys_open函数，传递参数时，设置flag = O_CREAT | O_TRUNC。
 
 ```c
-return sys_open(pathname, O_CREAT | O_TRUNC, mode);
+	return sys_open(pathname, O_CREAT | O_TRUNC, mode);
 ```
 
 

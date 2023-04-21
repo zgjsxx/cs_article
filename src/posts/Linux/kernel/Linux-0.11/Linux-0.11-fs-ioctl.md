@@ -25,19 +25,20 @@ int sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
 struct file * filp;
 int dev,mode;
 
-if (fd >= NR_OPEN || !(filp = current->filp[fd]))
+if (fd >= NR_OPEN || !(filp = current->filp[fd]))//如果fd大于进程可打开的文件数，或者fd对应的文件结构体不存在时，返回-EBADF。
     return -EBADF;
 mode=filp->f_inode->i_mode;
-if (!S_ISCHR(mode) && !S_ISBLK(mode))
+if (!S_ISCHR(mode) && !S_ISBLK(mode))//如果该文件既不是字符设备又不是块设备，返回-EINVAL
     return -EINVAL;
 dev = filp->f_inode->i_zone[0];
-if (MAJOR(dev) >= NRDEVS)
+if (MAJOR(dev) >= NRDEVS)//如果该设备的主设备号超过了系统已有的设备数,返回错误
     return -ENODEV;
-if (!ioctl_table[MAJOR(dev)])
+if (!ioctl_table[MAJOR(dev)])//如果设备对应的ioctl函数不存在，返回错误信息
     return -ENOTTY;
 ```
 
 经过一番检查之后，下面调用设备对应的ioctl函数。
+
 ```c
 return ioctl_table[MAJOR(dev)](dev,cmd,arg);
 ```

@@ -9,6 +9,8 @@ tag:
 
 ## 模块简介
 
+在Linux-0.11中提供了**管道这种进程间通讯**的方式。本程序包含了管道文件读写操作函数read_pipe()和write_pipe()。
+
 ## 函数详解
 
 ### read_pipe
@@ -65,7 +67,6 @@ return read;
 ```c
 int write_pipe(struct m_inode * inode, char * buf, int count)
 ```
-
 该函数是管道的写操作函数。
 
 函数的开始定义了一些参数，其中chars是要写入管道的数量，size有多个作用，written是已经写入的字符数量。
@@ -108,8 +109,8 @@ while (chars-->0)
 
 最后唤醒等待该pipe的进程，并返回已写入的字节数。
 ```c
-wake_up(&inode->i_wait);
-return written;
+    wake_up(&inode->i_wait);
+    return written;
 ```
 
 ### sys_pipe
@@ -123,62 +124,60 @@ int sys_pipe(unsigned long * fildes)
 程序的开始，定义了一系列变量。其中，inode用于获取管道类型的inode。f数组用于从文件表中找到两个空位。fd数组是管道的读端和写端。 i和j用于遍历。
 
 ```c
-struct m_inode * inode;
-struct file * f[2];
-int fd[2];
-int i,j;
+    struct m_inode * inode;
+    struct file * f[2];
+    int fd[2];
+    int i,j;
 ```
 
 接下来要做的就是从全局文件表file_table中找到两个空位。如果找不到两个空位，就返回-1。
 ```c
-j=0;
-for(i=0;j<2 && i<NR_FILE;i++)
-    if (!file_table[i].f_count)
-        (f[j++]=i+file_table)->f_count++;
-if (j==1)
-    f[0]->f_count=0;
-if (j<2)
-    return -1;
+    j=0;
+    for(i=0;j<2 && i<NR_FILE;i++)
+        if (!file_table[i].f_count)
+            (f[j++]=i+file_table)->f_count++;
+    if (j==1)
+        f[0]->f_count=0;
+    if (j<2)
+        return -1;
 ```
 
 接下来从进程的文件表中获取两个空位，用于填充文件描述符数组```fd[2]```。同样，如果没有两个空位，则返回-1。
 
 ```c
-j=0;
-for(i=0;j<2 && i<NR_OPEN;i++)
-    if (!current->filp[i]) {
-        current->filp[ fd[j]=i ] = f[j];
-        j++;
+    j=0;
+    for(i=0;j<2 && i<NR_OPEN;i++)
+        if (!current->filp[i]) {
+            current->filp[ fd[j]=i ] = f[j];
+            j++;
+        }
+    if (j==1)
+        current->filp[fd[0]]=NULL;
+    if (j<2) {
+        f[0]->f_count=f[1]->f_count=0;
+        return -1;
     }
-if (j==1)
-    current->filp[fd[0]]=NULL;
-if (j<2) {
-    f[0]->f_count=f[1]->f_count=0;
-    return -1;
-}
 ```
 
 接下来便是获取一个空的inode节点用作管道读写的inode。如果没有空的inode节点，则返回-1。
 ```c
-if (!(inode=get_pipe_inode())) {
-    current->filp[fd[0]] =
-        current->filp[fd[1]] = NULL;
-    f[0]->f_count = f[1]->f_count = 0;
-    return -1;
-}
+    if (!(inode=get_pipe_inode())) {
+        current->filp[fd[0]] =
+            current->filp[fd[1]] = NULL;
+        f[0]->f_count = f[1]->f_count = 0;
+        return -1;
+    }
 ```
 
 如果管道inode节点申请成功，则对两个文件结构进行初始化。并通过put_fs_long将文件描述符拷贝到入参fildes中。
 
 ```c
-f[0]->f_inode = f[1]->f_inode = inode;
-f[0]->f_pos = f[1]->f_pos = 0;
-f[0]->f_mode = 1;		/* read */
-f[1]->f_mode = 2;		/* write */
-put_fs_long(fd[0],0+fildes);
-put_fs_long(fd[1],1+fildes);
+    f[0]->f_inode = f[1]->f_inode = inode;
+    f[0]->f_pos = f[1]->f_pos = 0;
+    f[0]->f_mode = 1;		/* read */
+    f[1]->f_mode = 2;		/* write */
+    put_fs_long(fd[0],0+fildes);
+    put_fs_long(fd[1],1+fildes);
 ```
-
-
 
 ## Q & A
