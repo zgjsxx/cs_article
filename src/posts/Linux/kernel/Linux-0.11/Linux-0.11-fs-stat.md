@@ -63,12 +63,12 @@ struct m_inode * inode;
 ```
 下面调用namei函数(fs/namei.c)根据文件名获取inode节点，如果没有找到，则返回-ENOENT，代表**No such file or directory**。如果找到了，则调用cp_stat将数据拷贝到statbuf中，最后使用iput将inode的引用计数减去1。
 ```c
-if (!(inode=namei(filename)))
-    return -ENOENT;
-cp_stat(inode,statbuf);
+    if (!(inode=namei(filename)))
+        return -ENOENT;
+    cp_stat(inode,statbuf);
 
-iput(inode);
-return 0;
+    iput(inode);
+    return 0;
 ```
 
 ### sys_fstat
@@ -92,7 +92,6 @@ if (fd >= NR_OPEN || !(f=current->filp[fd]) || !(inode=f->f_inode))
 cp_stat(inode,statbuf);
 return 0;
 ```
-
 
 ## Q & A
 ### stat和fstat使用上有什么区别？

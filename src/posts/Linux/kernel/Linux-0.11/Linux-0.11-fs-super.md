@@ -273,6 +273,7 @@ int sys_umount(char * dev_name)
 	put_super(dev);
 	sync_dev(dev);
 ```
+
 ### sys_mount
 ```c
 int sys_mount(char * dev_name, char * dir_name, int rw_flag)

@@ -9,6 +9,8 @@ tag:
 
 ## 模块简介
 
+该模块包含了两对函数，第一对是和i节点相关的free_inode()和new_inode()。第二对是和逻辑块相关的free_block()和new_block()。
+
 ## 函数详解
 
 ### free_block
@@ -61,32 +63,33 @@ sb->s_zmap[block/8192]->b_dirt = 1;
 ```c
 int new_block(int dev)
 ```
+该函数的作用是向设备申请一个逻辑块。
 
 ```c
 	struct buffer_head * bh;
 	struct super_block * sb;
 	int i,j;
 
-	if (!(sb = get_super(dev)))
+	if (!(sb = get_super(dev))) //首先获取数据块的超级块
 		panic("trying to get new block from nonexistant device");
 	j = 8192;
 	for (i=0 ; i<8 ; i++)
-		if ((bh=sb->s_zmap[i]))
-			if ((j=find_first_zero(bh->b_data))<8192)
+		if ((bh=sb->s_zmap[i])) /
+			if ((j=find_first_zero(bh->b_data))<8192)//寻找空闲的标记位
 				break;
 	if (i>=8 || !bh || j>=8192)
 		return 0;
-	if (set_bit(j,bh->b_data))
+	if (set_bit(j,bh->b_data))//设置已使用的标记
 		panic("new_block: bit already set");
 	bh->b_dirt = 1;
 	j += i*8192 + sb->s_firstdatazone-1;
 	if (j >= sb->s_nzones)
 		return 0;
-	if (!(bh=getblk(dev,j)))
+	if (!(bh=getblk(dev,j)))//获取该block的bh块
 		panic("new_block: cannot get block");
 	if (bh->b_count != 1)
 		panic("new block: count is != 1");
-	clear_block(bh->b_data);
+	clear_block(bh->b_data);//清除数据
 	bh->b_uptodate = 1;
 	bh->b_dirt = 1;
 	brelse(bh);
@@ -130,6 +133,7 @@ void free_inode(struct m_inode * inode)
 ```c
 struct m_inode * new_inode(int dev)
 ```
+该函数的作用是向dev设备申请一个i节点。
 
 ```c
 	struct m_inode * inode;
@@ -137,14 +141,14 @@ struct m_inode * new_inode(int dev)
 	struct buffer_head * bh;
 	int i,j;
 
-	if (!(inode=get_empty_inode()))
+	if (!(inode=get_empty_inode()))//从内存i节点表获取一个空闲项
 		return NULL;
 	if (!(sb = get_super(dev)))
 		panic("new_inode with unknown device");
 	j = 8192;
 	for (i=0 ; i<8 ; i++)
 		if ((bh=sb->s_imap[i]))
-			if ((j=find_first_zero(bh->b_data))<8192)
+			if ((j=find_first_zero(bh->b_data))<8192)//寻找空闲的标记位
 				break;
 	if (!bh || j >= 8192 || j+i*8192 > sb->s_ninodes) {
 		iput(inode);
@@ -153,7 +157,7 @@ struct m_inode * new_inode(int dev)
 	if (set_bit(j,bh->b_data))
 		panic("new_inode: bit already set");
 	bh->b_dirt = 1;
-	inode->i_count=1;
+	inode->i_count=1;//给i节点进行赋值
 	inode->i_nlinks=1;
 	inode->i_dev=dev;
 	inode->i_uid=current->euid;
