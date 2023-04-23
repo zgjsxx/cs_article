@@ -42,6 +42,10 @@ startup_32:
 	lss stack_start,%esp
 ```
 
+中断门描述符的格式如下所示:
+
+![中断门描述符格式](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/head_idt.png)
+
 
 ### 检查A20地址线是否开启
 下面用于检测A20地址线是否已经开启。

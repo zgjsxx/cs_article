@@ -9,7 +9,7 @@ tag:
 
 ## 模块简介
 
-该模块包含了两对函数，第一对是和i节点相关的free_inode()和new_inode()。第二对是和逻辑块相关的free_block()和new_block()。
+该模块包含了两对函数，第一对是和i节点相关的**free_inode()**和**new_inode()**。第二对是和逻辑块相关的**free_block()**和**new_block()**。
 
 ## 函数详解
 
@@ -17,9 +17,9 @@ tag:
 ```c
 void free_block(int dev, int block)
 ```
-该函数的作用是释放设备dev上的序号为block的逻辑块。
+该函数的作用是释放设备dev上的序号为block的逻辑块。 入参中的block是**磁盘上的绝对位置**。
 
-首先从设备dev中取出超级快。
+首先从设备dev中取出超级快。如果找不到，则返回内核错误。
 ```c
 struct super_block * sb;
 struct buffer_head * bh;
@@ -82,6 +82,13 @@ int new_block(int dev)
 	if (set_bit(j,bh->b_data))//设置已使用的标记
 		panic("new_block: bit already set");
 	bh->b_dirt = 1;
+```
+
+这里需要区别两个概念，即磁盘块号和逻辑块号。磁盘块号是一个绝对位置，而逻辑块号是一个相对位置。这两者之间有一个s_firstdatazone的差，即减去磁盘分区上的前几个块(引导块/超级快/i节点位图/逻辑块位图/i节点)。在超级块中s_firstdatazone记录了第一个数据块的磁盘号。所以，逻辑号和磁盘号之间有关系
+```block = nr + s_firstdatazone -1	```
+
+下面这里在得到存储的位置(i,j)之后，计算绝对位置时，便使用了上述公式```j += i*8192 + sb->s_firstdatazone-1```:
+```c
 	j += i*8192 + sb->s_firstdatazone-1;
 	if (j >= sb->s_nzones)
 		return 0;
