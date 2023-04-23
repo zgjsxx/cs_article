@@ -8,6 +8,11 @@ tag:
 
 # Linux-0.11 详解大纲
 
+本系列使用的源码: https://github.com/yuan-xy/Linux-0.11.git
+
+参考书籍: 
+- Linux-0.11深入解读.pdf
+
 ## 汇编语言基础
 [Linux-0.11 汇编语言](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-assemble-language.html)
 
