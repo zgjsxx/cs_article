@@ -9,7 +9,7 @@ tag:
 
 ## 模块简介
 
-bootsect.s是磁盘启动的引导程序，其概括起来就是代码的搬运工，将代码搬到合适的位置。
+bootsect.s是磁盘启动的引导程序，其概括起来就是代码的搬运工，将代码搬到合适的位置。下图是对搬运过程的概括，可以有个印象，后面将详细讲解。
 
 ![启动中内存分布变化](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/bootsect_boot.png)
 
@@ -58,7 +58,6 @@ go:	mov	%cs, %ax		#将ds，es，ss都设置成移动后代码所在的段处(0x9
 ```
 
 ### 加载setup.s代码到0x9000:0x200处
-
 
 接下来这一部分用于加载setup.s的代码到0x9000:0200处。
 
