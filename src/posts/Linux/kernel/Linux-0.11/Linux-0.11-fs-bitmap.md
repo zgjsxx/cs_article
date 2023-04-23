@@ -87,7 +87,7 @@ int new_block(int dev)
 这里需要区别两个概念，即磁盘块号和逻辑块号。磁盘块号是一个绝对位置，而逻辑块号是一个相对位置。这两者之间有一个s_firstdatazone的差，即减去磁盘分区上的前几个块(引导块/超级快/i节点位图/逻辑块位图/i节点)。在超级块中s_firstdatazone记录了第一个数据块的磁盘号。所以，逻辑号和磁盘号之间有关系
 ```block = nr + s_firstdatazone -1	```
 
-下面这里在得到存储的位置(i,j)之后，计算绝对位置时，便使用了上述公式```j += i*8192 + sb->s_firstdatazone-1```:
+下面这里在得到存储的逻辑位置(i,j)之后，计算绝对位置时，便使用了上述公式```j += i*8192 + sb->s_firstdatazone-1```:
 ```c
 	j += i*8192 + sb->s_firstdatazone-1;
 	if (j >= sb->s_nzones)
@@ -108,29 +108,31 @@ void free_inode(struct m_inode * inode)
 ```
 该函数的作用是释放指定的inode节点。该函数在iput函数(inode.c)中如果文件的链接数为0的时候被调用。
 
+m_前缀代表是内存中存储的i节点格式。 d_前缀代表的是磁盘中i节点格式。
+
 ```c
 	struct super_block * sb;
 	struct buffer_head * bh;
 
-	if (!inode)
+	if (!inode)//inode地址为空
 		return;
-	if (!inode->i_dev) {
+	if (!inode->i_dev) {//i节点设备号为0，代表没有使用
 		memset(inode,0,sizeof(*inode));
 		return;
 	}
-	if (inode->i_count>1) {
+	if (inode->i_count>1) {//i节点还有其他引用
 		printk("trying to free inode with count=%d\n",inode->i_count);
 		panic("free_inode");
 	}
-	if (inode->i_nlinks)
+	if (inode->i_nlinks)//文件链接数不为0
 		panic("trying to free inode with links");
-	if (!(sb = get_super(inode->i_dev)))
+	if (!(sb = get_super(inode->i_dev)))//获取i节点所在设备的超级块
 		panic("trying to free inode on nonexistent device");
 	if (inode->i_num < 1 || inode->i_num > sb->s_ninodes)
 		panic("trying to free inode 0 or nonexistant inode");
 	if (!(bh=sb->s_imap[inode->i_num>>13]))
 		panic("nonexistent imap in superblock");
-	if (clear_bit(inode->i_num&8191,bh->b_data))
+	if (clear_bit(inode->i_num&8191,bh->b_data))//清除使用标记位
 		printk("free_inode: bit already cleared.\n\r");
 	bh->b_dirt = 1;
 	memset(inode,0,sizeof(*inode));
