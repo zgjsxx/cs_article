@@ -181,9 +181,9 @@ Dump of assembler code for function main:
 - got1: 本ELF的link_map数据结构描述符地址
 - got2: _dl_runtime_resolve函数的地址
 
-0x804a004则是调用该函数的参数, 且值为got1, 即本ELF的link_map的地址.
+0x804a004则是调用该函数的参数, 且值为got1, 即本ELF的link_map的地址。
 
-0x804a008正好是第三项got2, 即_dl_runtime_resolve函数的地址
+0x804a008正好是第三项got2, 即_dl_runtime_resolve函数的地址。
 
 因此```jmp    *0x804a008```作用是跳转到_dl_runtime_resolve执行加载。
 
@@ -216,7 +216,9 @@ _dl_runtime_resolve实际上做了两件事:
 
 验证前后过程，确实将0x804a00c处的值修改成了my_func的值。
 
-我们可以在```0x80483d6:   jmp    *0x804a008```语句上下一个断点，打印0x804a00c前后的值的变化，可以看到确实发生了变化。
+我们可以在```0x80483d6:   jmp    *0x804a008```语句上下一个断点，打印0x804a00c前后的值的变化，可以看到确实发生了变化。可以看到, 在_dl_runtime_resolve之前, 0x804a00c地址的值为0x080483e6,即下一条指令。而运行之后, 该地址的值变为0xf7fb845d, 正是my_func的加载地址!
+
+也就是说, my_func函数的地址是在第一次调用时, 才通过连接器动态解析并加载到.got.plt中的. 而这个过程, 也称之为**延时加载**或者**惰性加载**。
 
 ```shell
 (gdb) x/xw 0x804a00c
@@ -234,20 +236,15 @@ _dl_runtime_resolve实际上做了两件事:
    0xf7fb8465 <my_func+8>:      add    $0x1b9b,%eax
 ```
 
-经过这一系列过程，我们证明了我们的分析。
-
 整个过程可以参考下图，对于my_func第一次执行和后续执行，行为是不一样的。
 
 ![动态链接的过程](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/compile/got_plt/got_plt.png)
 
-可以看到, 在_dl_runtime_resolve之前, 0x804a00c地址的值为0x080483e6,即下一条指令。而运行之后, 该地址的值变为0xf7fb845d, 正是my_func的加载地址!
-
-也就是说, my_func函数的地址是在第一次调用时, 才通过连接器动态解析并加载到.got.plt中的. 而这个过程, 也称之为**延时加载**或者**惰性加载**。
 
 这个过程是不是似曾相识，通常我们在写后台的接口时，当查询完数据后，通常会将数据以插入到redis中，以便下一次访问时可以快速访问到。这里也是这样的机制。
 
 而对于.plt段，就类似于一个后台查询接口，对于.got段,就类似于数据库，对于.plt.got段，就类似于redis缓存。
 
 ## 总结
-动态库的加载过程相比于静态库是非常复杂的，其中使用到了.got，.plt和.plt.got段。对于这三个段，可以对其与我们熟悉的CRUD接口进行类比，.plt段，就类似于一个后台查询接口，.got段,就类似于数据库，.plt.got段，就类似于redis缓存，是给.plt段查询做的缓存。
+动态库的加载过程相比于静态库是非常复杂的，其中使用到了.got，.plt和.plt.got段。对于这三个段，可以将其与我们熟悉的CRUD接口进行类比，.plt段，就类似于一个后台查询接口，.got段,就类似于数据库， plt.got段，就类似于redis缓存，是给.plt段查询做的缓存。
 
