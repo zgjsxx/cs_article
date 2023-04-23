@@ -8,7 +8,9 @@ tag:
 # Linux-0.11 文件系统read_write.c详解
 
 ## 模块简介
+该模块实现了文件系统通用的读写的方法read/write/lseek。
 
+根据文件类型的不同，在内部将调用不同的方法。如果是管道文件，则调用pipe.c中的读写方法，如果是字符设备，则会调用char_dev.c中的方法，如果是目录或者普通文件，将调用file_dev.c中的读写方法，如果是块设备文件，将调用block_dev.c中的读写方法。
 ## 函数详解
 
 ### sys_read
@@ -66,4 +68,41 @@ if (S_ISBLK(inode->i_mode))
     return block_write(inode->i_zone[0],&file->f_pos,buf,count);
 if (S_ISREG(inode->i_mode))
     return file_write(inode,file,buf,count);
+```
+
+### sys_lseek
+```c
+int sys_lseek(unsigned int fd,off_t offset, int origin)
+```
+该函数是重定位文件读写指针的系统调用。
+
+```c
+	struct file * file;
+	int tmp;
+
+	if (fd >= NR_OPEN || !(file=current->filp[fd]) || !(file->f_inode)
+	   || !IS_SEEKABLE(MAJOR(file->f_inode->i_dev)))//首先判断参数的有效性
+		return -EBADF;
+	if (file->f_inode->i_pipe)//管道节点头尾指针不能随意移动
+		return -ESPIPE;
+	switch (origin) {
+		case 0://SEEK_SET  绝对值
+			if (offset<0) return -EINVAL;
+			file->f_pos=offset;
+			break;
+		case 1://SEEK_CUR  相对于当前偏移值
+			if (file->f_pos+offset<0) return -EINVAL;
+			file->f_pos += offset;
+			break;
+		case 2://SEEK_END
+			if ((tmp=file->f_inode->i_size+offset) < 0)
+				return -EINVAL;
+			file->f_pos = tmp;
+			break;
+		default:
+			return -EINVAL;
+	}
+	return file->f_pos;
+}
+
 ```

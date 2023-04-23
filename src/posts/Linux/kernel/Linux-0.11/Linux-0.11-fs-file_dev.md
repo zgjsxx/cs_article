@@ -129,3 +129,10 @@ int file_write(struct m_inode * inode, struct file * filp, char * buf, int count
     }
 ```
 ## Q & A
+### 1.i_atime/i_ctime/i_mtime的区别是什么？
+
+i_atime：文件最后访问时间，即是文件最后的读取时间，例如：用命令```cat filename```，此时间修改，其他两个时间不修改。
+
+i_ctime：结点最后修改时间，即是修改inode结构的时间，例如：用命令```ln filename1 filename2```，此时间修改，其他两个时间不修改。
+
+i_mtime：文件最后修改时间，即是对文件内容的修改时间，例如：用命令```echo aaa >filename```，以上三个时间都修改。
