@@ -178,7 +178,7 @@ int main()
 ```
 
 执行结果如下所示：
-```
+```cpp
 String()
 ----------------
 String(const String& v)
@@ -195,11 +195,9 @@ String()
 
 第二个例子，(1) s被move到了新thread的memory space里，所以用的是move constructor，输出2。(2) 同上，输出2。
 
-第三个例子你说错了，输出的是这个String(const char* cstr) { std::cout << "String()" << std::endl; }。(1) 你在这里copy过去的其实是一个```const char*```指针，所以第一步没任何输出。(2) 这时你用const char*来构造一个String，所以输出0.
+第三个例子，输出的是这个String(const char* cstr) { std::cout << "String()" << std::endl; }。(1) 你在这里copy过去的其实是一个```const char*```指针，所以第一步没任何输出。(2) 这时你用const char*来构造一个String，所以输出0.
 
 第四个例子，你的一切活动都是指向最初的那个s，所以没有任何constructor被调用，所以不输出任何东西。
-
-
 
 还是上面的例子，这里将test函数中的const去除```void test(int i, String & s) {}```， 会如何？
 ```c
@@ -254,18 +252,10 @@ int main()
 }
 ```
 
-这里会看到无法通过编译。String ref没有const，为什么你必须用std::ref不然无法compile，因为std::thread默认copy，mutable ref不可以bind到在新的memory space上的rvalue上。
-```text
-In file included from <source>:2:
-/opt/compiler-explorer/gcc-10.2.0/include/c++/10.2.0/thread: In instantiation of 'std::thread::thread(_Callable&&, _Args&& ...) [with _Callable = void (&)(int, String&); _Args = {int, String&}; <template-parameter-1-3> = void]':
-<source>:31:30:   required from here
-/opt/compiler-explorer/gcc-10.2.0/include/c++/10.2.0/thread:136:44: error: static assertion failed: std::thread arguments must be invocable after conversion to rvalues
-  136 |           typename decay<_Args>::type...>::value,
-      |                                            ^~~~~
-/opt/compiler-explorer/gcc-10.2.0/include/c++/10.2.0/thread: In instantiation of 'std::thread::thread(_Callable&&, _Args&& ...) [with _Callable = void (&)(int, String&); _Args = {int, String}; <template-parameter-1-3> = void]':
-<source>:36:41:   required from here
-/opt/compiler-explorer/gcc-10.2.0/include/c++/10.2.0/thread:136:44: error: static assertion failed: std::thread arguments must be invocable after conversion to rvalues
-/opt/compiler-explorer/gcc-10.2.0/include/c++/10.2.0/thread: In instantiation of 'std::thread::thread(_Callable&&, _Args&& ...) [with _Callable = void (&)(int, String&); _Args = {int, const char (&)[6]}; <template-parameter-1-3> = void]':
-<source>:41:36:   required from here
-/opt/compiler-explorer/gcc-10.2.0/include/c++/10.2.0/thread:136:44: error: static assertion failed: std::thread arguments must be invocable after conversion to rvalues
-```
+这里会看到无法通过编译。为什么？
+
+一个实参从主线程传递到子线程的线程函数中，需要经过两次传递。第1次发生在std::thread构造时，此次参数按值并以副本形式被保存。第2次发生在向线程函数传递时，此次传递是由子线程发起，并将之前std::thread内部保存的副本以**右值的形式**(std::move())传入线程函数中的。
+
+String & s 是不可以指向一个右值的。这里不熟悉的可以重新温故一下左值引用，右值引用。
+
+形参T、const T&或T&& 可以接受右值， T &不可以接受右值。 因此如果函数形参是T &， 则传参时必须要使用std::ref。
