@@ -13,9 +13,9 @@ export const zhNavbar = navbar([
     prefix: "/posts/",
     children: [
       { 
-        text: "Linux", 
+        text: "Linux-0.11详解", 
         icon: "edit", 
-        link: "linux" 
+        link: "Linux/kernel/Linux-0.11" 
       },
       { 
         text: "网络", 
