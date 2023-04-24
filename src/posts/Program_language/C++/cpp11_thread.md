@@ -5,6 +5,25 @@ category:
 
 # c++11中的多线程std::thread
 
+在c++11中提供了新的多线程的创建方式std::thread, 丰富了对于多线程的使用。 std::thread类的构造函数的格式如下所示：
+```cpp
+thread() noexcept;       //default constructor   其中noexcept表示函数不会抛出异常，如果抛出异常程序就会终止
+ 
+template <class Fn, class... Args> 
+explicit thread (Fn&& fn, Args&&... args);   //initialization constructor  explicit 表示不支持隐式转换
+ 
+thread (const thread&) = delete;        //copy constructor delete表示不生成默认拷贝构造函数，并且可以禁止使用某个函数，也就表示不可以使用一个线程初始化另一个线程
+ 
+thread (thread&& x) noexcept;    //move constructor
+```
+
+其包含了一个默认的构造函数和一个模板构造函数。该模板构造函数是explicit，代表不允许隐式转换。 其拷贝构造函数声明为delete，代表不可以使用一个线程初始化另一个线程。 其拥有一个移动构造函数。
+对于模板构造函数，可以看到，**其入参就和函数的入参很类似**，因此创建一个线程的方式大大简化。在此之前，在linux平台，创建线程需要使用pthread_create函数，其要求将参数封装为void*指针， 这个在写代码的时候是不太方便的。
+
+```cpp
+template <class Fn, class... Args> 
+explicit thread (Fn&& fn, Args&&... args);
+```
 c++11中thread和pthread相比有如下的一些优点：
 - 跨平台，pthread只能用在POSIX系统上
 - 简单，易用，传参方便，过去pthread需要将数据传递给void*指针， c++11直接像函数传参一样传递参数
@@ -102,3 +121,151 @@ int main()
 detach分离线程，这种方式平常使用较少。也容易引用一些问题。
 
 
+## thread的传参
+
+在上面的例子中，我们创建的函数都是没有入参的。下面我们讨论下如何传参并且需要注意的一些点。
+
+```cpp
+#include <iostream>
+#include <thread>
+
+class String
+{
+public:
+    String(const char* cstr) { std::cout << "String()" << std::endl; }
+
+    // 1
+    String(const String& v)
+    { std::cout << "String(const String& v)" << std::endl; }
+  
+    // 2
+    String(const String&& v) noexcept
+    { std::cout << "String(const String&& v)" << std::endl; }
+
+    // 3
+    String& operator=(const String& v)
+    { std::cout << "String& operator=(const String& v)" << std::endl; return *this; }
+
+};
+
+void test(int i, String const& s) {}
+
+int main()
+{
+    String s("hello");
+    std::cout << "----------------" << std::endl;
+
+    // 输出 1, 2
+    std::thread t1(test, 3, s);//拷贝构造
+    t1.join();
+    std::cout << "----------------" << std::endl;
+
+    // 输出 2, 2
+    std::thread t2(test, 3, std::move(s));//移动构造
+    t2.join();
+    std::cout << "----------------" << std::endl;
+
+    // 只输出 1
+    std::thread t3(test, 3, "hello");//拷贝指针，构造函数
+    t3.join();
+    std::cout << "----------------" << std::endl;
+
+    // 无输出
+    std::thread t4(test, 3, std::ref(s));//无拷贝
+    std::cout << "----------------" << std::endl;
+    t4.join();
+}
+```
+
+执行结果如下所示：
+```
+String()
+----------------
+String(const String& v)
+----------------
+String(const String&& v)
+----------------
+String()
+----------------
+----------------
+```
+
+
+第一个例子，(1) s被copy到了新的memory space里去，所以call的是copy constructor 输出了1。(2) 第一步的结果生成了一个rvalue，所以传参数去函数的时候用的是move constructor，所以输出了2。
+
+第二个例子，(1) s被move到了新thread的memory space里，所以用的是move constructor，输出2。(2) 同上，输出2。
+
+第三个例子你说错了，输出的是这个String(const char* cstr) { std::cout << "String()" << std::endl; }。(1) 你在这里copy过去的其实是一个```const char*```指针，所以第一步没任何输出。(2) 这时你用const char*来构造一个String，所以输出0.
+
+第四个例子，你的一切活动都是指向最初的那个s，所以没有任何constructor被调用，所以不输出任何东西。
+
+
+
+还是上面的例子，这里将test函数中的const去除```void test(int i, String & s) {}```， 会如何？
+```c
+#include <iostream>
+#include <thread>
+
+class String
+{
+public:
+    String(const char* cstr) { std::cout << "String()" << std::endl; }
+
+    // 1
+    String(const String& v)
+    { std::cout << "String(const String& v)" << std::endl; }
+  
+    // 2
+    String(const String&& v) noexcept
+    { std::cout << "String(const String&& v)" << std::endl; }
+
+    // 3
+    String& operator=(const String& v)
+    { std::cout << "String& operator=(const String& v)" << std::endl; return *this; }
+
+};
+
+void test(int i, String & s) {}
+
+int main()
+{
+    String s("hello");
+    std::cout << "----------------" << std::endl;
+
+    // 输出 1, 2
+    std::thread t1(test, 3, s);//拷贝构造
+    t1.join();
+    std::cout << "----------------" << std::endl;
+
+    // 输出 2, 2
+    std::thread t2(test, 3, std::move(s));//移动构造
+    t2.join();
+    std::cout << "----------------" << std::endl;
+
+    // 只输出 1
+    std::thread t3(test, 3, "hello");//拷贝指针，构造函数
+    t3.join();
+    std::cout << "----------------" << std::endl;
+
+    // 无输出
+    std::thread t4(test, 3, std::ref(s));//无拷贝
+    std::cout << "----------------" << std::endl;
+    t4.join();
+}
+```
+
+这里会看到无法通过编译。String ref没有const，为什么你必须用std::ref不然无法compile，因为std::thread默认copy，mutable ref不可以bind到在新的memory space上的rvalue上。
+```text
+In file included from <source>:2:
+/opt/compiler-explorer/gcc-10.2.0/include/c++/10.2.0/thread: In instantiation of 'std::thread::thread(_Callable&&, _Args&& ...) [with _Callable = void (&)(int, String&); _Args = {int, String&}; <template-parameter-1-3> = void]':
+<source>:31:30:   required from here
+/opt/compiler-explorer/gcc-10.2.0/include/c++/10.2.0/thread:136:44: error: static assertion failed: std::thread arguments must be invocable after conversion to rvalues
+  136 |           typename decay<_Args>::type...>::value,
+      |                                            ^~~~~
+/opt/compiler-explorer/gcc-10.2.0/include/c++/10.2.0/thread: In instantiation of 'std::thread::thread(_Callable&&, _Args&& ...) [with _Callable = void (&)(int, String&); _Args = {int, String}; <template-parameter-1-3> = void]':
+<source>:36:41:   required from here
+/opt/compiler-explorer/gcc-10.2.0/include/c++/10.2.0/thread:136:44: error: static assertion failed: std::thread arguments must be invocable after conversion to rvalues
+/opt/compiler-explorer/gcc-10.2.0/include/c++/10.2.0/thread: In instantiation of 'std::thread::thread(_Callable&&, _Args&& ...) [with _Callable = void (&)(int, String&); _Args = {int, const char (&)[6]}; <template-parameter-1-3> = void]':
+<source>:41:36:   required from here
+/opt/compiler-explorer/gcc-10.2.0/include/c++/10.2.0/thread:136:44: error: static assertion failed: std::thread arguments must be invocable after conversion to rvalues
+```
