@@ -16,6 +16,13 @@ export const zhSidebar = sidebar({
       prefix: "posts/",
       children: "structure",
     },
+    // {
+    //   text: "Linux-0.11",
+    //   icon: "info",
+    //   prefix: "posts/Linux/kernel/Linux-0.11/",
+    //   link: "posts/Linux/kernel/Linux-0.11/",
+    //   children: ["Linux-0.11-assemble-language","Linux-0.11-boot-bootsect"],
+    // },
     "intro",
     "slides",
   ],
