@@ -1,12 +1,12 @@
 import { sidebar } from "vuepress-theme-hope";
 
 export const zhSidebar = sidebar({
-  "/": [
+  "/posts/Linux/kernel/Linux-0.11": [
     {
       text: "Linux-0.11详解",
       icon: "info",
-      prefix: "posts/Linux/kernel/Linux-0.11",
-      link: "posts/Linux/kernel/Linux-0.11",
+      prefix: "",
+      link: "",
       children: [
         "Linux-0.11",
         "Linux-0.11-assemble-language",
@@ -50,4 +50,58 @@ export const zhSidebar = sidebar({
       ],
     },
   ],
+  "/posts/network": [
+    {
+      text: "计算机网络",
+      icon: "info",
+      prefix: "",
+      link: "",
+      children: [
+        "http-introduction"
+      ] 
+    } 
+  ],
+  "/posts/design-pattern": [
+    {
+      text: "设计模式",
+      icon: "info",
+      prefix: "",
+      link: "",
+      children: [
+        "adapter"
+      ] 
+    } 
+  ],
+  "/posts/Program_language/cpp": [
+    {
+      text: "c++",
+      icon: "info",
+      prefix: "",
+      link: "",
+      children: [
+        "cpp_singleton_summarize",
+        "cpp_googlestyle_static_global_var",
+        "cpp_lambda",
+        "cpp11_thread",
+        "placement_operator_new",
+        "cpp_realize_defer"
+      ] 
+    } 
+  ],
+  "/posts/tool": [
+    {
+      text: "tool",
+      icon: "info",
+      prefix: "",
+      link: "",
+      children: [
+        "how-to-configure-git-with-multiple-user",
+        "makefile-knowledge",
+        "utf8-gbk"
+      ] 
+    } 
+  ]  
 });
+
+
+  

@@ -18,39 +18,25 @@ export const zhNavbar = navbar([
         link: "Linux/kernel/Linux-0.11" 
       },
       { 
-        text: "网络", 
+        text: "计算机网络", 
         icon: "edit", 
         link: "network" 
       },
       { 
-        text: "编程语言", 
+        text: "c++", 
         icon: "edit", 
-        link: "program_language" 
+        link: "Program_language/cpp" 
       },
+      { 
+        text: "设计模式", 
+        icon: "edit", 
+        link: "design-pattern" 
+      },      
       { 
         text: "工具", 
         icon: "edit", 
         link: "tool" 
       },
-      // {
-      //   text: "香蕉",
-      //   icon: "edit",
-      //   prefix: "banana/",
-      //   children: [
-      //     {
-      //       text: "香蕉 1",
-      //       icon: "edit",
-      //       link: "1",
-      //     },
-      //     {
-      //       text: "香蕉 2",
-      //       icon: "edit",
-      //       link: "2",
-      //     },
-      //     "3",
-      //     "4",
-      //   ],
-      // },
     ],
   },
   {
