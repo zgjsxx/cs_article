@@ -95,7 +95,8 @@ export const zhSidebar = sidebar({
         "cpp_lambda",
         "cpp11_thread",
         "placement_operator_new",
-        "cpp_realize_defer"
+        "cpp_realize_defer",
+        "effective-cpp-02"
       ] 
     } 
   ],
