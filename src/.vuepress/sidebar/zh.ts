@@ -112,7 +112,21 @@ export const zhSidebar = sidebar({
         "how-to-control-stop-flow-in-systemd"
       ] 
     } 
-  ]  
+  ],
+  "/posts/Linux/application-dev":[
+    {
+      text: "Linux应用层开发",
+      icon: "info",
+      prefix: "",
+      link: "",
+      children: [
+        "exit-unlock-mutex",
+        "how-to-get-environ",
+        "mutex-with-fork",
+        "mutex-with-fork2"
+      ] 
+    }     
+  ]
 });
 
 

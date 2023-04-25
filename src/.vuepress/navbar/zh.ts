@@ -42,6 +42,11 @@ export const zhNavbar = navbar([
         icon: "edit", 
         link: "Linux/compile" 
       },
+      {
+        text: "Linux应用层开发",
+        icon: "edit",
+        link: "Linux/application-dev"
+      }
     ],
   },
   {
