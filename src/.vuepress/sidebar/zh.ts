@@ -50,6 +50,17 @@ export const zhSidebar = sidebar({
       ],
     },
   ],
+  "/posts/Linux/compile":[
+    {
+      text: "编译原理",
+      icon: "info",
+      prefix: "",
+      link: "",
+      children: [
+        "got_plt"
+      ]
+    }
+  ],
   "/posts/network": [
     {
       text: "计算机网络",
@@ -90,14 +101,15 @@ export const zhSidebar = sidebar({
   ],
   "/posts/tool": [
     {
-      text: "tool",
+      text: "工具",
       icon: "info",
       prefix: "",
       link: "",
       children: [
         "how-to-configure-git-with-multiple-user",
         "makefile-knowledge",
-        "utf8-gbk"
+        "utf8-gbk",
+        "how-to-control-stop-flow-in-systemd"
       ] 
     } 
   ]  

@@ -37,6 +37,11 @@ export const zhNavbar = navbar([
         icon: "edit", 
         link: "tool" 
       },
+      { 
+        text: "编译原理", 
+        icon: "edit", 
+        link: "Linux/compile" 
+      },
     ],
   },
   {
