@@ -13,11 +13,6 @@ export const zhNavbar = navbar([
     prefix: "/posts/",
     children: [
       { 
-        text: "Linux-0.11详解", 
-        icon: "edit", 
-        link: "Linux/kernel/Linux-0.11" 
-      },
-      { 
         text: "计算机网络", 
         icon: "edit", 
         link: "network" 
@@ -42,11 +37,16 @@ export const zhNavbar = navbar([
         icon: "edit", 
         link: "Linux/compile" 
       },
+      { 
+        text: "Linux-0.11详解", 
+        icon: "edit", 
+        link: "Linux/kernel/Linux-0.11" 
+      },
       {
         text: "Linux应用层开发",
         icon: "edit",
         link: "Linux/application-dev"
-      }
+      },
     ],
   },
   {
