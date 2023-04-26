@@ -1,0 +1,1 @@
+# trait class 表现类型信息
