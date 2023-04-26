@@ -1,8 +1,8 @@
 
 # list的实现
-
+```cpp
 mystl::list<int> l1;
-
+```
 
 
 ## 迭代器
