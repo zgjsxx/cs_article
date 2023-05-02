@@ -39,7 +39,7 @@ f(expr);
 
 ```cpp
 template<typename T>
-void f(T& param);               //ParamType是一个引用
+void f(T& param);               //ParamType一定是一个引用
 ```
 
 我们声明这些变量，
@@ -76,7 +76,7 @@ f(rx);                          ///expr是const int&T，因为ParamType里面已
 当ParamType是指针时：
 ```cpp
 template<typename T>
-void f(T* param);               //param现在是指针
+void f(T* param);               //param一定是一个指针
 
 int x = 27;                     //同之前一样
 const int *px = &x;             //px是指向作为const int的x的指针
@@ -120,7 +120,6 @@ f(27);                          //27是右值，所以T是int，
 当ParamType既不是指针也不是引用时，我们通过传值（pass-by-value）的方式处理：
 
 ```cpp
-
 template<typename T>
 void f(T param);                //以传值的方式处理param
 ```
@@ -193,6 +192,63 @@ f(ptr);                         //传递const char * const类型的实参
 在这里，解引用符号```（*）```的右边的const表示ptr本身是一个const：ptr不能被修改为指向其它地址，也不能被设置为null（解引用符号左边的const表示ptr指向一个字符串，这个字符串是const，因此字符串不能被修改）。当ptr作为实参传给f，组成这个指针的每一比特都被拷贝进param。像这种情况，ptr自身的值会被传给形参，根据类型推导的第三条规则，ptr自身的常量性constness将会被省略，所以param是const char*，也就是一个可变指针指向const字符串。在类型推导中，这个指针指向的数据的常量性constness将会被保留，但是当拷贝ptr来创造一个新指针param时，ptr自身的常量性constness将会被忽略。
 
 
+最后需要注意的是，在本节中，**ParamType**只是定义的格式中不含有指针或者引用，但是实际推导的格式**有可能是指针**。
+
+看下面的例子，```f(pa)```;
+```cpp
+#include <iostream>
+
+template<typename T>
+void f(T param)
+{
+    std::cout << "void f(T param)" << std::endl;
+    *param = 28;                        //不好的实现
+}
+
+int main()
+{
+    int x = 27;
+    const int cx = x;
+    const int& rx = cx;
+    const int& rrx = x;
+    int* pa = &x;
+    f(pa);//expr是int*， T是int*， param的类型是int*
+    f(x);//错误
+}
+```
+
+由于expr是int*，T被推导为int*，因此这里需要在f函数内部增加解引用```*param = 28```。但这里又会引入问题，就是f函数不再能传入非指针的参数，例如f(x)。
+
+因此实际使用过程中，虽然T可以被推导为指针，但并不建议这样做，如果你需要一个指针类型，请在模板中显式声明，即定义一个指针的特化的模板：
+
+```cpp
+#include <iostream>
+
+template<typename T>
+void f(T param)
+{
+    std::cout << "void f(T param)" << std::endl;
+    param = 28;
+}
+
+template<typename T>
+void f(T* param)
+{
+    std::cout << "void f(T* param)" << std::endl;
+    *param = 28;
+}
+
+int main()
+{
+    int x = 27;
+    const int cx = x;
+    const int& rx = cx;
+    const int& rrx = x;
+    int* pa = &x;
+    f(pa);//expr是int*， T是int*， param的类型是int*
+    f(x);
+}
+```
 ## 特别讨论：数组入参和函数入参
 
 **数组实参**
