@@ -135,12 +135,10 @@ void f(T param);                //以传值的方式处理param
 int x=27;                       //如之前一样
 const int cx=x;                 //如之前一样
 const int & rx=cx;              //如之前一样
-int* pa = &x;                   //expr是int*
 
 f(x);                           //T和param的类型都是int
 f(cx);                          //T和param的类型都是int
 f(rx);                          //T和param的类型都是int
-f(pa);                          //编译错误
 ```
 
 注意即使cx和rx表示const值，param也不是const。这是有意义的。
@@ -179,6 +177,20 @@ int main()
 运行结果为：27。
 
 从运行结果可以看到，rrx的值并没有被修改。并且expr含有const，但是param=28并没有const， 说明const属性被去掉了。综上，这里的T推导的是int，param的类型为int。
+
+认识到只有在传值给形参时才会忽略const（和volatile）这一点很重要，正如我们看到的，对于reference-to-const和pointer-to-const形参来说，expr的常量性constness在推导时会被保留。但是考虑这样的情况，expr是一个const指针，指向const对象，expr通过传值传递给param：
+
+```cpp
+template<typename T>
+void f(T param);                //仍然以传值的方式处理param
+
+const char* const ptr =         //ptr是一个常量指针，指向常量对象 
+    "Fun with pointers";
+
+f(ptr);                         //传递const char * const类型的实参
+```
+
+在这里，解引用符号```（*）```的右边的const表示ptr本身是一个const：ptr不能被修改为指向其它地址，也不能被设置为null（解引用符号左边的const表示ptr指向一个字符串，这个字符串是const，因此字符串不能被修改）。当ptr作为实参传给f，组成这个指针的每一比特都被拷贝进param。像这种情况，ptr自身的值会被传给形参，根据类型推导的第三条规则，ptr自身的常量性constness将会被省略，所以param是const char*，也就是一个可变指针指向const字符串。在类型推导中，这个指针指向的数据的常量性constness将会被保留，但是当拷贝ptr来创造一个新指针param时，ptr自身的常量性constness将会被忽略。
 
 
 ## 特别讨论：数组入参和函数入参
