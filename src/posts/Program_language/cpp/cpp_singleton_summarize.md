@@ -79,7 +79,7 @@ int main()
 
 普通懒汉会有很明显的线程安全问题，不能严格地做到单例。
 
-![普通懒汉的线程安全问题](https://github.com/zgjsxx/static-img-repo/raw/main/blog/language/cplusplus/cpp_singleton_summarize/intro.png)
+![普通懒汉的线程安全问题](https://github.com/zgjsxx/static-img-repo/raw/main/blog/language/cpp/cpp_singleton_summarize/intro.png)
 
 ## 加锁懒汉
 

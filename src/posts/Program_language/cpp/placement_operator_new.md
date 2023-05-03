@@ -74,7 +74,7 @@ call Stu class constructor
 
 C++支持运算符的重载，支持对一些运算符自定义其行为：
 
-![operator new](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/language/cplusplus/operator.jpg)
+![operator new](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/language/cpp/operator.jpg)
 
 operator new是一个操作符，和+ -操作符一样，作用是分配空间。我们可以重写它们，修改分配空间的方式。
 
