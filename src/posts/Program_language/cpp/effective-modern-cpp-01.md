@@ -126,7 +126,6 @@ void f(T param);                //以传值的方式处理param
 
 - 和之前一样，如果expr的类型是一个引用，忽略这个引用部分
 - 如果忽略expr的引用性（reference-ness）之后，expr是一个const，那就再忽略const。如果它是volatile，也忽略volatile。忽略cv属性。
-- expr不可以是指针
 
 因此
 
