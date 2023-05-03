@@ -4,7 +4,7 @@ category:
 - Modern effective C++
 ---
 
-# 模板中的类型推导
+# Item1：模板中的类型推导
 
 本文主要讨论c++模板中的类型推导过程。
 

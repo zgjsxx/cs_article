@@ -4,7 +4,7 @@ category:
 - Modern effective C++
 ---
 
-# 理解auto类型推导
+# Item2：理解auto类型推导
 
 本文主要讨论c++模板中的auto类型推导过程。
 
@@ -22,12 +22,13 @@ auto x = 27;
 const auto cx = x;
 ```
 
-类型说明符是const auto。另一个：
+类型说明符是const auto。
+
+另一个：
 
 ```cpp
 const auto & rx=x;
 ```
-
 
 类型说明符是const auto&。在这里例子中要推导x，rx和cx的类型，编译器的行为看起来就像是认为这里每个声明都有一个模板，然后使用合适的初始化表达式进行调用：
 ```cpp
@@ -49,14 +50,18 @@ void func_for_rx(const T & param);
 func_for_rx(x);                 //概念化调用：
                                 //param的推导类型是rx的类型
 ```
+下面这张图可以形象的显示这种类比过程：
 
-正如我说的，auto类型推导除了一个例外（我们很快就会讨论），其他情况都和模板类型推导一样。
+![auto](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/language/cpp/effective-modern-cpp-02/auto.png)
+
+auto类型推导除了一个例外，其他情况都和模板类型推导一样。
 
 Item1基于ParamType——在函数模板中param的类型说明符——的不同特征，把模板类型推导分成三个部分来讨论。在使用auto作为类型说明符的变量声明中，类型说明符代替了ParamType，因此Item1描述的三个情景稍作修改就能适用于auto：
 
 情景一：类型说明符是一个指针或引用但不是通用引用
 情景二：类型说明符一个通用引用
 情景三：类型说明符既不是指针也不是引用
+
 我们早已看过情景一和情景三的例子：
 
 ```cpp
@@ -64,7 +69,6 @@ auto x = 27;                    //情景三（x既不是指针也不是引用）
 const auto cx = x;              //情景三（cx也一样）
 const auto & rx=cx;             //情景一（rx是非通用引用）
 ```
-
 
 情景二像你期待的一样运作：
 ```cpp
