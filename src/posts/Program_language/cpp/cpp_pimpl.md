@@ -7,6 +7,8 @@ tag:
 ---
 
 # c++中的编程技巧pImpl
+
+## 代码
 ```cpp
 // ----------------------
 // interface (widget.hpp)
@@ -67,3 +69,8 @@ int main()
     w.draw();
 }
 ```
+
+## pImpl的缺点
+
+- pImpl是C++程序员经常遇到的一种编程模式，主要用于建立“编译防火墙”。同时，带来了屏蔽私有接口、移动语义友好等优点；
+- 对于const函数被非const指针所屏蔽的问题，可以通过std::experimental::propagate_const来解决。
