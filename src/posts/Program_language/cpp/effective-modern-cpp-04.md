@@ -74,7 +74,7 @@ if (!vw.empty()){
 }
 ```
 
-先公布正确答案， ParamType = ```const Widget * const &```, T = ```Widget* const```,
+先公布正确答案， ParamType = ```const Widget * const &```, T = ```const Widget*```.(分析过程见Item1 注意点1)。
 
 在线执行，验证一下： [点击运行](https://godbolt.org/z/xznqdb1ds)
 

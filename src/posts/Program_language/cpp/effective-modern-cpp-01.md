@@ -342,9 +342,67 @@ f2(someFunc);                       //param被推导为指向函数的引用，
 这个实际上没有什么不同，但是如果你知道数组退化为指针，你也会知道函数退化为指针。
 
 
-综合案例：
+## 注意点1 ```const T```,```const T&```，```const T&&``` 中T推导为指针的场景
 
-https://godbolt.org/z/xrr67eT95
+这个点在effective modern c++的原书中没有提到，在本书的第四节中有一个案例，了解该原则可以帮助你去分析第四节中的案例
+
+如果ParamType的格式是```const T```,```const T&```或者 ```const T&&```
+
+如果T被推导为指针，例如```T = int*```，上面的三种情况将会被推导为```int* const```,```int* const&```,  ```int* const&&```。
+
+下面这个例子是一个综合案例：
+```cpp
+#include <iostream>
+
+template<typename T>
+void FunRef(T& param) 
+{
+
+}
+
+template<typename T>
+void FunPtr(T* param) 
+{
+
+}
+
+template<typename T>
+void FunConstRef(const T& param) 
+{
+
+}
+
+int main()
+{
+    int        i = 0;
+    int&       ri = i;
+    int*       pi = &i;
+    int* const cpi = &i;
+    const int  ci = 2;
+    const int& rci = ci;
+    const int* pci = &ci;    
+
+    FunRef(i);     //expr:int,        T:int,         param:int&
+    FunRef(ri);    //expr:int&,       T:int,         param:int&
+    FunRef(pi);    //expr:int*,       T:int*,        param:int*&
+    FunRef(cpi);   //expr:int* const, T:int* const,  param:int* const&
+    FunRef(ci);    //expr:const int,  T:const int,   param:const int&
+    FunRef(rci);   //expr:const int&, T:const int,   param:const int&
+    FunRef(pci);   //expr:const int*, T:const int*,  param:const int*&
+
+    FunPtr(pi);    //expr:int*,        T:int,         param:int*
+    FunPtr(cpi);   //expr:int* const,  T:int,         param:int*
+    FunPtr(pci);   //expr:const int*,  T:const int,   param:const int*
+
+    FunConstRef(i);     //expr:int,        T:int,         param:const int&
+    FunConstRef(ri);    //expr:int&,       T:int,         param:const int&
+    FunConstRef(pi);    //expr:int*,       T:int*,        param:int* const&
+    FunConstRef(cpi);   //expr:int* const, T:int*,        param:int* const&
+    FunConstRef(ci);    //expr:const int,  T:int,         param:const int&
+    FunConstRef(rci);   //expr:const int&, T:int,         param:const int&
+    FunConstRef(pci);   //expr:const int*, T:const int*,  param:const int* const&
+}
+```
 
 ## 总结
 
