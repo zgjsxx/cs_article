@@ -186,6 +186,18 @@ public:
 [have a try](https://godbolt.org/z/e43z7T7rc)
 
 
+最后提一句，如果子类不是一个模板类，编译时也是不会有问题的，因为很明确。
+```cpp
+class LoggingMsgSender : public MsgSender<CompanyB>
+{
+public:
+	void sendClearMsg(const MsgInfo& info)
+	{
+        sendClear(info);
+	}
+};
+```
+
 ## 总结
 
 - 在派生类模板中如果需要调用模板基类的方法，需要使用this->，或者明确指出名称。
