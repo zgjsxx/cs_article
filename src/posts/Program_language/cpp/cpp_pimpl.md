@@ -11,62 +11,96 @@ tag:
 ## 代码
 ```cpp
 // ----------------------
-// interface (widget.hpp)
-#include <iostream>
-#include <memory>
+#include <memory> // PImpl
+#include <string>
+using namespace std;
  
-class widget
-{
+class User {
 public:
-    void draw() const; // public API that will be forwarded to the implementation
-    bool shown() const { return true; } // public API that implementation has to call
+    // Constructor and Destructors
  
-    widget(); // even the default ctor needs to be defined in the implementation file
-              // Note: calling draw() on default constructed object is UB
-    explicit widget(int);
-    ~widget(); // defined in the implementation file, where impl is a complete type
-    widget(widget&&); // defined in the implementation file
-                      // Note: calling draw() on moved-from object is UB
-    widget(const widget&) = delete;
-    widget& operator=(widget&&); // defined in the implementation file
-    widget& operator=(const widget&) = delete;
+    ~User();
+    explicit User(string name);
+ 
+    // Assignment Operator and Copy Constructor
+ 
+    User(const User& other);
+    User& operator=(User rhs);
+ 
+    // Getter
+    int getSalary() const;
+ 
+    // Setter
+    void setSalary(int);
+ 
 private:
-    class impl;
-    std::unique_ptr<impl> pImpl;
+    // Internal implementation class
+    class Impl;
+ 
+    // Pointer to the internal implementation
+    unique_ptr<Impl> pimpl;
 };
- 
-// ---------------------------
-// implementation (widget.cpp)
-// #include "widget.hpp"
- 
-class widget::impl
-{
-    int n; // private data
-public:
-    void draw(const widget& w) const
-    {
-        if(w.shown()) // this call to public member function requires the back-reference 
-            std::cout << "drawing a const widget " << n << '\n';
-    }
 
-    impl(int n) : n(n) {}
+#include <iostream>
+using namespace std;
+ 
+struct User::Impl {
+ 
+    Impl(string name)
+        : name(move(name)){};
+ 
+    ~Impl(){};
+ 
+    void welcomeMessage() const 
+    {
+        cout << "Welcome, "
+             << name << endl;
+    }
+ 
+    string name{};
+    int salary{-1};
 };
  
-void widget::draw() const { pImpl->draw(*this); }
-widget::widget() = default;
-widget::widget(int n) : pImpl{std::make_unique<impl>(n)} {}
-widget::widget(widget&&) = default;
-widget::~widget() = default;
-widget& widget::operator=(widget&&) = default;
+// Constructor connected with our Impl structure
+User::User(string name)
+    : pimpl(new Impl(move(name)))
+{
+    pimpl->welcomeMessage();
+}
  
-// ---------------
-// user (main.cpp)
-// #include "widget.hpp"
+// Default Constructor
+User::~User() = default;
  
+// Assignment operator and Copy constructor
+ 
+User::User(const User& other)
+    : pimpl(new Impl(*other.pimpl))
+{
+}
+ 
+User& User::operator=(User rhs)
+{
+    swap(pimpl, rhs.pimpl);
+    return *this;
+}
+ 
+// Getter and setter
+int User::getSalary() const
+{
+    return pimpl->salary;
+}
+ 
+void User::setSalary(int salary)
+{
+    pimpl->salary = salary;
+    cout << "Salary set to "
+         << salary << endl;
+}
+
 int main()
 {
-    widget w(7);
-    w.draw();
+    User user("demo");
+    user.setSalary(10000);
 }
 ```
 
