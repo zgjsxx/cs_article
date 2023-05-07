@@ -16,7 +16,38 @@ tag:
 
 ## 如何替代define定义常量
 
+对于```#define```定义一个常量ASPECT_RATIO，
 
+```cpp
+#define ASPECT_RATIO 1.653
+```
+
+我们可以用const常量进行替代。 对于更新的c++标准，这里可能就是**constexpr**。
+
+```cpp
+const double AspectRatio = 1.35;
+```
+
+另外如果该常量是一个限定作用域的常量， 那么可以用static const 或者 enum进行替代。
+
+```cpp
+class GamePlayer1
+{
+private:
+	static const int NumTurns = 5;		// constance declaration
+	int scores[NumTurns];				// use of constant
+};
+
+
+class GamePlayer2
+{
+private:
+	// The enum "hack" makes NumTurns symbolic name for 5
+	enum { NumTurns = 5 };
+	int scores[NumTurns];		// fine
+};
+
+```
 
 ## 如何替代define定义宏函数
 
@@ -58,7 +89,7 @@ int main()
 说明第一次调用，a确实被增加了两次。 这并不是我们所预期的。
 
 
-对于#define定义宏函数， 我们可以用inline函数进行替代，
+对于```#define```定义宏函数， 我们可以用inline函数进行替代，当然加上模板是更加的选择，它让我们可以接受更多类型的参数，实现编译器多态。
 ```cpp
 template<typename T>
 inline void CallWithMax(const T& a, const T& b){
