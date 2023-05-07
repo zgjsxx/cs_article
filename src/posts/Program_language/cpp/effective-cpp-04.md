@@ -1,0 +1,60 @@
+---
+category: 
+- C++
+tag:
+- C++
+- effective c++读书笔记
+---
+
+# effective c++ 04 确定对象被使用前已被初始化
+
+## 使用成员变量初始化列表进行初始化
+
+下面是赋值:
+
+```CPP
+//01. Assignments
+ABEntry::ABEntry(const std::string& name, const std::string& address, const std::list<PhoneNumber>& phones)
+{
+	// these are all assignments.
+	theName = name;
+	theAddress = address;
+	thePhones = phones;
+	numTimesConsulted = 0;
+}
+```
+
+下面这个才是初始化：
+
+```cpp
+//02. Initialization list.
+ABEntry::ABEntry(const std::string& name, const std::string& address, const std::list<PhoneNumber>& phones) :
+	theName(name),
+	theAddress(address),
+	thePhones(phones),
+	numTimesConsulted(0)
+{
+	// the ctor body is empty.
+}
+```
+
+## 确保全局变量已经初始化
+Directory的对象构造时会调用tfs对象的方法，然而此时tfs可能还没有初始化：
+
+```cpp
+class Directory
+{
+public:
+	Directory()
+	{
+		std::size_t disks = tfs.numDisks();
+	}
+};
+
+```
+
+## 总结
+- 为内置型对象进行手工初始化，因为c++不保证初始化它们。
+- 构造函数最好使用成员函数初始化列表进行初始化，而不是在构造函数内部使用赋值操作。初值列列出的成员变量，其排列顺序应该和它们在class中的声明次序相同。
+- 为免除"跨编译单元的初始化次序"问题，请以local static对象提u韩non-local static对象。
+- 
