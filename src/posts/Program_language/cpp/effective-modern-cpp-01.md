@@ -1,7 +1,7 @@
 ---
 category: 
 - C++
-- Modern effective C++
+- effective Modern C++
 ---
 
 # Item1：模板中的类型推导

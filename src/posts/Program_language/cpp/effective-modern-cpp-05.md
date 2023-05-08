@@ -1,7 +1,7 @@
 ---
 category: 
 - C++
-- Modern effective C++
+- effective Modern C++
 ---
 
 # Item5：优先考虑auto而非显式类型声明

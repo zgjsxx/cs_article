@@ -1,7 +1,7 @@
 ---
 category: 
 - C++
-- Modern effective C++
+- effective Modern C++
 ---
 
 # Item36：如果有异步的必要请指定std::launch::async

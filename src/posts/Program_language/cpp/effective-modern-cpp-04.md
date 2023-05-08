@@ -1,7 +1,7 @@
 ---
 category: 
 - C++
-- Modern effective C++
+- effective Modern C++
 ---
 
 # Item4：学会查看类型推导结果

@@ -1,7 +1,7 @@
 ---
 category: 
 - C++
-- Modern effective C++
+- effective Modern C++
 ---
 
 # Item2：理解auto类型推导
