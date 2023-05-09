@@ -59,13 +59,22 @@ constexpr auto tenMillion = 10'000'000;         //C++14
 
 你可能会想，为什么```std::thread```析构的行为是这样的，那是因为另外两种显而易见的方式更糟：
 
-隐式join 。这种情况下，```std::thread```的析构函数将等待其底层的异步执行线程完成。这听起来是合理的，但是可能会导致难以追踪的异常表现。比如，如果```conditonAreStatisfied()```已经返回了false，doWork继续等待过滤器应用于所有值就很违反直觉。
+- 隐式join 。这种情况下，```std::thread```的析构函数将等待其底层的异步执行线程完成。这听起来是合理的，但是可能会导致难以追踪的异常表现。比如，如果```conditonAreStatisfied()```已经返回了false，doWork继续等待过滤器应用于所有值就很违反直觉。
 
-隐式detach 。这种情况下，```std::thread```析构函数会分离```std::thread```与其底层的线程。底层线程继续运行。听起来比join的方式好，但是可能导致更严重的调试问题。比如，在doWork中，goodVals是通过引用捕获的局部变量。它也被lambda修改（通过调用push_back）。假定，lambda异步执行时，conditionsAreSatisfied()返回false。这时，doWork返回，同时局部变量（包括goodVals）被销毁。栈被弹出，并在doWork的调用点继续执行线程。
+- 隐式detach 。这种情况下，```std::thread```析构函数会分离```std::thread```与其底层的线程。底层线程继续运行。听起来比join的方式好，但是可能导致更严重的调试问题。比如，在doWork中，goodVals是通过引用捕获的局部变量。它也被lambda修改（通过调用push_back）。假定，lambda异步执行时，conditionsAreSatisfied()返回false。这时，doWork返回，同时局部变量（包括goodVals）被销毁。栈被弹出，并在doWork的调用点继续执行线程。
 
 调用点之后的语句有时会进行其他函数调用，并且至少一个这样的调用可能会占用曾经被doWork使用的栈位置。我们调用那么一个函数f。当f运行时，doWork启动的lambda仍在继续异步运行。该lambda可能在栈内存上调用push_back，该内存曾属于goodVals，但是现在是f的栈内存的某个位置。这意味着对f来说，内存被自动修改了！想象一下调试的时候“乐趣”吧。
 
 标准委员会认为，销毁可结合的线程如此可怕以至于实际上禁止了它（规定销毁可结合的线程导致程序终止）。
+
+下面便是一个编译器对于thread析构的实现，如果析构时，线程还是可以join的状态，将会terminate。
+```cpp
+    ~thread()
+    {
+      if (joinable())
+	std::terminate();
+    }
+```
 
 这使你有责任确保使用```std::thread```对象时，在所有的路径上超出定义所在的作用域时都是不可结合的。但是覆盖每条路径可能很复杂，可能包括自然执行通过作用域，或者通过return，continue，break，goto或异常跳出作用域，有太多可能的路径。
 
