@@ -4,26 +4,38 @@ category:
 - effective Modern C++
 ---
 
-# Item37：使std::thread在所有路径最后都不可结合
+# Item37：使std::thread在所有路径最后都不可结合（unjoinable）
 
+如果一个线程没有被detach，那么必须确保线程在合适的时间都被join回收资源。而被detach过的线程，则会在线程执行完毕后自动释放资源(pthread结构体和栈)。使```std::thread```在所有路径最后都unjoinable就意味着我们需要确保线程执行完毕后释放了其占用的资源。
 
-每个```std::thread```对象处于两个状态之一：可结合的（joinable）或者不可结合的（unjoinable）。可结合状态的std::thread对应于正在运行或者可能要运行的异步执行线程。比如，对应于一个阻塞的（blocked）或者等待调度的线程的std::thread是可结合的，对应于运行结束的线程的std::thread也可以认为是可结合的。
+每个```std::thread```对象处于两个状态之一：**可结合的（joinable）**或者**不可结合的（unjoinable）**。
 
-不可结合的```std::thread```正如所期待：一个不是可结合状态的```std::thread```。不可结合的```std::thread```对象包括：
+```std::thread```的可结合性如此重要的原因之一就是**当可结合的线程的析构函数被调用**，程序执行会终止。例如下面这个例子，func函数结束之后，th就被析构了，然后此时该线程还是joinable的，结果程序crash了。
 
-默认构造的```std::threads```。这种```std::thread```没有函数执行，因此没有对应到底层执行线程上。
-已经被移动走的```std::thread```对象。移动的结果就是一个```std::thread```原来对应的执行线程现在对应于另一个```std::thread```。
-已经被join的```std::thread``` 。在join之后，```std::thread```不再对应于已经运行完了的执行线程。
-已经被detach的```std::thread``` 。detach断开了```std::thread```对象与执行线程之间的连接。
-（译者注：```std::thread```可以视作状态保存的对象，保存的状态可能也包括可调用对象，有没有具体的线程承载就是有没有连接）
+```cpp
+#include <thread>
+using namespace std::chrono_literals;
 
-```std::thread```的可结合性如此重要的原因之一就是当可结合的线程的析构函数被调用，程序执行会终止。比如，假定有一个函数doWork，使用一个过滤函数filter，一个最大值maxVal作为形参。doWork检查是否满足计算所需的条件，然后使用在0到maxVal之间的通过过滤器的所有值进行计算。如果进行过滤非常耗时，并且确定doWork条件是否满足也很耗时，则将两件事并发计算是很合理的。
+void func()
+{
+    auto func = [](){
+        std::this_thread::sleep_for(2000ms);
+    };
+
+    std::thread th(func);
+}
+int main()
+{
+    func();
+}
+```
+
+下面看一个更加实际的例子，假定有一个函数doWork，使用一个过滤函数filter，一个最大值maxVal作为形参。doWork检查是否满足计算所需的条件，然后使用在0到maxVal之间的通过过滤器的所有值进行计算。如果进行过滤非常耗时，并且确定doWork条件是否满足也很耗时，则将两件事并发计算是很合理的。
 
 我们希望为此采用基于任务的设计（参见Item35），但是假设我们希望设置做过滤的线程的优先级。Item35阐释了那需要线程的原生句柄，只能通过```std::thread```的API来完成；基于任务的API（比如future）做不到。所以最终采用基于线程而不是基于任务。
 
 我们可能写出以下代码：
 
-代码如下：
 ```cpp
 constexpr auto tenMillion = 10000000;           //constexpr见条款15
 
@@ -49,13 +61,8 @@ bool doWork(std::function<bool(int)> filter,    //返回计算是否执行；
     return false;                               //未执行计算
 }
 ```
-在解释这份代码为什么有问题之前，我先把tenMillion的初始化值弄得更可读一些，这利用了C++14的能力，使用单引号作为数字分隔符：
-```cpp
-constexpr auto tenMillion = 10'000'000;         //C++14
-```
-还要指出，在开始运行之后设置t的优先级就像把马放出去之后再关上马厩门一样（译者注：太晚了）。更好的设计是在挂起状态时开始t（这样可以在执行任何计算前调整优先级），但是我不想你为考虑那些代码而分心。如果你对代码中忽略的部分感兴趣，可以转到Item39，那个Item告诉你如何以开始那些挂起状态的线程。
 
-返回doWork。如果conditionsAreSatisfied()返回true，没什么问题，但是如果返回false或者抛出异常，在doWork结束调用t的析构函数时，```std::thread```对象t会是可结合的。这造成程序执行中止。
+在上面的代码中，如果conditionsAreSatisfied()返回true，没什么问题，但是如果返回false或者抛出异常，在doWork结束调用t的析构函数时，```std::thread```对象t会是可结合的。这造成程序执行中止。
 
 你可能会想，为什么```std::thread```析构的行为是这样的，那是因为另外两种显而易见的方式更糟：
 
@@ -72,15 +79,16 @@ constexpr auto tenMillion = 10'000'000;         //C++14
     ~thread()
     {
       if (joinable())
-	std::terminate();
+	    std::terminate();
     }
 ```
 
 这使你有责任确保使用```std::thread```对象时，在所有的路径上超出定义所在的作用域时都是不可结合的。但是覆盖每条路径可能很复杂，可能包括自然执行通过作用域，或者通过return，continue，break，goto或异常跳出作用域，有太多可能的路径。
 
-每当你想在执行跳至块之外的每条路径执行某种操作，最通用的方式就是将该操作放入局部对象的析构函数中。这些对象称为RAII对象（RAII objects），从RAII类中实例化。（RAII全称为 “Resource Acquisition Is Initialization”（资源获得即初始化），尽管技术关键点在析构上而不是实例化上）。RAII类在标准库中很常见。比如STL容器（每个容器析构函数都销毁容器中的内容物并释放内存），标准智能指针（Item18-20解释了，```std::uniqu_ptr```的析构函数调用他指向的对象的删除器，```std::shared_ptr```和```std::weak_ptr```的析构函数递减引用计数），```std::fstream```对象（它们的析构函数关闭对应的文件）等。但是标准库没有```std::thread```的RAII类，可能是因为标准委员会拒绝将join和detach作为默认选项，不知道应该怎么样完成RAII。
+每当你想在执行跳至块之外的每条路径执行某种操作，最通用的方式就是将该操作放入局部对象的析构函数中。这些对象称为**RAII对象**（RAII objects），从RAII类中实例化(RAII可以参考effective c++ item13)。
 
-幸运的是，完成自行实现的类并不难。比如，下面的类实现允许调用者指定ThreadRAII对象（一个std::thread的RAII对象）析构时，调用join或者detach：
+幸运的是，完成自行实现的类并不难。比如，下面的类实现允许调用者指定ThreadRAII对象（一个```std::thread```的RAII对象）析构时，调用join或者detach：
+
 ```cpp
 class ThreadRAII {
 public:
@@ -107,17 +115,19 @@ private:
     std::thread t;
 };
 ```
-我希望这段代码是不言自明的，但是下面几点说明可能会有所帮助：
 
-构造器只接受```std::thread```右值，因为我们想要把传来的```std::thread```对象移动进ThreadRAII。（```std::thread```不可以复制。）
+下面补充几点说明：
 
-构造器的形参顺序设计的符合调用者直觉（首先传递```std::thread```，然后选择析构执行的动作，这比反过来更合理），但是成员初始化列表设计的匹配成员声明的顺序。将```std::thread```对象放在声明最后。在这个类中，这个顺序没什么特别之处，但是通常，可能一个数据成员的初始化依赖于另一个，因为```std::thread```对象可能会在初始化结束后就立即执行函数了，所以在最后声明是一个好习惯。这样就能保证一旦构造结束，在前面的所有数据成员都初始化完毕，可以供```std::thread```数据成员绑定的异步运行的线程安全使用。
+- 构造器只接受```std::thread```右值，因为我们想要把传来的```std::thread```对象移动进ThreadRAII。（```std::thread```不可以复制。）
+
+- 构造器的形参顺序设计的符合调用者直觉（首先传递```std::thread```，然后选择析构执行的动作，这比反过来更合理），但是成员初始化列表设计的匹配成员声明的顺序。将```std::thread```对象放在声明最后。在这个类中，这个顺序没什么特别之处，但是通常，可能一个数据成员的初始化依赖于另一个，因为```std::thread```对象可能会在初始化结束后就立即执行函数了，所以在最后声明是一个好习惯。这样就能保证一旦构造结束，在前面的所有数据成员都初始化完毕，可以供```std::thread```数据成员绑定的异步运行的线程安全使用。
 
 ThreadRAII提供了get函数访问内部的```std::thread```对象。这类似于标准智能指针提供的get函数，可以提供访问原始指针的入口。提供get函数避免了ThreadRAII复制完整```std::thread```接口的需要，也意味着ThreadRAII可以在需要```std::thread```对象的上下文环境中使用。
 
 在ThreadRAII析构函数调用```std::thread```对象t的成员函数之前，检查t是否可结合。这是必须的，因为在不可结合的```std::thread```上调用join或detach会导致未定义行为。客户端可能会构造一个```std::thread```，然后用它构造一个ThreadRAII，使用get获取t，然后移动t，或者调用join或detach，每一个操作都使得t变为不可结合的。
 
 如果你担心下面这段代码
+
 ```cpp
 if (t.joinable()) {
     if (action == DtorAction::join) {
@@ -130,6 +140,7 @@ if (t.joinable()) {
 存在竞争，因为在t.joinable()的执行和调用join或detach的中间，可能有其他线程改变了t为不可结合，你的直觉值得表扬，但是这个担心不必要。只有调用成员函数才能使```std::thread```对象从可结合变为不可结合状态，比如join，detach或者移动操作。在ThreadRAII对象析构函数调用时，应当没有其他线程在那个对象上调用成员函数。如果同时进行调用，那肯定是有竞争的，但是不在析构函数中，是在客户端代码中试图同时在一个对象上调用两个成员函数（析构函数和其他函数）。通常，仅当所有都为const成员函数时，在一个对象同时调用多个成员函数才是安全的。
 
 在doWork的例子上使用ThreadRAII的代码如下：
+
 ```cpp
 bool doWork(std::function<bool(int)> filter,        //同之前一样
             int maxVal = tenMillion)
@@ -157,11 +168,13 @@ bool doWork(std::function<bool(int)> filter,        //同之前一样
     return false;
 }
 ```
+
 这种情况下，我们选择在ThreadRAII的析构函数对异步执行的线程进行join，因为在先前分析中，detach可能导致噩梦般的调试过程。我们之前也分析了join可能会导致表现异常（坦率说，也可能调试困难），但是在未定义行为（detach导致），程序终止（使用原生```std::thread```导致），或者表现异常之间选择一个后果，可能表现异常是最好的那个。
 
-哎，Item39表明了使用ThreadRAII来保证在```std::thread```的析构时执行join有时不仅可能导致程序表现异常，还可能导致程序挂起。“适当”的解决方案是此类程序应该和异步执行的lambda通信，告诉它不需要执行了，可以直接返回，但是C++11中不支持可中断线程（interruptible threads）。可以自行实现，但是这不是本书讨论的主题。（关于这一点，Anthony Williams的《C++ Concurrency in Action》（Manning Publications，2012）的section 9.2中有详细讨论。）（译者注：此书中文版已出版，名为《C++并发编程实战》，且本文翻译时（2020）已有第二版出版。）
+哎，Item39表明了使用ThreadRAII来保证在```std::thread```的析构时执行join有时不仅可能导致程序表现异常，还可能导致程序挂起。"适当"的解决方案是此类程序应该和异步执行的lambda通信，告诉它不需要执行了，可以直接返回，但是C++11中不支持可中断线程（interruptible threads）。可以自行实现，但是这不是本书讨论的主题。（关于这一点，Anthony Williams的《C++ Concurrency in Action》（Manning Publications，2012）的section 9.2中有详细讨论。）
 
 Item17说明因为ThreadRAII声明了一个析构函数，因此不会有编译器生成移动操作，但是没有理由ThreadRAII对象不能移动。如果要求编译器生成这些函数，函数的功能也正确，所以显式声明来告诉编译器自动生成也是合适的：
+
 ```cpp
 class ThreadRAII {
 public:
@@ -185,6 +198,9 @@ private: // as before
     std::thread t;
 };
 ```
+
+c++11的thread在析构的时候并不会自动的join， 但是在c++20中新增了jthread类型，这种类型的thread在析构时会自动join，有兴趣可以尝试探索。
+
 ## 总结
 
 - 在所有路径上保证thread最终是不可结合的。
