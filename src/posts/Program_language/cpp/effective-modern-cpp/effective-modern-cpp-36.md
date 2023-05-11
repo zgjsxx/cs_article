@@ -1,7 +1,8 @@
 ---
 category: 
 - C++
-- effective Modern C++
+tag:
+- effective modern c++读书笔记
 ---
 
 # Item36：如果有异步的必要请指定std::launch::async

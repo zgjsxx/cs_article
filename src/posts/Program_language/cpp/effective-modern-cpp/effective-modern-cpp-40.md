@@ -1,7 +1,8 @@
 ---
 category: 
 - C++
-- effective Modern C++
+tag:
+- effective modern c++读书笔记
 ---
 
 # Item39: 对于并发使用std::atomic，对于特殊内存使用volatile

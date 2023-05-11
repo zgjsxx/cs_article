@@ -1,7 +1,8 @@
 ---
 category: 
 - C++
-- effective Modern C++
+tag:
+- effective modern c++读书笔记
 ---
 
 # Item7：区别使用()和{}创建对象

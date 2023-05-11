@@ -1,9 +1,9 @@
 ---
 category: 
 - C++
-- effective Modern C++
+tag:
+- effective modern c++读书笔记
 ---
-
 # Item5：优先考虑auto而非显式类型声明
 
 ## 总结

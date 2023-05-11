@@ -1,7 +1,8 @@
 ---
 category: 
 - C++
-- effective Modern C++
+tag:
+- effective modern c++读书笔记
 ---
 
 # Item4：学会查看类型推导结果

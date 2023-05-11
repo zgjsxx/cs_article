@@ -1,4 +1,9 @@
-# 
+---
+category: 
+- C++
+tag:
+- effective modern c++读书笔记
+---
 
 总而言之，C++11对于特殊成员函数处理的规则如下：
 

@@ -1,7 +1,8 @@
 ---
 category: 
 - C++
-- effective Modern C++
+tag:
+- effective modern c++读书笔记
 ---
 
 # Item2：理解auto类型推导

@@ -1,7 +1,8 @@
 ---
 category: 
 - C++
-- effective Modern C++
+tag:
+- effective modern c++读书笔记
 ---
 
 # Item42：考虑使用置入(emplace, emplace_back)代替插入(push, push_back)

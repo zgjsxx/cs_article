@@ -1,8 +1,10 @@
 ---
 category: 
 - C++
-- effective Modern C++
+tag:
+- effective modern c++读书笔记
 ---
+
 
 # Item38：关注不同线程句柄的析构行为
 
