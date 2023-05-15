@@ -72,7 +72,7 @@ private:
     TestImpl *p;
 };
 ```
-我们在Test类中，同过调用std::swap完成了指针的交换。为了是得我们的swap更像是std中的swap函数，我们将std中的swap特化：
+我们在Test类中，同过调用```std::swap```完成了指针的交换。为了是得我们的swap更像是std中的swap函数，我们将std中的swap特化：
 ```cpp
 namespace std
 {
@@ -135,7 +135,7 @@ namespace std
     }
 }
 ```
-但这并不合法，因为C++规定，不能偏特化一个函数模版。而这里却将swap的类型特化为了Test<T1> &。
+但这并不合法，因为C++规定，不能偏特化一个函数模版。而这里却将swap的类型特化为了```Test<T1> &```。
 
 有没有好的办法呢？其实很简单，只要把原来的函数重载就行了。
 ```cpp
