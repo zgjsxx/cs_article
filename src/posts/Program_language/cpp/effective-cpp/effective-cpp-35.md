@@ -13,9 +13,13 @@ tag:
 
 ## 分析
 
-1.考虑NVI的实现方式(模板方法设计模式)
+**1.考虑NVI的实现方式(模板方法设计模式)**
+
+父类和子类都调用healthValue同一接口，但是返回值不同。这是一种public非virtual函数调用virtual函数的实现多态的方法。
 
 ```cpp
+#include <iostream>
+
 class GameCharacter
 {
 public:
@@ -44,10 +48,21 @@ private:
 		return 17;
 	}
 };
+
+int main()
+{
+    MyCoolCharacter coolCharacter;
+    std::cout << coolCharacter.healthValue() << std::endl;
+
+    GameCharacter gameCharacter;
+    std::cout << gameCharacter.healthValue() << std::endl;    
+}
 ```
 
 
-2.考虑函数指针（策略模式）
+**2.考虑函数指针（策略模式）去实现多态**
+
+父类和子类都调用healthValue方法，但是二者的返回值是不同的。这里是因为healthValue方法内调用了healthFunc指针所指向的方法，但是父类和子类中healthFunc指针所指向的方法是不同的，通过这样的方式实现了多态。
 
 ```cpp
 // The Strategy Pattern via Function Pointers.
@@ -93,7 +108,9 @@ public:
 ```
 
 
-3.考虑使用```std::function```（策略模式）
+**3.考虑使用```std::function```（策略模式）**
+
+本例和第二点的例子并不大的区别，只是使用了```std::function```充当函数指针。
 
 ```cpp
 // The Strategy Pattern via tr1::function.
@@ -117,7 +134,7 @@ public:
 	// HealthCalcFunc is any callable entity that can be called with
 	// anything compatible with a GameCharacter and that returns
 	// anything compatible with an int; see below for details.
-	typedef std::tr1::function<int (const GameCharacter&)> HealthCalcFunc;
+	typedef std::function<int (const GameCharacter&)> HealthCalcFunc;
 
 	explicit GameCharacter(HealthCalcFunc hcf = defaultHealthCalc) :
 		healthFunc(hcf)
