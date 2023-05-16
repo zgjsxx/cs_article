@@ -63,6 +63,13 @@ int main()
 }
 ```
 
+结果：
+
+```
+color is 0
+color is 0
+```
+
 [have a try](https://godbolt.org/z/vc3o849Ws)
 
 通过结果，我们发现不传递参数进入draw方法时，其参数的默认值将使用基类中所定义入参的默认值，也就是说缺省参数的默认值都是静态绑定的。
