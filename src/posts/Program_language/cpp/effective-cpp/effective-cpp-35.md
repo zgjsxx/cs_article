@@ -110,13 +110,10 @@ public:
 
 **3.考虑使用```std::function```（策略模式）**
 
-本例和第二点的例子并不大的区别，只是使用了```std::function```充当函数指针。
+本例和第二点的例子并不大的区别，只是使用了```std::function```充当函数指针。```std::function```可以接受更多类型的可调用对象，例如lambda function， 类的成员函数，仿函数等等。
 
 ```cpp
-// The Strategy Pattern via tr1::function.
-
 #include <functional>
-
 
 // Forward declaration
 class GameCharacter;
@@ -202,14 +199,15 @@ public:
 };
 ```
 
+**4.经典的策略模式**
 
-4.经典的策略模式
+经典的策略模式是将继承体系内的virtual函数替换为另一个继承体系内的virtual函数。
+
 ```cpp
 // The "Classic" Strategy Pattern.
 
 // Forward declaration
 class GameCharacter;
-
 
 class HealthCalcFunc
 {
