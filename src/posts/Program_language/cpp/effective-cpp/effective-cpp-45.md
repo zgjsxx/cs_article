@@ -57,7 +57,7 @@ public:
 
 **兼容类型检查**
 
-事实上，通用构造函数提供了更多的功能。他可以把一个```SmartPtr<Top>```隐式转换为```SmartPtr<Bottom>```，把一个SmartPtr<int>转换为```SmartPtr<double>```。 但普通指针是不允许这些隐式转换的。因此我们需要把它们禁用掉。注意一下通用构造函数的实现方式便可以解决这个问题：
+事实上，通用构造函数提供了更多的功能。他可以把一个```SmartPtr<Top>```隐式转换为```SmartPtr<Bottom>```，把一个```SmartPtr<int>```转换为```SmartPtr<double>```。 但普通指针是不允许这些隐式转换的。因此我们需要把它们禁用掉。注意一下通用构造函数的实现方式便可以解决这个问题：
 
 ```cpp
 template<typename T>
