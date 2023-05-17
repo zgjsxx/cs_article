@@ -50,7 +50,7 @@ void* operator new(std::size_t size) throw(std::bad_alloc) {
 
 下面我便总结了这个实验如何才能做的起来。我们使用三个实验。
 
-- 在案例1中，程序触发overcommit规则而直接引起new失败。可以查看```/proc/sys/vm/overcommit_memory```， 如果为0，则代表不允许overcommit。例如我们下面的例子，我一次性申请10G，就触发了该规则，new失败，调用new-handler。
+- 在案例1中，程序触发overcommit规则而直接引起new失败。可以查看```/proc/sys/vm/overcommit_memory```， 如果为0，它允许overcommit，但过于明目张胆的overcommit会被拒绝，比如malloc一次性申请的内存大小就超过了系统总内存。例如我们下面的例子，我一次性申请10G，就触发了该规则，new失败，调用new-handler。
 - 在案例2中，程序虚拟内存用完触发new失败。new申请的都是虚拟内存，64位系统的虚拟内存高达128T，因此如果没有触发overcommit的话，就需要循环申请才有可能new失败，而且会需要很长时间，例如案例2。
 - 在案例3中，程序被oom给干掉了。如果你一次申请的内存过小的话，还没有到虚拟内存申请到128T， 物理内存就用完了（申请虚拟内存也需要占用少量物理内存），这个时候程序就会被linux oom给杀掉，就触发不了new-handler。（在我的机器上就被killed了，可以使用dmesg查看）
 
