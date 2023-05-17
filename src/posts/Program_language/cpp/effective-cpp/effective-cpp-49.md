@@ -312,6 +312,20 @@ int main()
 Failed to allocate memory!
 ```
 
+### nothrow使得new不抛出异常
+
+我们可以使用```std::nothrow```来保证new不抛出异常。
+
+```cpp
+class Widget{}；
+Widget* pw1 = new Widget;//如果new失败， 抛出std::bad_alloc
+if(pw1 == 0)..
+Widget* pw2 = new(std::nothrow) Widget;//如果失败，返回空指针
+if(pw2 == 0)
+```
+
+但是nothrow对异常的强制保证性并不高。因为后续的构造函数还是可能会抛出异常。
+
 ## 总结
 - set_new_handler允许客户指定一个函数，在内存分配无法获得满足时被调用。
 - Nothrow new是一个颇为局限的工具，因为它只使用与内存分配，后继的构造函数调用还是可能抛出异常。
