@@ -8,9 +8,11 @@ tag:
 
 # effective c++ 51 编写new和delete时需固守常规
 
+本节主要讲解了如果我们需要重载operator new/operator delete，我们需要遵守的一些套路。
+
 ## 分析
 
-**new 0 bytes**
+### new 0 bytes的处理
 
 C++ 规定，即使客户要求 0 bytes， operator new 也得返回一个合法指针。如下面 non-member operator new 伪代码：
 
@@ -39,7 +41,7 @@ void* operator new(std::size_t size) throw(std::bad_alloc) {
 ```
 这里的技术是将 0 bytes 申请量视为 1 byte 申请。
 
-**继承体系operator new**
+### 继承体系中的operator new
 
 operator new 成员函数会被 derived classes 继承。
 
@@ -56,17 +58,18 @@ void* Base::operator new(std::size_t size) throw(std::bad_alloc) {
   ... // 否则在这里处理
 }
 ```
-这里C++ 会裁定所有非附属（独立式) 对象必须有非零大小，因此 sizeof(Base) 无论如何不能为0，如果 size 为0，这份申请会被转交到 ```::operator new``` 手上，后者有责任以某种合理方式对待这份申请。
+
+这里C++会裁定所有非附属（独立式) 对象必须有非零大小，因此 sizeof(Base) 无论如何不能为0，如果 size 为0，这份申请会被转交到 ```::operator new``` 手上，后者有责任以某种合理方式对待这份申请。
 
 因此，不能在 ```Base::operator new[]``` 内假设 array 的每个元素对象的大小是 ```sizeof(Base)```，意味着不能假设 array 的元素对象的个数是（bytes 申请数）/ sizeof(Base)
 
 此外，传递给 ```operator new[]``` 的 size_t 参数，其值有可能比“将被填以对象”的内存数量更多，动态分配的arrays 可能包含额外空间用来存放元素个数。
 
-**delete null指针**
+### delete null指针
 
 C++ 保证"删除 null 指针永远安全"，必须保证这项实现。
 
-non-member 版本
+**non-member 版本**
 
 下面是 non-member operator delete 伪代码：
 
@@ -78,29 +81,31 @@ void operator delete(void * rawMemory) throw()
 }
 ```
 
-member版本
+**member版本**
+
 ```cpp
 class Base {
-     public:
-      static void* operator new(std::size_t size) throw(std::bad_alloc);
-      static void operator delete(void* rawMemory, std::size_t size) throw();
-    };
+public:
+    static void* operator new(std::size_t size) throw(std::bad_alloc);
+    static void operator delete(void* rawMemory, std::size_t size) throw();
+};
 
 void Base::operator delete(void* rawMemory, std::size_t size) throw() {
-  if (rawMemory == 0) {  // 检查 null 指针
+    if (rawMemory == 0) {  // 检查 null 指针
+        return;
+    }
+    if (size != sizeof(Base)) {     // 如果大小错误，
+        ::operator delete(rawMemory); // 令标准版 operator delete 处理此申请
+        return;
+    }
+    现在归还 rawMemory 所指的内存
     return;
-  }
-  if (size != sizeof(Base)) {     // 如果大小错误，
-    ::operator delete(rawMemory); // 令标准版 operator delete 处理此申请
-    return;
-  }
-  现在归还 rawMemory 所指的内存
-  return;
 }
 ```
+
 如果被删除的derived class 来自于某个 base class，而base class 欠缺 virtual 析构函数，那么 C++ 传给 operator delete 的 size_t 数值可能不正确， operator delete 可能无法正确运作。
 
-这就是为什么 “base class 需要拥有 virtual 析构函数”的原因。
+这就是为什么"base class 需要拥有 virtual 析构函数"的原因。
 
 ## 总结
 
