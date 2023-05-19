@@ -48,18 +48,28 @@ private:
 	}
 };
 
+class MyRichCharacter : public GameCharacter
+{
+private:
+	int doHealthValue() const
+	{
+		return 100;
+	}
+};
+
+
 int main()
 {
-    MyCoolCharacter coolCharacter;
-    std::cout << coolCharacter.healthValue() << std::endl;
+    GameCharacter* gameCharacter = new MyCoolCharacter();
+    std::cout << gameCharacter->healthValue() << std::endl;      
 
-    GameCharacter gameCharacter;
-    std::cout << gameCharacter.healthValue() << std::endl;    
+    GameCharacter* gameCharacter2 = new MyRichCharacter();
+    std::cout << gameCharacter2->healthValue() << std::endl;      
 }
 ```
 
 
-[have a try](https://godbolt.org/z/nYYhvehGh)
+[have a try](https://godbolt.org/z/bP45T7cr8)
 
 **2.考虑函数指针（策略模式）去实现多态**
 
@@ -82,6 +92,12 @@ int defaultHealthCalc(const GameCharacter& gc)
 int lossHealthFastCalc(const GameCharacter& gc)
 {
     std::cout << "lossHealthFastCalc" << std::endl;
+	return 0;
+}
+
+int lossHealthSlowCalc(const GameCharacter& gc)
+{
+    std::cout << "lossHealthSlowCalc" << std::endl;
 	return 0;
 }
 
@@ -114,14 +130,26 @@ public:
 		}
 };
 
+class GoodGuy : public GameCharacter
+{
+public:
+	explicit GoodGuy(HealthCalcFunc hcf = defaultHealthCalc) :
+		GameCharacter(hcf)
+		{
+		}
+};
+
 int main()
 {
-    EvilBadGuy bg(lossHealthFastCalc);
-    bg.healthValue();
+    GameCharacter* gameCharacter = new EvilBadGuy(lossHealthFastCalc);
+    gameCharacter->healthValue();
+
+    GameCharacter* gameCharacter2 = new GoodGuy(lossHealthSlowCalc);  
+    gameCharacter2->healthValue();
 }
 ```
 
-[have a try](https://godbolt.org/z/nYYhvehGh)
+[have a try](https://godbolt.org/z/sP3nba1Go)
 
 **3.考虑使用```std::function```（策略模式）**
 
@@ -129,6 +157,7 @@ int main()
 
 ```cpp
 #include <functional>
+#include <iostream>
 
 // Forward declaration
 class GameCharacter;
@@ -136,6 +165,7 @@ class GameCharacter;
 // Function for the default health calculation algorithm.
 int defaultHealthCalc(const GameCharacter& gc)
 {
+    std::cout << "defaultHealthCalc" << std::endl;
 	return 0;
 }
 
@@ -188,6 +218,7 @@ public:
 // Note: non-int return type.
 short calcHealth(const GameCharacter&)
 {
+    std::cout << "calcHealth" << std::endl;
 	return 256;
 }
 
@@ -197,6 +228,7 @@ struct HealthCalculator
 	// Calculation function object.
 	int operator()(const GameCharacter&) const
 	{
+        std::cout << "HealthCalculator operator()" << std::endl;
 		return 7;
 	}
 };
@@ -209,10 +241,27 @@ public:
 	// Note: non-int return type.
 	float health(const GameCharacter&) const
 	{
+        std::cout << "GameLevel health" << std::endl; 
 		return 7.5f;
 	}
 };
+
+int main()
+{
+    GameCharacter* gameCharacter = new EvilBadGuy(calcHealth);
+    gameCharacter->healthValue();
+
+    GameCharacter* gameCharacter2 = new EvilBadGuy(HealthCalculator());
+    gameCharacter2->healthValue();
+    
+    GameLevel gameLevel;
+    
+    GameCharacter* gameCharacter3 = new EvilBadGuy(std::bind(&GameLevel::health, gameLevel, std::placeholders::_1));
+    gameCharacter3->healthValue();
+}
 ```
+
+[have a try](https://godbolt.org/z/3W7fvjGGP)
 
 **4.经典的策略模式**
 
@@ -221,7 +270,8 @@ public:
 ```cpp
 // The "Classic" Strategy Pattern.
 
-// Forward declaration
+#include <iostream>
+
 class GameCharacter;
 
 class HealthCalcFunc
@@ -229,6 +279,7 @@ class HealthCalcFunc
 public:
 	virtual int calc(const GameCharacter& gc) const
 	{
+        std::cout << "HealthCalcFunc calc" << std::endl;
 		return 17;
 	}
 };
@@ -238,6 +289,7 @@ class MyHealthCalcFunc : public HealthCalcFunc
 public:
 	int calc(const GameCharacter& gc) const
 	{
+        std::cout << "MyHealthCalcFunc calc" << std::endl;
 		return 25;
 	}
 };
@@ -272,7 +324,17 @@ public:
 		{
 		}
 };
+
+int main()
+{
+    MyHealthCalcFunc myHealthCalcFunc;
+    GameCharacter* gameCharacter = new EvilBadGuy(&myHealthCalcFunc);
+    gameCharacter->healthValue();
+
+}
 ```
+
+[have a try](https://godbolt.org/z/c7PzTYhq3)
 
 ## 总结
 - 使用non-virtual interface(NVI)手法， 那么是Template Method设计模式的一种特殊形式。它以public non-virtual成员函数包裹较低访问性的virtual函数。
