@@ -10,7 +10,6 @@ tag:
 
 在本节中，作者给出了一些可以替代调用virtual函数的方法。下面就一一进行介绍。
 
-
 ## 分析
 
 **1.考虑NVI的实现方式(模板方法设计模式)**
@@ -60,6 +59,8 @@ int main()
 ```
 
 
+[have a try](https://godbolt.org/z/nYYhvehGh)
+
 **2.考虑函数指针（策略模式）去实现多态**
 
 父类和子类都调用healthValue方法，但是二者的返回值是不同的。这里是因为healthValue方法内调用了healthFunc指针所指向的方法，但是父类和子类中healthFunc指针所指向的方法是不同的，通过这样的方式实现了多态。
@@ -67,15 +68,22 @@ int main()
 ```cpp
 // The Strategy Pattern via Function Pointers.
 
-// Forward declaration
+#include <iostream>
+
 class GameCharacter;
 
 // Function for the default health calculation algorithm.
 int defaultHealthCalc(const GameCharacter& gc)
 {
+    std::cout << "defaultHealthCalc" << std::endl;
 	return 0;
 }
 
+int lossHealthFastCalc(const GameCharacter& gc)
+{
+    std::cout << "lossHealthFastCalc" << std::endl;
+	return 0;
+}
 
 class GameCharacter
 {
@@ -105,8 +113,15 @@ public:
 		{
 		}
 };
+
+int main()
+{
+    EvilBadGuy bg(lossHealthFastCalc);
+    bg.healthValue();
+}
 ```
 
+[have a try](https://godbolt.org/z/nYYhvehGh)
 
 **3.考虑使用```std::function```（策略模式）**
 
