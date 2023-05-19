@@ -8,11 +8,16 @@ tag:
 
 # effective c++ 03 尽可能使用const
 
-## 在可以使用const的地方尽量使用const，可以避免很多错误
+在本节中，作者建议我们要尽可能使用const， 这样可以尽可能在编译期暴露一些问题。
 
-## 如果在const函数内部需要修改成员变量， 则需要使用mutable
+## 分析
+
+### 在可以使用const的地方尽量使用const，可以避免很多错误
+
+### 如果在const函数内部需要修改成员变量， 则需要使用mutable
 
 下面是一个例子，如果不适用mutable， 则不能通过编译。
+
 ```cpp
 #include <string>
 #include <string.h>
@@ -53,7 +58,7 @@ int main()
 
 更常见的一个场景，在一个类中有一个互斥锁的成员变量，在const函数中要对这个互斥锁加锁，那这个时候不加mutable是会失败的。
 
-## 当const和non-const成员函数有着实质等价的实现时，令non-const版本调用const版本可避免代码重复
+### 当const和non-const成员函数有着实质等价的实现时，令non-const版本调用const版本可避免代码重复
 
 这个点可以参考书本中的实现，但是我觉得这个点使用的频率不是很高。
 
