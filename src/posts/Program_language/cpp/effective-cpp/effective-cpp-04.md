@@ -8,9 +8,13 @@ tag:
 
 # effective c++ 04 确定对象被使用前已被初始化
 
-## 使用成员变量初始化列表进行初始化
+在本节中，作者主要强调了对象使用前一定要进行显式的初始化。其中要区分构造函数中的赋值和初始化。另外跨编译模块的初始化问题需要引起注意(通常可以使用单例模式解决)。
 
-下面是赋值:
+## 分析
+
+### 使用成员变量初始化列表进行初始化
+
+在构造函数中，下面的形式是赋值:
 
 ```CPP
 //01. Assignments
@@ -24,7 +28,7 @@ ABEntry::ABEntry(const std::string& name, const std::string& address, const std:
 }
 ```
 
-下面这个才是初始化：
+下面这样的形式才是初始化：
 
 ```cpp
 //02. Initialization list.
@@ -38,7 +42,8 @@ ABEntry::ABEntry(const std::string& name, const std::string& address, const std:
 }
 ```
 
-## 确保全局变量已经初始化
+### 确保全局变量已经初始化
+
 Directory的对象构造时会调用tfs对象的方法，然而此时tfs可能还没有初始化：
 
 ```cpp
