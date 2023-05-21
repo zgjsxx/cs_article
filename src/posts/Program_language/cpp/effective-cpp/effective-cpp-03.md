@@ -14,6 +14,12 @@ tag:
 
 ### 在可以使用const的地方尽量使用const，可以避免很多错误
 
+const可被用在下面的场景：
+- 任何作用域的对象
+- 函数参数
+- 函数返回值类型
+- 成员函数本体
+
 ### 如果在const函数内部需要修改成员变量， 则需要使用mutable
 
 编译器通常是bitwise constness，即const成员函数内不能修改任何一个bit。然而现实中，有时候我们需要logical constness,即一个const成员函数可以修改它所处理的对象内的某些bits。 这个时候就需要使用mutable。
