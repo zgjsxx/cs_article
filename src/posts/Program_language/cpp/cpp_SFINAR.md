@@ -3,7 +3,7 @@ category:
 - C++
 ---
 
-# SFINAE是个什么东西？
+# C++模板之SFINAE规则
 
 ## 概念
 
