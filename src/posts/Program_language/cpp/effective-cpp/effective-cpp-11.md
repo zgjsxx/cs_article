@@ -46,7 +46,8 @@ Widget& Widget::operator=(const Widget& rhs)
 
 ```
 
-修改方法也很简单，即使先将原来的pb指针保存起来。只有当new成功了之后，再将原来的指针指向的对象删除。
+修改方法也很简单，即先将原来的pb指针保存起来。只有当new成功了之后，再删除原来的指针指向的对象。
+
 ```cpp
 Widget& Widget::operator=(const Widget& rhs)
 {
