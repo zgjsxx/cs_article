@@ -55,11 +55,30 @@ public:
 		std::size_t disks = tfs.numDisks();
 	}
 };
-
 ```
+
+可以使用单例模式的思想去进行修改，这里调用tfs去返回FileSystem的对象，在tfs函数内部，创建了一个静态变量fs，这就确保了对象的创建。
+
+```cpp
+class Directory
+{
+public:
+
+	Directory2()
+	{
+		std::size_t disks = tfs().numDisks();
+	}
+};
+
+FileSystem& tfs()
+{
+	static FileSystem fs;
+	return fs;
+}
+```
+
 
 ## 总结
 - 为内置型对象进行手工初始化，因为c++不保证初始化它们。
 - 构造函数最好使用成员函数初始化列表进行初始化，而不是在构造函数内部使用赋值操作。初值列列出的成员变量，其排列顺序应该和它们在class中的声明次序相同。
-- 为免除"跨编译单元的初始化次序"问题，请以local static对象提u韩non-local static对象。
-- 
+- 为免除"跨编译单元的初始化次序"问题，请以local static对象替换non-local static对象。
