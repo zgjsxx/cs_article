@@ -135,3 +135,27 @@ int main()
     // func(std::forward<int&>(7));//fail
 }
 ```
+
+下面看一个完美转发的例子：
+```cpp
+#include <iostream>
+#include <memory>
+
+void PrintV(int &t){
+    std::cout<<"lvalue"<<std::endl;
+}
+void PrintV(int &&t){
+    std::cout<<"rvalue"<<std::endl;
+}
+template<typename T>
+void Test(T &&t){
+    PrintV(std::forward<T>(t));
+}
+int main(int argc, const char * argv[]) {
+    // insert code here...
+    Test(1); // lvalue rvalue rvalue
+    int a = 1;
+    Test(a);  // lvalue lvalue rvalue
+    return 0;
+}
+```
