@@ -1,0 +1,1 @@
+https://v1otusc.github.io/2021/05/28/C++-inline-hpp/

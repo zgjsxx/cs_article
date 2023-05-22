@@ -8,7 +8,7 @@ tag:
 
 # effective c++ 02-尽量以 const，enum，inline 替换 #define
 
-题干中使用了**尽量**二字，说明#define并非一无是处，只不过#define对开发者使用上要求较高，用不好的话出现问题，查错调试的成本较大。
+题干中使用了**尽量**二字，说明```#define```并非一无是处，只不过```#define```对开发者使用上要求较高，用不好的话出现问题，查错调试的成本较大。
 
 这里主要从两个角度阐述如何替代define：
 - 如何替代define定义常量？
@@ -96,7 +96,6 @@ inline void CallWithMax(const T& a, const T& b){
     f(a>b ? a:b);
 }
 ```
-
 
 ## 总结
 - 对于#define定义常量的功能，我们尽量以const或者enums进行替换。

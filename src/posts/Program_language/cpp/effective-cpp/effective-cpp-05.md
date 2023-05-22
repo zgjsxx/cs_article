@@ -24,5 +24,5 @@ public:
 ```
 
 ## 总结
-- 编译器可以暗自为class创建default构造函数， copy构造函数，copy assignment操作符，以及析构函数
-- 对于更新的c++标准，还会创建移动构造函数和移动操作符。
+- 编译器可以暗自为class创建default构造函数， copy构造函数，copy assignment操作符，以及析构函数。
+- 对于更新的c++标准，还会创建移动构造函数和移动操作符(详见effective modern c++)。
