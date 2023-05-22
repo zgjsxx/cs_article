@@ -78,12 +78,14 @@ int &&ref = std::move(a);
 ## forward
 
 ```cpp
+//转发左值
 template <class T>
 T&& forward(typename std::remove_reference<T>::type& arg) noexcept
 {
     return static_cast<T&&>(arg);
 }
 
+//转发右值
 template <class T>
 T&& forward(typename std::remove_reference<T>::type&& arg) noexcept
 {
@@ -91,18 +93,45 @@ T&& forward(typename std::remove_reference<T>::type&& arg) noexcept
     return static_cast<T&&>(arg);
 }
 ```
+从搭配情况下来看，应该有下面四种组合：
 
-什么场景会触发第二个模板的static_assert？
+- 接受左值 -> T为左值引用 -> 转发成左值引用(左值)
+- 接受右值 -> T为右值引用 -> 转发成右值引用(右值)
+- 接受左值 -> T右值引用 -> 转发成右值引用
+- 接受右值 -> T左值引用 -> 转发成左值引用(static_assert)
+
+前两点便是我们所认识的完美转发，搭配万能引用，从而完美转发给调用的函数。(完美转发 = 引用折叠 + 万能引用 + std::forward)
+- 接受左值 -> T为左值引用 -> 转发成左值引用(左值)
+- 接受右值 -> T为右值引用 -> 转发成右值引用(右值)
+
+
+关于第三点和第四点，第四点明确拒绝了。为什么第三点却被允许呢？
+
+- 接受左值 -> T右值引用 -> 转发成右值引用
+- 接受右值 -> T左值引用 -> 转发成左值引用(static_assert)
+
+实际上第三点和```std::move```的功能是一样的，所以可以被允许。
 
 ```cpp
 #include <memory>
+#include <iostream>
 
-int bad_forward_call() {
-  return std::forward<int&>(7);
+#include <memory>
+
+void func(int&& a)
+{
+    std::cout << "right value" << std::endl;
+}
+
+void func(int& a)
+{
+    std::cout << "left value" << std::endl;
 }
 
 int main()
 {
-    bad_forward_call();
+    int i = 1;
+    func(std::forward<int&&>(i));//ok print right value a
+    // func(std::forward<int&>(7));//fail
 }
 ```
