@@ -72,3 +72,37 @@ int &&ref = std::move(a);
 作为函数返回值的 && 是右值，直接声明出来的 && 是左值。
 
 因此```std::move```返回的是一个右值引用，但是该右值引用是一个右值。
+
+
+
+## forward
+
+```cpp
+template <class T>
+T&& forward(typename std::remove_reference<T>::type& arg) noexcept
+{
+    return static_cast<T&&>(arg);
+}
+
+template <class T>
+T&& forward(typename std::remove_reference<T>::type&& arg) noexcept
+{
+    static_assert(!std::is_lvalue_reference<T>::value, "bad forward");
+    return static_cast<T&&>(arg);
+}
+```
+
+什么场景会触发第二个模板的static_assert？
+
+```cpp
+#include <memory>
+
+int bad_forward_call() {
+  return std::forward<int&>(7);
+}
+
+int main()
+{
+    bad_forward_call();
+}
+```
