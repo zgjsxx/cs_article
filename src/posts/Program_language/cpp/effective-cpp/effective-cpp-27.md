@@ -98,7 +98,6 @@ Window tmp = static_cast<Window>(*this);
 tmp.onResize();
 ```
 
-
 修改起来也很简单，就是去掉强制类型转换，使用```Window::onResize```。
 
 ```cpp
