@@ -249,5 +249,7 @@ _dl_runtime_resolve实际上做了两件事:
 动态库的加载过程相比于静态库是非常复杂的，其中使用到了.got，.plt和.plt.got段。对于这三个段，可以将其与我们熟悉的CRUD接口进行类比，.plt段，就类似于一个后台查询接口，.got段,就类似于数据库， plt.got段，就类似于redis缓存，是给.plt段查询做的缓存。
 
 
+## 参考
 
 https://evilpan.com/2018/04/09/about-got-plt/
+https://www.cnblogs.com/pannengzhi/p/2018-04-09-about-got-plt.html
