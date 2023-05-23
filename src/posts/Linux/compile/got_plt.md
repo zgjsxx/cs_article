@@ -2,6 +2,7 @@
 category: 
 - 编译原理
 - Linux
+- ELF文件
 ---
 
 # 深入了解GOT,PLT和动态链接
