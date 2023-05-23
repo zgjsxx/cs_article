@@ -178,8 +178,8 @@ Dump of assembler code for function main:
 
 .got.plt表项前三个位置, 分别是:
 - got[0]: 本ELF动态段(.dynamic段)的装载地址
-- got1: 本ELF的link_map数据结构描述符地址
-- got2: _dl_runtime_resolve函数的地址
+- got[1]: 本ELF的link_map数据结构描述符地址
+- got[2]: _dl_runtime_resolve函数的地址
 
 0x804a004则是调用该函数的参数, 且值为got1, 即本ELF的link_map的地址。
 
