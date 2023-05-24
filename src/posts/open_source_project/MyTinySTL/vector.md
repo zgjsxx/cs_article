@@ -167,3 +167,85 @@ constexpr Tp* address_of(Tp& value) noexcept
     return &value;
 }
 ```
+
+### capacity
+
+这里使用了两个指针相减的方式，指针相减的含义是（地址差）/类型大小，因此指针相减正好就是元素的个数。
+
+注意指针相减得到的是一个ptrdiff_t类型的结果，ptrdiff_t是一个有符号的数据类型，因为指针相减可以是复数。
+
+而在capacity计算这里，不会出现begin_比cap_大的场景，因此这里可以将其强转为size_type，实际就是size_t。
+
+```cpp
+size_type capacity() const noexcept
+{ 
+    return static_cast<size_type>(cap_ - begin_); 
+}
+```
+
+### empty
+
+该函数判断vector内是否存在数据，直接通过begin_和end_的值进行比较得到。
+
+```cpp
+bool empty()  const noexcept
+{ 
+    return begin_ == end_; 
+}
+```
+
+
+### reserve
+
+reserve的作用是用于预留一部分的内存空间。下面是其实现的内容。
+
+```cpp
+template <class T>
+void vector<T>::reserve(size_type n)
+{
+    if (capacity() < n)
+    {
+        THROW_LENGTH_ERROR_IF(n > max_size(),
+                                "n can not larger than max_size() in vector<T>::reserve(n)");
+        const auto old_size = size();
+        auto tmp = data_allocator::allocate(n);
+        mystl::uninitialized_move(begin_, end_, tmp);
+        data_allocator::deallocate(begin_, cap_ - begin_);
+        begin_ = tmp;
+        end_ = tmp + old_size;
+        cap_ = begin_ + n;
+    }
+}
+```
+
+如果reserve的大小比之前的capacity相比还要小，那么我们什么都不做处理。
+
+当reserve的大小比之前的capacity还要大时，进入我们的逻辑。
+
+首先如果传入的n比max_size()还要大的话，将抛出```std::length_error```异常。后续我们将使用```data_allocator::allocate```重新申请```n*sizeof(T)```大小的内存空间。然后将调用```uninitialized_move```将旧的数据移动到新申请的内存上。最后调用```data_allocator::deallocate```释放掉旧的内存，并将begin_， end_， cap_重新指向新的内存地址的相应位置。
+
+作者这里的deallocate的第二个参数没有太多意义。
+
+```cpp
+data_allocator::deallocate(begin_, cap_ - begin_);
+```
+
+作者在allocator.h中的实现，两个重载的版本内部内容是相同的。
+
+```cpp
+template <class T>
+void allocator<T>::deallocate(T* ptr)
+{
+    if (ptr == nullptr)
+        return;
+    ::operator delete(ptr);
+}
+
+template <class T>
+void allocator<T>::deallocate(T* ptr, size_type /*size*/)
+{
+    if (ptr == nullptr)
+        return;
+    ::operator delete(ptr);
+}
+```
