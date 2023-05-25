@@ -126,7 +126,17 @@ T* allocator<T>::allocate(size_type n)
 
 push_back是vector中一个非常重要的方法。应重点了解。包括其与emplace_back的区别也是十分重要，在很多大厂的面试题中非常高频的出现。
 
-下面是push_back的源码。
+push_back有两个版本，第一种入参是左值引用，第二种入参是右值引用。可以看到右值引用的版本仅仅是调用了emplace_back，因此这里不再讲解，可以参考emplace_back章节。这里详细介绍第一个版本。
+
+```cpp
+void push_back(const value_type& value);
+void push_back(value_type&& value)
+{ 
+    emplace_back(mystl::move(value)); 
+}
+```
+
+下面是第一个版本的push_back的源码。
 
 ```cpp
 template <class T>
@@ -168,6 +178,10 @@ constexpr Tp* address_of(Tp& value) noexcept
 }
 ```
 
+如果当前容器已满，那么这个时候就需要进行扩容，才能进行插入，这里调用了```reallocate_insert```实现扩容后的插入。关于扩容机制，参考```reallocate_insert```章节。
+
+
+
 ### capacity
 
 这里使用了两个指针相减的方式，指针相减的含义是（地址差）/类型大小，因此指针相减正好就是元素的个数。
@@ -193,6 +207,43 @@ bool empty()  const noexcept
     return begin_ == end_; 
 }
 ```
+
+### reallocate_insert
+
+reallocate_insert的作用是重新分配空间并将元素追加到pos的后面。push_back中重新分配空间进行尾部插入就是它的一个特例。
+
+其源码实现如下所示：
+
+```cpp
+    const auto new_size = get_new_cap(1);
+    auto new_begin = data_allocator::allocate(new_size);
+    auto new_end = new_begin;
+    const value_type& value_copy = value;
+    try
+    {
+        new_end = mystl::uninitialized_move(begin_, pos, new_begin);
+        data_allocator::construct(mystl::address_of(*new_end), value_copy);
+        ++new_end;
+        new_end = mystl::uninitialized_move(pos, end_, new_end);
+    }
+    catch (...)
+    {
+        data_allocator::deallocate(new_begin, new_size);
+        throw;
+    }
+    destroy_and_recover(begin_, end_, cap_ - begin_);
+    begin_ = new_begin;
+    end_ = new_end;
+    cap_ = new_begin + new_size;
+```
+
+首先调用get_new_cap根据一定的算法获取扩容后的容器大小，进而调用```data_allocator::allocate```分配new_size大小的内存空间。接下来将begin_到pos区间内的元素拷贝到新的空间中， 接着在pos的后方按照value进行构造， 最后将pos到end_部分的元素移动过去。如果这中间发生了异常，则将新申请的内存空间进行释放。
+
+接着调用destroy_and_recover将原来的空间的对象释放。这包括了两个步骤，一个步骤是调用对象的析构函数， 第二个步骤是释放内存。
+
+最后，一切步骤确保无误，将begin_，end_和cap_替换为新的空间对应的位置。
+
+函数的内部使用了copy-and-swap的思想来确保了异常安全性(Effective c++ Item29)。
 
 
 ### reserve
