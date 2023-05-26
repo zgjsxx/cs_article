@@ -210,7 +210,7 @@ bool empty()  const noexcept
 
 ### reallocate_insert
 
-reallocate_insert的作用是重新分配空间并将元素追加到pos的后面。push_back中重新分配空间进行尾部插入就是它的一个特例。
+reallocate_insert的作用是重新分配空间并将元素追加到指定位置pos的后面。push_back中重新分配空间进行尾部插入就是它的一个特例。
 
 其源码实现如下所示：
 
@@ -300,3 +300,65 @@ void allocator<T>::deallocate(T* ptr, size_type /*size*/)
     ::operator delete(ptr);
 }
 ```
+
+### resize
+
+resize和reserve是比较容器混淆的两个方法。
+
+reserve只是分配空间，并不创建对象，更改capacity但不改变size，并且只能扩大不能减小。
+
+而resize既可能修改size，也可能修改capacity。
+
+下面是源码部分。
+
+```cpp
+template <class T>
+void vector<T>::resize(size_type new_size, const value_type& value)
+{
+    if (new_size < size())
+    {
+        erase(begin() + new_size, end());
+    }
+    else
+    {
+        insert(end(), new_size - size(), value);
+    }
+}
+```
+
+分两种情况，第一种是入参n比目前的vector的尺寸小（end_-begin_），第二种是入参n比目前的vector的尺寸大。
+
+**入参n比目前的vector的尺寸小**
+
+这种情况实际上就是缩小vector的尺寸，将vector的size修改为n， 实际就是释放多余的对象然后前移end_指针。
+
+![resize1](https://github.com/zgjsxx/static-img-repo/raw/main/blog/open_source_project/MyTinySTL/vector/resize1.png)
+
+这个过程使用了erase方法，传入了起始位置begin() + new_size， 和结束的位置end()，将这个区间的对象分别调用了析构函数进行析构，最后将end_位置前移。
+
+**入参n比目前的vector的尺寸大**
+
+这里也需要分两种情况，第一种情况是n比capacity小。第二种情况是n比capacity还要大。
+
+当n比capacity小时，将size扩充为n，capacity不变。
+
+当n比capacity大时，就会进行扩容，capacity增加。
+
+### shrink_to_fit
+
+该函数的作用是缩小vector的尺寸。我们知道vector的容器内部有三个指针，begin_， end_ 和 cap_。 end_到cap_这段区间内的空间其实是没有构建对象的。因此当我们的容器的这部分的内存有些多余的时候就可以考虑将其释放。
+
+在c++11之前， STL中释放容器多余的空间通常使用swap的技巧。（effective STL item17）。在c++11之后开始支持shrink_to_fit方法。下面是shrink_to_fit的源码部分。
+
+```cpp
+template <class T>
+void vector<T>::shrink_to_fit()
+{
+    if (end_ < cap_)
+    {
+        reinsert(size());
+    }
+}
+```
+
+首先对容器的现状做一个分析，如果end_小于cap_，意味着容器可以缩小尺寸。其中调用了reinsert方法，将begin_到end_的对象，移动到新的空间中，并将旧的空间和对象释放掉。
