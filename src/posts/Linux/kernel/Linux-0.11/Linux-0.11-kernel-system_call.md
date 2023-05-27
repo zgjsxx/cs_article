@@ -93,7 +93,8 @@ sys_setreuid,sys_setregid, sys_iam, sys_whoami };
 
 找到系统调用号之后，call命令就将转到相应的地址执行。
 
-当系统调用执行完毕之后，下面判断进程的状态，
+当系统调用执行完毕之后，下面判断进程的状态：
+
 ```asm
 	movl current,%eax
 	cmpl $0,state(%eax)		# state
@@ -102,10 +103,44 @@ sys_setreuid,sys_setregid, sys_iam, sys_whoami };
 	je reschedule
 ```
 
-如果进程状态是ok的，也就意味着程序可以继续运行而不必被挂起， 那么就开始执行ret_from_sys_call
+如果进程状态是ok的，也就意味着程序可以继续运行而不必被挂起， 那么就开始执行ret_from_sys_call。
 
+### ret_from_sys_call
 
-这段代码的作用就是将sys_call压入栈中的寄存器出栈
+当系统调用执行完毕之后，会执行ret_from_sys_call的代码，从而返回用户态。
+
+在系统调用返回之前，这里还要做的一件事情就是处理进程收到的信号。寄存器中存储的是当前运行的进程current的pcb的地址。这里可以回顾一下pcb的结构，signal的偏移量是16，而blocked的偏移量是33*16。
+
+```c
+struct task_struct {
+/* these are hardcoded - don't touch */
+	long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
+	long counter;
+	long priority;
+	long signal;
+	struct sigaction sigaction[32];
+	long blocked;	
+	/*....*/
+```
+
+因此这里定义了两个常量singal=16，blocked=33*16，通过这样的操作将signal的内容存到ebx寄存器中，将blocked的内容存到ecx寄存器中。然后将blocked信号取反和进程收到的信号做与运算（!block & signal），就可以得到进程收到的有效的信号。
+
+```x86asm
+	movl signal(%eax),%ebx
+	movl blocked(%eax),%ecx
+	notl %ecx
+	andl %ebx,%ecx
+	bsfl %ecx,%ecx
+	je 3f
+	btrl %ecx,%ebx
+	movl %ebx,signal(%eax)
+	incl %ecx
+	pushl %ecx
+	call do_signal
+```
+
+在信号处理完毕之后，就是将sys_call压入栈中的寄存器出栈，最后调用iret返回用户态执行的位置。
+
 ```x86asm
 3:	popl %eax
 	popl %ebx
