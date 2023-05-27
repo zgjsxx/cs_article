@@ -10,6 +10,10 @@ tag:
 
 ## 模块简介
 
+本节主要介绍了在Linux-0.11中关于系统调用的相关实现。Linux-0.11使用```int 0x80```中断以及eax寄存器中存储的功能号去调用内核中所提供的功能，在系统调用发生的过程中伴随着用户态向内核态的主动切换。
+
+需要注意的时，用户通常并不是直接使用系统调用的中断，而是libc中所提供的接口函数实现。
+
 ## 过程分析
 
 ### system_call
@@ -24,8 +28,8 @@ tag:
 
 在system_call中会将DS、ES、FS、EDX、ECX、EBX入栈。
 
-
 在调用sys_call函数时，会将系统调用号传给eax， 因此首先判断eax是否超过了最大的系统调用号。
+
 ```asm
 cmpl $nr_system_calls-1,%eax
 ja bad_sys_call
@@ -61,10 +65,13 @@ mov %dx,%es
 movl $0x17,%edx		# fs points to local data space
 mov %dx,%fs
 ```
-下面根据系统调用号去找到对应的调用函数
+下面根据系统调用号去找到对应的调用函数。
+
 ```asm
 call *sys_call_table(,%eax,4)
 ```
+
+在AT&T的标准中，```_array(,%eax,4)```所代表的地址是```[_sys_call_table + %eax * 4]```,即功能号所对应的内核系统调用函数的地址。
 
 sys_call_table在sys.h中定义
 
@@ -84,7 +91,9 @@ sys_getpgrp, sys_setsid, sys_sigaction, sys_sgetmask, sys_ssetmask,
 sys_setreuid,sys_setregid, sys_iam, sys_whoami };
 ```
 
-下面判断进程的状态，
+找到系统调用号之后，call命令就将转到相应的地址执行。
+
+当系统调用执行完毕之后，下面判断进程的状态，
 ```asm
 	movl current,%eax
 	cmpl $0,state(%eax)		# state
@@ -97,7 +106,7 @@ sys_setreuid,sys_setregid, sys_iam, sys_whoami };
 
 
 这段代码的作用就是将sys_call压入栈中的寄存器出栈
-```asm
+```x86asm
 3:	popl %eax
 	popl %ebx
 	popl %ecx
