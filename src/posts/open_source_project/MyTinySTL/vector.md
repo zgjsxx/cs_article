@@ -6,7 +6,7 @@ tag:
 - MyTinySTL
 ---
 
-# vector
+# vector容器
 
 vector是STL中使用最为广泛的容器之一，vector的动态内存的管理功能给我们写程序带来了很大的便利性。本节就通过分析MyTinySTL中关于vector的源码了解其实现原理。
 
@@ -390,3 +390,68 @@ vector<T>::erase(const_iterator first, const_iterator last)
 过程如下图所示：
 
 ![erase](https://github.com/zgjsxx/static-img-repo/raw/main/blog/open_source_project/MyTinySTL/vector/erase1.png)
+
+### swap
+swap函数的作用就是与另一个vector交换内容，实际就是交换了一些指针。
+
+```cpp
+template <class T>
+void vector<T>::swap(vector<T>& rhs) noexcept
+{
+  if (this != &rhs)
+  {
+    mystl::swap(begin_, rhs.begin_);
+    mystl::swap(end_, rhs.end_);
+    mystl::swap(cap_, rhs.cap_);
+  }
+}
+```
+
+
+### fill_init
+
+fill_init的作用是vecotr初始化时候调用的方法。
+
+首先是确定容器的大小，首先将入参n和16比较，取二者中的较大者。接着调用init_space方法申请内存空间，最后调用uninitialized_fill_n进行构造对象。
+
+```cpp
+template <class T>
+void vector<T>::
+fill_init(size_type n, const value_type& value)
+{
+    const size_type init_size = mystl::max(static_cast<size_type>(16), n);
+    init_space(n, init_size);
+    mystl::uninitialized_fill_n(begin_, n, value);
+}
+```
+
+### fill_assign
+
+fill_assign方法是vector::assign方法调用的，assign 方法是用来重新设置vector 容器中元素的数量和值。
+
+根据n的值为三种情况:
+- 如果n大于现在的vector的capacity，那么需要重新构造一个新的vector，进行置换。
+- 如果n比size大，但是小于capacity，那么首先调用fill方法将begin_到end_之间的内存用value填充，将end_开始之后的(n - size())元素初始化为n。
+- 如果n小于size，将begin_开始的n个元素赋值为value， 并且将多余的元素erase，并调整相应的指针。
+
+```cpp
+template <class T>
+void vector<T>::
+fill_assign(size_type n, const value_type& value)
+{
+    if (n > capacity())
+    {
+        vector tmp(n, value);
+        swap(tmp);
+    }
+    else if (n > size())
+    {
+        mystl::fill(begin(), end(), value);
+        end_ = mystl::uninitialized_fill_n(end_, n - size(), value);
+    }
+    else
+    {
+        erase(mystl::fill_n(begin_, n, value), end_);
+    }
+}
+```
