@@ -151,3 +151,27 @@ struct task_struct {
 	pop %ds
 	iret
 ```
+
+
+### sys_fork
+
+在sys_fork中将调用copy_process完成最后的进程fork的过程，下面是sys_fork的编码，其是一段汇编代码，这是少数用汇编写的sys_开头的函数，大多数sys_开头的内核方法都是c语言编写的。
+
+```x86asm
+sys_fork:
+	call find_empty_process
+	testl %eax,%eax
+	js 1f
+	push %gs
+	pushl %esi
+	pushl %edi
+	pushl %ebp
+	pushl %eax
+	call copy_process
+	addl $20,%esp
+1:	ret
+```
+
+sys_fork首先调用find_empty_process去进程task_struct数组中寻找一个空位，如果寻找不到就直接返回。如果寻找到了，就将一些寄存器压栈，进而调用copy_process方法。在调用sys_fork方法时，内核栈的状态如下所示：
+
+![内核栈的状态](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/fork/system_call_stack.png)
