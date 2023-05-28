@@ -362,3 +362,31 @@ void vector<T>::shrink_to_fit()
 ```
 
 首先对容器的现状做一个分析，如果end_小于cap_，意味着容器可以缩小尺寸。其中调用了reinsert方法，将begin_到end_的对象，移动到新的空间中，并将旧的空间和对象释放掉。
+
+
+### erase
+
+erase方法的作用是将vector容器```[first，Last)```区间的数据进行删除。下面是其源码部分：
+
+```cpp
+template <class T>
+typename vector<T>::iterator
+vector<T>::erase(const_iterator first, const_iterator last)
+{
+    MYSTL_DEBUG(first >= begin() && last <= end() && !(last < first));
+    const auto n = first - begin();
+    iterator r = begin_ + (first - begin());
+    data_allocator::destroy(mystl::move(r + (last - first), end_, r), end_);
+    end_ = end_ - (last - first);
+    return begin_ + n;
+}
+```
+
+其实现过程分为三步：
+- 将[last， end]区间的数据移到first处
+- 将剩余空间的对象释放
+- 重新设置end_指针
+
+过程如下图所示：
+
+![erase](https://github.com/zgjsxx/static-img-repo/raw/main/blog/open_source_project/MyTinySTL/vector/erase1.png)
