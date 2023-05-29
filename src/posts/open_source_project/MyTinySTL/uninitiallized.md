@@ -6,7 +6,7 @@ tag:
 - MyTinySTL
 ---
 
-# uninitialized模板
+# uninitialized模块
 
 ## 分析
 
@@ -22,6 +22,11 @@ ForwardIter uninitialized_copy(InputIter first, InputIter last, ForwardIter resu
                                      value_type>{});
 }
 ```
+
+
+### uninitialized_move
+
+![uninitialized_fill_n](https://github.com/zgjsxx/static-img-repo/raw/main/blog/open_source_project/MyTinySTL/uninitialized/uninitiallized_move.png)
 
 
 ### uninitialized_fill_n

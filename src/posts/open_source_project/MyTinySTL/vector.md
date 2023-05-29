@@ -455,3 +455,55 @@ fill_assign(size_type n, const value_type& value)
     }
 }
 ```
+
+### reinsert
+
+该方法在shrink_to_fit函数中被调用，作用是收缩vector的空间。其源码实现如下所示：
+
+```cpp
+template <class T>
+void vector<T>::reinsert(size_type size)
+{
+auto new_begin = data_allocator::allocate(size);
+try
+{
+    mystl::uninitialized_move(begin_, end_, new_begin);
+}
+catch (...)
+{
+    data_allocator::deallocate(new_begin, size);
+    throw;
+}
+data_allocator::deallocate(begin_, cap_ - begin_);
+begin_ = new_begin;
+end_ = begin_ + size;
+cap_ = begin_ + size;
+}
+```
+
+首先调用```data_allocator::allocate```申请大小为size的内存空间，将原来的begin_到end_区域的元素移动，移动成功后将原来vector申请的内存空间释放，重新设置相应的begin_， end_， cap_指针。
+
+### operator==
+
+比较两个vector是否相等，首先判断两个vector的尺寸是否相等，其次调用```mystl::equal```比较两个vector中的内容是否相等。
+
+```cpp
+template <class T>
+bool operator==(const vector<T>& lhs, const vector<T>& rhs)
+{
+  return lhs.size() == rhs.size() &&
+    mystl::equal(lhs.begin(), lhs.end(), rhs.begin());
+}
+```
+
+### operator<
+
+两个vector比较大小，这里使用了```mystl::lexicographical_compare```字典序列比较算法，详见algobase章节。
+
+```cpp
+template <class T>
+bool operator<(const vector<T>& lhs, const vector<T>& rhs)
+{
+    return mystl::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+}
+```
