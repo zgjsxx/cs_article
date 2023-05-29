@@ -42,11 +42,13 @@ tag:
 
 [Linux-0.11 kernel目录sys.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-sys.html)
 
-[Linux-0.11 kernel目录sys.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-trap.html)
+[Linux-0.11 kernel目录trap.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-trap.html)
 
 [Linux-0.11 kernel目录tty_io.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-tty-io.html)
 
-[Linux-0.11 kernel目录system_call.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-system_call.html)
+[Linux-0.11 kernel目录tty_ioctl.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-tty_ioctl.html)
+
+[Linux-0.11 kernel目录system_call.s详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-system_call.html)
 
 [Linux-0.11 kernel目录asm.s详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-asm.html)
 
