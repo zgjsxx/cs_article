@@ -6,7 +6,7 @@ tag:
 - effective STL读书笔记
 ---
 
-# effective STL-42 确保less<T>和operator<具有相同的语义
+# effective STL-42 确保```less<T>```和operator<具有相同的语义
 
 
 ## 分析
