@@ -83,3 +83,33 @@ struct node_traits
 
 
 ![list](https://github.com/zgjsxx/static-img-repo/raw/main/blog/open_source_project/MyTinySTL/list.png)
+
+
+
+### fill_init
+
+
+```cpp
+template <class T>
+void list<T>::fill_init(size_type n, const value_type& value)
+{
+    node_ = base_allocator::allocate(1);
+    node_->unlink();
+    size_ = n;
+    try
+    {
+        for (; n > 0; --n)
+        {
+        auto node = create_node(value);
+        link_nodes_at_back(node->as_base(), node->as_base());
+        }
+    }
+    catch (...)
+    {
+        clear();
+        base_allocator::deallocate(node_);
+        node_ = nullptr;
+        throw;
+    }
+}
+```
