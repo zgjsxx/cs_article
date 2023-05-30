@@ -12,8 +12,9 @@ tag:
 mystl::list<int> l1;
 ```
 
+## 分析
 
-## 迭代器
+### list数据部分的定义
 
 ```c
 typedef list_iterator<T>                         iterator;
