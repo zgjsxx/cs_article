@@ -88,6 +88,7 @@ struct node_traits
 
 ### fill_init
 
+fill_init在list的构造函数中被调用，其作用是进行list的初始化。
 
 ```cpp
 template <class T>
