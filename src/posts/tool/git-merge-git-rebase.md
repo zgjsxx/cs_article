@@ -88,5 +88,5 @@ git rebase main
 
 
 ## 总结
-- merge通常用于从feature分支向main分支合并开发的内容
-- rebase通常用于feature分支拉取main分支的最新改动
+- merge通常用于从feature分支向main分支合并开发的内容。
+- rebase通常用于feature分支拉取main分支的最新改动。
