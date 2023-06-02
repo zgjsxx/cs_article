@@ -47,7 +47,7 @@ id_rsa.pub   id_rsa_second.pub
 ## 在github Web console中添加SSH Keys
 将上一步骤中生成的id_rsa.pub 和 id_rsa_second.pub文件中的内容，分别加入对应账户的github的SSH Keys中， 如下图所示：
 
-![git ssh key](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/git_ssh_key.png)
+![git ssh key](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/tool/how-to-configure-git-with-multiple-user/git_ssh_key.png)
 
 ## 管理密钥
 管理密钥的目的是让git知道一个repo去什么地方去查找它的ssh key。
@@ -111,7 +111,7 @@ git clone git@user2.github.com:your_account/your_proj.git
 
 我们看下面这张图：
 
-![git ssh key](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/git_ssh_key2.png)
+![git ssh key](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/tool/how-to-configure-git-with-multiple-user/git_ssh_key2.png)
 
 在我们修改了Host之后,git会通过该host去~/.ssh/config文件中寻找对应的私钥文件地址，回忆我们刚刚在config配置了test2的Host为**user2.github.com**,因此当git clone的地址修改之后， git就可以顺利地找到该repo所需要的ssh key。如果仍然用```git clone git@github.com:your_account/your_proj.git```那么git将会使用~/.ssh/config中配置的一个ssh key， 这样会导致push时失败。
 
