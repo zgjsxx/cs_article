@@ -314,4 +314,4 @@ https://github.com/Wangzhike/HIT-Linux-0.11/blob/master/1-boot/OS-booting.md
 
 文中如有表达不正确之处，欢迎大家与我交流
 
-![](https://github.com/zgjsxx/static-img-repo/raw/main/blog/personal/chat.jpg)
+![](https://github.com/zgjsxx/static-img-repo/raw/main/blog/personal/wechat.jpg)
