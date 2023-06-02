@@ -156,3 +156,10 @@ end_move:
 
 
 ## Q & A
+
+
+-----
+
+欢迎大家与我交流
+
+![](https://github.com/zgjsxx/static-img-repo/raw/main/blog/personal/chat.jpg)

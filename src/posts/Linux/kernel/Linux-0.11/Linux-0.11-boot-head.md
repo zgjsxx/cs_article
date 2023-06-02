@@ -240,3 +240,10 @@ objdump -d tools/system
 ```
 
 可以看到代码标号setup_page的起始地址是0000544e，而内存页表和页目录表的地址范围是0x0000-0x5000。因此当程序执行到setup_page时，将建立页目录表和页表， 这将会覆盖0x0000-0x5000的部分代码，即pg_dir，check_x87，setup_idt，rp_sidt，setup_gdt， 并不会覆盖到setup_page的代码，head.s在代码的分布计算上确实是费了一番功夫。
+
+
+-----
+
+欢迎大家与我交流
+
+![](https://github.com/zgjsxx/static-img-repo/raw/main/blog/personal/chat.jpg)
