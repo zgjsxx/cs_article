@@ -244,6 +244,6 @@ objdump -d tools/system
 
 -----
 
-文中如有表达不正确之处，欢迎大家与我交流
+文中如有表达不正确之处，欢迎大家与我交流, 微信号codebuilding。
 
 ![](https://github.com/zgjsxx/static-img-repo/raw/main/blog/personal/wechat.jpg)
