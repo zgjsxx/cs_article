@@ -1,7 +1,13 @@
+---
+category: 
+- C++
+tag:
+- C++
+---
+
 # enable_if
 
-
-C++11中引入了std::enable_if函数，函数原型如下:
+C++11中引入了```std::enable_if```，函数原型如下:
 
 ```cpp
 template< bool B, class T = void >

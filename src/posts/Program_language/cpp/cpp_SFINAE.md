@@ -3,11 +3,11 @@ category:
 - C++
 ---
 
-# C++模板之SFINAE规则
+# C++模板之SFINAE
 
 ## 概念
 
-SFINAE是Substitution Failure Is Not An Error的缩写，翻译过来的意思是替换失败并不是一个错误。
+**SFINAE**是**Substitution Failure Is Not An Error**的缩写，翻译过来的意思是替换失败并不是一个错误。
 
 **SFINAE**是**模板元编程**中常见的一种技巧，如果模板实例化后的某个模板函数（模板类）对该调用无效，那么将继续寻找其他重载决议，而不是引发一个编译错误。
 
