@@ -230,7 +230,11 @@ bool wait(Lock& lock, std::stop_token stoken, Predicate stop_waiting){
 }
 ```
 
-结合jthread和condition_variable_any就可以很好的解决上述问题：
+结合jthread和condition_variable_any就可以很好的解决上述问题，官网对于jthread和condition_variable_any结合的描述如下所示：
+
+> If the request_stop() does issue a stop request (i.e., returns true), then all condition variables of base type std::condition_variable_any registered with an interruptible wait for std::stop_tokens associated with the jthread's internal stop-state will be awoken.
+
+意思是说如果发出了request_stop，那么condition_variable_any类型的条件变量将会唤醒。
 
 ```cpp
 
