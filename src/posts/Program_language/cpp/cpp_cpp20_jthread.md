@@ -29,7 +29,7 @@ int main(){
 }
 ```
 
-[have a try](https://godbolt.org/z/TY3E5bfeP)
+[点击在线运行](https://godbolt.org/z/TY3E5bfeP)
 
 在effective modern c++的37条曾经提到过，使```std::thread```在所有路径最后都不可结合。而这样的需求就很容易让人想起RAII。
 
@@ -174,7 +174,7 @@ int main(){
 }
 ```
 
-[have a try](https://godbolt.org/z/jT9zbn6Tz)
+[点击在线运行](https://godbolt.org/z/jT9zbn6Tz)
 
 
 下面的这个例子是使用request_stop向线程发出停止运行的请求。注意lambda函数的入参中需要添加```std::stop_token```类型的入参， 并且需要在线程中添加检查stop_token的代码。
