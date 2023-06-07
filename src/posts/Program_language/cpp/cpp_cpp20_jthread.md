@@ -29,7 +29,7 @@ int main(){
 }
 ```
 
-[have a try](https://godbolt.org/z/TY3E5bfeP)
+[点击在线运行](https://godbolt.org/z/TY3E5bfeP)
 
 在effective modern c++的37条曾经提到过，使```std::thread```在所有路径最后都不可结合。而这样的需求就很容易让人想起RAII。
 
@@ -136,7 +136,6 @@ int main()
 
 这两个特点和上面的例子是相呼应的。
 
-
 ## jthread
 
 了解了jthread产生的原因，下面将介绍jthread的使用方法。
@@ -175,7 +174,7 @@ int main(){
 }
 ```
 
-[have a try](https://godbolt.org/z/jT9zbn6Tz)
+[点击在线运行](https://godbolt.org/z/jT9zbn6Tz)
 
 
 下面的这个例子是使用request_stop向线程发出停止运行的请求。注意lambda函数的入参中需要添加```std::stop_token```类型的入参， 并且需要在线程中添加检查stop_token的代码。
@@ -206,7 +205,7 @@ int main()
 
 上面我们提到过，使用ThreadRAII来保证在```std::thread```的析构时执行join有时不仅可能导致程序表现异常，还可能导致程序挂起。
 
-jthread同样可以解决上述问题，jthread对象在析构时会调用request_stop，jthread的伪代码可能是下面这样的：
+jthread同样可以解决上述问题，jthread对象在析构时会调用request_stop，jthread的析构函数伪代码可能是下面这样的：
 
 ```cpp
 ~jthread() {
@@ -234,7 +233,7 @@ bool wait(Lock& lock, std::stop_token stoken, Predicate stop_waiting){
 
 > If the request_stop() does issue a stop request (i.e., returns true), then all condition variables of base type std::condition_variable_any registered with an interruptible wait for std::stop_tokens associated with the jthread's internal stop-state will be awoken.
 
-意思是说如果发出了request_stop，那么condition_variable_any类型的条件变量将会唤醒。
+意思是说如果发出了request_stop，那么condition_variable_any类型的条件变量将会唤醒。下面是一个使用jthread和condition_variable_any的完整例子，jthread对象析构时，不再会陷入无穷的等待中。
 
 ```cpp
 
