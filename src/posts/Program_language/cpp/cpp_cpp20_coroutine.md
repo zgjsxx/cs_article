@@ -46,7 +46,7 @@ lazy<int> f()
 }
 ```
 
-下面这一大串是我不想讲却又不得不讲的，c++20的协程范式，确实非常复杂，像是写给library的编写者，而不是写给应用层开发者的。上网搜了一下，c++20协程的提出者David Mazières，可以参考他写的文章([My tutorial and take on C++20 coroutines](https://www.scs.stanford.edu/~dm/blog/c++-coroutines.html))，网上关于其的讨论也非常多，例如下面的论坛[c++20协程的讨论](https://www.reddit.com/r/cpp/comments/lpo9qa/my_tutorial_and_take_on_c20_coroutines_david/)，个人感觉这个协程的设计非常的学院派，不知道工程界的人怎么看...
+下面这一大串是我不想讲却又不得不讲的，c++20的协程范式，确实非常复杂，像是写给library的编写者，而不是写给应用层开发者的。上网搜了一下，c++20协程的提出者David Mazières，可以参考他写的文章([My tutorial and take on C++20 coroutines](https://www.scs.stanford.edu/~dm/blog/c++-coroutines.html))，网上关于其的讨论也非常多，例如下面的论坛[c++20协程的讨论](https://www.reddit.com/r/cpp/comments/lpo9qa/my_tutorial_and_take_on_c20_coroutines_david/)，个人感觉这个协程的设计非常的**学院派**，不知道工程界的人怎么看...
 
 
 ## c++20 coroutine编程范式
@@ -91,7 +91,7 @@ c++20 coroutine要求你定义一个包含 promise_type 的类型，其中 promi
 - 析构传入的参数；
 - 回收协程状态内存。
 
-这一串流程非常的复杂而严谨，让我觉得写代码就像是在写论文一样。。
+这一串流程是如此的复杂而严谨，让我觉得写代码就像是在写论文一样。。
 
 话不多说，理解上述的流程还是要通过一个例子来看。
 
@@ -185,7 +185,7 @@ final suspend, return never
 - 接着handle.resume()协程将从挂起状态的地方继续执行，于是执行了await_resume方法，于是打印了get data to read。
 - 最终协程执行完毕，隐式的co_return，调用了return_void和final_suspend，于是打印了return void和final suspend, return never。
 
-对照代码和协程的范式，虽然可以将原理理清楚，但是其目前的复杂程度还是让我对c++20的协程的第一印象不太好。相较于c++20的无栈协程，目前我还是更愿意使用state-thread或者libco等三方库中提供的有栈协程。
+对照代码和协程的范式，虽然可以将原理理清楚，但是其目前的复杂程度还是让我对c++20的协程的第一印象不太好。相较于c++20的无栈协程，目前我还是更愿意使用state-thread或者libco等三方库或者中提供的有栈协程。
 
 ## 总结
 - c++20的协程是一个无栈协程，目前使用起来并不方便，有较为复杂的编程范式，个人认为仅仅需要对c++20协程的内容有个大体认识就好，这么原始的接口使用起来还是太麻烦，期待后续的标准对其进行简化，降低使用难度。
