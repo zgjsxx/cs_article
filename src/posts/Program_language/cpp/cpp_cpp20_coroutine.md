@@ -93,6 +93,30 @@ c++20 coroutine要求你定义一个包含 promise_type 的类型，其中 promi
 
 这一串流程是如此的复杂而严谨，让我觉得写代码就像是在写论文一样。。
 
+梳理上述的流程，其伪代码就像下面的流程一样：
+
+```cpp
+return_type MyCoroutine(args...)
+{
+    create coroutine state
+    copy parameters to coroutine frame
+    promise_type p;
+    auto return_object = p.get_return_object();
+
+    try {
+        co_await p.initial_suspend();
+        coroutine function body
+    } catch (...) {
+        p.unhandled_exception();
+    }
+    co_await p.final_suspend();
+    destruct promise p
+    destruct parameters in coroutine frame
+    destroy coroutine state
+}
+```
+
+
 话不多说，理解上述的流程还是要通过一个例子来看。
 
 ```cpp
