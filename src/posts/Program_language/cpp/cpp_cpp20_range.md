@@ -52,7 +52,7 @@ concept input_or_output_iterator =
 
 ## range可以用来干什么？
 
-ranges可以帮我们简化代码的书写，
+ranges可以帮我们简化代码的书写:
 
 ### 使用```ranges::sort```简化排序的写法
 
@@ -72,7 +72,7 @@ int main()
 }
 ```
 
-## 结合ranges::view简化反向，过滤，取值等操作
+### 结合ranges::view简化反向，过滤，取值等操作
 
 下面的例子使用了ranges::view::reverse帮助我们对vector进行反向。
 
@@ -195,6 +195,7 @@ int main()
 ```
 
 ## 总结
+
 通过上面的例子，我们对range有了一个认识，ranges库提供的功能不仅仅局限于此，有关ranges的更多作用，可以去下面的地址进行了解。https://en.cppreference.com/w/cpp/ranges。
 
 对于range，总结如下：
