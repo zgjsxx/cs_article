@@ -104,52 +104,52 @@ c++20 coroutine要求你定义一个包含 promise_type 的类型，其中 promi
 std::coroutine_handle<> handle;
 
 struct ReadAwaiter {
-  bool await_ready() {
-    std::cout << "current, no data to read" << std::endl;
-    return false;
-  }
+    bool await_ready() {
+        std::cout << "current, no data to read" << std::endl;
+        return false;
+    }
 
-  void await_resume() {
-    std::cout << "get data to read" << std::endl;
-  }
+    void await_resume() {
+        std::cout << "get data to read" << std::endl;
+    }
 
-  void await_suspend(std::coroutine_handle<> h) {
-    std::cout << "suspended self, wait data to read" << std::endl;
-    handle = h;
-  }
+    void await_suspend(std::coroutine_handle<> h) {
+        std::cout << "suspended self, wait data to read" << std::endl;
+        handle = h;
+    }
 };
 
 struct Promise {
-  struct promise_type {
-    auto get_return_object() noexcept {
-      std::cout << "get return object" << std::endl;
-      return Promise();
-    }
+    struct promise_type {
+        auto get_return_object() noexcept {
+        std::cout << "get return object" << std::endl;
+        return Promise();
+        }
 
-    auto initial_suspend() noexcept {
-      std::cout << "initial suspend, return never" << std::endl;
-      return std::suspend_never{};
-    }
+        auto initial_suspend() noexcept {
+        std::cout << "initial suspend, return never" << std::endl;
+        return std::suspend_never{};
+        }
 
-    auto final_suspend() noexcept {
-      std::cout << "final suspend, return never" << std::endl;
-      return std::suspend_never{};
-    }
+        auto final_suspend() noexcept {
+        std::cout << "final suspend, return never" << std::endl;
+        return std::suspend_never{};
+        }
 
-    void unhandled_exception() {
-      std::cout << "unhandle exception" << std::endl;
-      std::terminate();
-    }
+        void unhandled_exception() {
+        std::cout << "unhandle exception" << std::endl;
+        std::terminate();
+        }
 
-    void return_void() {
-      std::cout << "return void" << std::endl;
-      return;
-    }
-  };
+        void return_void() {
+        std::cout << "return void" << std::endl;
+        return;
+        }
+    };
 };
 
 Promise ReadCoroutineFunc() {
-  co_await ReadAwaiter();
+    co_await ReadAwaiter();
 }
 
 int main() {
