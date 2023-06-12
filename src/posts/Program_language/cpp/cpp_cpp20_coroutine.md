@@ -341,9 +341,12 @@ int main() {
     Task_ret<int> task_ret = ReadCoroutineFunc<int>();
     std::cout << "start to coroutine" << std::endl;
     task_ret.start();
-
+    task_ret.resume();
+    task_ret.resume();
+    std::cout << "before while" << std::endl;
     while(!task_ret.done()){
         task_ret.resume();
+        std::cout << "get yield value: " << task_ret.get() << std::endl;
     }
 
     std::cout << "end of code" << std::endl;
@@ -396,12 +399,17 @@ after Coroutine co_await std::suspend_always
 after Coroutine co_await std::suspend_always
 current, no data to read
 suspended self, wait data to read
+before while
 get data to read
 yield_value invoked.
+get yield value: 1
 yield_value invoked.
+get yield value: 2
 final suspend
+get yield value: 3
 end of code
 destroy
+
 ```
 
 
