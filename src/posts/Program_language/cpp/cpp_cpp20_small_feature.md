@@ -8,9 +8,83 @@ tag:
 
 # c++20的新增的小的特性
 
-## char8_t
-UTF-8 字符
+## std::format
 
+新的c++字符串格式化工具
+
+```cpp
+#include <format>
+#include <iostream>
+  
+using namespace std;
+  
+int main()
+{
+    // Declare variables
+    int num = 42;
+    std::string name = "John";
+  
+    // Use std::format to format a string with placeholders
+    // for variables
+    std::string formatted_str = std::format(
+        "My name is {} and my favorite number is {}", name,
+        num);
+  
+    // Print formatted string to console
+    std::cout << formatted_str << std::endl;
+  
+    return 0;
+}
+```
+
+## timezone
+
+时区工具
+
+```cpp
+#include <chrono>
+#include <iostream>
+ 
+int main() {
+    const std::chrono::zoned_time cur_time{ std::chrono::current_zone(),
+                                            std::chrono::system_clock::now() };
+    std::cout << cur_time << '\n';
+}
+```
+
+## std::source_location
+
+文件位置的工具
+
+```cpp
+#include <iostream>
+#include <source_location>
+#include <string_view>
+ 
+void log(const std::string_view message,
+         const std::source_location location =
+               std::source_location::current())
+{
+    std::clog << "file: "
+              << location.file_name() << '('
+              << location.line() << ':'
+              << location.column() << ") `"
+              << location.function_name() << "`: "
+              << message << '\n';
+}
+ 
+template<typename T>
+void fun(T x)
+{
+    log(x);
+}
+ 
+int main(int, char*[])
+{
+    log("Hello world!");
+    fun("Hello C++20!");
+}
+```
 
 ## std::span
 
@@ -59,37 +133,6 @@ int main()
 }
 ```
 
-## std::source_location
-```cpp
-#include <iostream>
-#include <source_location>
-#include <string_view>
- 
-void log(const std::string_view message,
-         const std::source_location location =
-               std::source_location::current())
-{
-    std::clog << "file: "
-              << location.file_name() << '('
-              << location.line() << ':'
-              << location.column() << ") `"
-              << location.function_name() << "`: "
-              << message << '\n';
-}
- 
-template<typename T>
-void fun(T x)
-{
-    log(x);
-}
- 
-int main(int, char*[])
-{
-    log("Hello world!");
-    fun("Hello C++20!");
-}
-```
-
 
 ## std::remove_cvref
 
@@ -110,7 +153,147 @@ int main()
 }
 ```
 
+## std::atomic_ref
+
+原子引用
+
+```cpp
+#include <atomic>
+#include <thread>
+#include <vector>
+#include <iostream>
+
+int do_count(int value)
+{
+   std::atomic<int> counter { value };
+
+   std::vector<std::thread> threads;
+   for (int i = 0; i < 10; ++i)
+   {
+      threads.emplace_back([&counter]() {
+         for (int i = 0; i < 10; ++i)
+         {
+            ++counter;
+            {
+               using namespace std::chrono_literals;
+               std::this_thread::sleep_for(50ms);
+            }
+         }
+      });
+   }
+
+   for (auto& t : threads) t.join();
+
+   return counter;
+}
+
+int main()
+{
+   int result = do_count(0);
+   std::cout << result << '\n'; // prints 100
+}
+```
+
+std::atomic并作用于引用不生效
+
+```cpp
+#include <atomic>
+#include <thread>
+#include <vector>
+#include <iostream>
+
+void do_count_ref(int& value)
+{
+   std::atomic<int> counter{ value };
+
+   std::vector<std::thread> threads;
+   for (int i = 0; i < 10; ++i)
+   {
+      threads.emplace_back([&counter]() {
+         for (int i = 0; i < 10; ++i)
+         {
+            ++counter;
+            {
+               using namespace std::chrono_literals;
+               std::this_thread::sleep_for(50ms);
+            }
+         }
+         });
+   }
+
+   for (auto& t : threads) t.join();
+}
+
+int main()
+{
+   int value = 0;
+   do_count_ref(value);
+   std::cout << value << '\n'; // prints 0
+}
+```
+
+修改后：
+```cpp
+#include <atomic>
+#include <thread>
+#include <vector>
+#include <iostream>
+
+void do_count_ref(int& value)
+{
+   std::atomic_ref<int> counter{ value };
+
+   std::vector<std::thread> threads;
+   for (int i = 0; i < 10; ++i)
+   {
+      threads.emplace_back([&counter]() {
+         for (int i = 0; i < 10; ++i)
+         {
+            ++counter;
+            {
+               using namespace std::chrono_literals;
+               std::this_thread::sleep_for(50ms);
+            }
+         }
+         });
+   }
+
+   for (auto& t : threads) t.join();
+}
+
+int main()
+{
+   int value = 0;
+   do_count_ref(value);
+   std::cout << value << '\n'; // prints 0
+}
+```
+
+
+## ```std::map<Key,T,Compare,Allocator>::contains```
+
+map新增contains方法
+
+```cpp
+#include <iostream>
+#include <map>
+ 
+int main()
+{
+    std::map<int,char> example = {{1,'a'},{2,'b'}};
+ 
+    for(int x: {2, 5}) {
+        if(example.contains(x)) {
+            std::cout << x << ": Found\n";
+        } else {
+            std::cout << x << ": Not found\n";
+        }
+    }
+}
+```
 ## std::barrier
+
+线程屏障
 
 ```cpp
 #include <barrier>
@@ -204,6 +387,8 @@ int main() {
 ```
 
 ## std::counting_semaphore
+
+
 ```cpp
 #include <chrono>
 #include <iostream>
@@ -261,6 +446,9 @@ int main()
 
 
 ## string::starts_with / ends_with
+
+字符串开头/结尾
+
 ```cpp
 #include <iostream>
 #include <string>
@@ -289,6 +477,8 @@ int main()
 ```
 
 ## std::size
+
+
 ```cpp
 #include <iostream>
 #include <vector>
