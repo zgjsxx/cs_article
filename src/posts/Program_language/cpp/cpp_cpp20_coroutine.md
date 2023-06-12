@@ -146,28 +146,28 @@ struct ReadAwaiter {
 struct Promise {
     struct promise_type {
         auto get_return_object() noexcept {
-        std::cout << "get return object" << std::endl;
-        return Promise();
+            std::cout << "get return object" << std::endl;
+            return Promise();
         }
 
         auto initial_suspend() noexcept {
-        std::cout << "initial suspend, return never" << std::endl;
-        return std::suspend_never{};
+            std::cout << "initial suspend, return never" << std::endl;
+            return std::suspend_never{};
         }
 
         auto final_suspend() noexcept {
-        std::cout << "final suspend, return never" << std::endl;
-        return std::suspend_never{};
+            std::cout << "final suspend, return never" << std::endl;
+            return std::suspend_never{};
         }
 
         void unhandled_exception() {
-        std::cout << "unhandle exception" << std::endl;
-        std::terminate();
+            std::cout << "unhandle exception" << std::endl;
+            std::terminate();
         }
 
         void return_void() {
-        std::cout << "return void" << std::endl;
-        return;
+            std::cout << "return void" << std::endl;
+            return;
         }
     };
 };
@@ -209,11 +209,206 @@ final suspend, return never
 - 接着handle.resume()协程将从挂起状态的地方继续执行，于是执行了await_resume方法，于是打印了get data to read。
 - 最终协程执行完毕，隐式的co_return，调用了return_void和final_suspend，于是打印了return void和final suspend, return never。
 
+上述例子是一个较为简单的例子， 下面这个例子涉及到了co_yield， co_return， co_await所有的关键字, 对理解协程的过程很有帮助。
+
+```cpp
+//g++ main.cpp -std=c++20
+#include <coroutine>
+#include <iostream>
+#include <thread>
+
+struct MyAwaiter {
+    bool await_ready() {
+        std::cout << "current, no data to read" << std::endl;
+        return false;
+    }
+
+    void await_resume() {
+        std::cout << "get data to read" << std::endl;
+    }
+
+    void await_suspend(std::coroutine_handle<> h) {
+        std::cout << "suspended self, wait data to read" << std::endl;
+    }
+};
+
+template <typename T>
+struct Task_ret {
+    struct promise_type;
+    using handle_type = std::coroutine_handle<promise_type>;
+    handle_type task_handle_;
+    bool task_done_{false};
+
+    Task_ret(handle_type h)
+        : task_handle_(h)
+    {
+    }
+
+    Task_ret(const Task_ret&) = delete;
+    Task_ret(Task_ret&& s)
+        : task_handle_(s.task_handle_)
+    {
+        s.task_handle_ = nullptr;
+    }
+    ~Task_ret()
+    {
+        if (task_handle_){
+            std::cout << "destroy" << std::endl;
+                task_handle_.destroy();
+        }
+
+    }
+
+    void resume()
+    {
+        task_handle_.resume();
+        task_done_ = task_handle_.done();
+    }
+
+    void start()
+    {
+        task_handle_.resume();
+    }
+
+    bool done() const{
+        return task_done_;
+    }
+
+    T get()
+    {
+        return task_handle_.promise().return_data_;
+    }
+
+    struct promise_type {
+
+        promise_type() = default;
+       ~promise_type() = default;
+
+        auto get_return_object() noexcept {
+            return Task_ret<T>{handle_type::from_promise(*this)};
+        }
+
+        auto initial_suspend() noexcept {
+            return std::suspend_always{};
+        }
+
+        auto final_suspend() noexcept {
+            std::cout << "final suspend" << std::endl;
+            return std::suspend_always{};
+        }
+
+        void unhandled_exception() {
+            std::exit(1);
+        }
+
+        void return_value(T v)
+        {
+            return_data_ = v;
+            return;
+        }
+
+        auto yield_value(T v)
+        {
+            std::cout << "yield_value invoked." << std::endl;
+            return_data_ = v;
+            return std::suspend_always{};
+        }
+
+        T return_data_;
+    };
+};
+
+template<typename T>
+Task_ret<T> ReadCoroutineFunc() {
+    std::cout << "Coroutine co_await std::suspend_never" << std::endl;
+    co_await std::suspend_never{};
+    std::cout << "Coroutine co_await std::suspend_always" << std::endl;
+    co_await std::suspend_always{};
+    std::cout << "after Coroutine co_await std::suspend_always" << std::endl; 
+    co_await std::suspend_always{};
+    std::cout << "after Coroutine co_await std::suspend_always" << std::endl; 
+
+    co_await MyAwaiter{};
+
+    co_yield 1;
+
+    co_yield 2;
+
+    co_return 3;
+}
+
+int main() {
+    Task_ret<int> task_ret = ReadCoroutineFunc<int>();
+    std::cout << "start to coroutine" << std::endl;
+    task_ret.start();
+
+    while(!task_ret.done()){
+        task_ret.resume();
+    }
+
+    std::cout << "end of code" << std::endl;
+
+}
+```
+
+分析上面的这个例子，我们创建了Task_ret类型作为协程的返回值，因为Task_ret类型中包含了promise_type的定义，因此是合法的。
+
+
+在promise_type中的get_return_object方法中，使用了```std::coroutine_handle<promise_type>：：from_promise```将promise对象封装成coroutine_handle类型的对象，并传递给了Task_ret的构造函数。
+
+```cpp
+    auto get_return_object() noexcept {
+        return Task_ret<T>{handle_type::from_promise(*this)};
+    }
+```
+
+于是在main函数中，我们可以使用下面的语句接受协程的返回值：
+```cpp
+Task_ret<int> task_ret = ReadCoroutineFunc<int>();
+```
+
+由于promise的initial_suspend返回的是```std::suspend_always{}```， 因此协程并不会立即执行，除非显示调用start方法。
+```cpp
+    auto initial_suspend() noexcept {
+        return std::suspend_always{};
+    }
+```
+
+于是在main函数中使用了start方法，运行了协程：
+```cpp
+    std::cout << "start to coroutine" << std::endl;
+    task_ret.start();
+```
+
+剩下的部分就是当协程没有执行完毕时，就一直执行，直到任务结束：
+```cpp
+    while(!task_ret.done()){
+        bool ret = task_ret.resume();
+    }
+```
+
+上述代码将一次打印下面的语句：
+```shell
+start to coroutine
+Coroutine co_await std::suspend_never
+Coroutine co_await std::suspend_always
+after Coroutine co_await std::suspend_always
+after Coroutine co_await std::suspend_always
+current, no data to read
+suspended self, wait data to read
+get data to read
+yield_value invoked.
+yield_value invoked.
+final suspend
+end of code
+destroy
+```
+
+
+git上有这样一个demo， 是一个基于c++20的epoll-server， https://github.com/Ender-events/epoll-coroutine.git， 这对你深入理解c++20协程和如何运行协程将有很好的帮助。
+
 对照代码和协程的范式，虽然可以将原理理清楚，但是其目前的复杂程度还是让我对c++20的协程的第一印象不太好。相较于c++20的无栈协程，目前我还是更愿意使用state-thread或者libco等三方库或者中提供的有栈协程。
 
-## 使用c++20的epoll server
-
-https://github.com/Ender-events/epoll-coroutine.git
 
 ## 总结
 - c++20的协程是一个无栈协程，目前使用起来并不方便，有较为复杂的编程范式，个人认为仅仅需要对c++20协程的内容有个大体认识就好，这么原始的接口使用起来还是太麻烦，期待后续的标准对其进行简化，降低使用难度。
