@@ -10,7 +10,7 @@ tag:
 
 ## std::format
 
-新的c++字符串格式化工具
+c++20支持新的字符串格式化方式```std::format```
 
 ```cpp
 #include <format>
@@ -36,7 +36,35 @@ int main()
     return 0;
 }
 ```
+## Calendar
+```cpp
+#include <chrono>
 
+int main()
+{
+    using namespace std::chrono;
+
+    // Get a local time_point with system_clock::duration precision
+    auto now = zoned_time{current_zone(), system_clock::now()}.get_local_time();
+
+    // Get a local time_point with days precision
+    auto ld = floor<days>(now);
+
+    // Convert local days-precision time_point to a local {y, m, d} calendar
+    year_month_day ymd{ld};
+
+    // Split time since local midnight into {h, m, s, subseconds}
+    hh_mm_ss hms{now - ld};
+
+    // This part not recommended.  Stay within the chrono type system.
+    int year{ymd.year()};
+    int month = unsigned{ymd.month()};
+    int day = unsigned{ymd.day()};
+    int hour = hms.hours().count();
+    int minute = hms.minutes().count();
+    int second = hms.seconds().count();
+}
+```
 ## timezone
 
 时区工具
@@ -116,6 +144,36 @@ int main()
 }
 ```
 
+
+## 航天飞机运算符 <=>
+
+```shell
+(a <=> b) < 0 if a < b,
+(a <=> b) > 0 if a > b,
+(a <=> b) == 0 if a and b are equal/equivalent.
+```
+
+```cpp
+#include <compare>
+#include <iostream>
+ 
+int main()
+{
+    double foo = -0.0;
+    double bar = 0.0;
+ 
+    auto res = foo <=> bar;
+ 
+    if (res < 0)
+        std::cout << "-0 is less than 0";
+    else if (res > 0)
+        std::cout << "-0 is greater than 0";
+    else if (res == 0)
+        std::cout << "-0 and 0 are equal";
+    else
+        std::cout << "-0 and 0 are unordered";
+}
+```
 ## std::endian判断大小端
 
 ```cpp
@@ -153,9 +211,34 @@ int main()
 }
 ```
 
+## bind_front
+
+和std::bind是一个系列的方法，bind_front可以绑定前n个参数而不用敲placeholder。
+
+```cpp
+#include <functional>
+#include <iostream>
+
+int main()
+{
+    auto calc=[](int a, int b, int c) { return a+b-c;};
+    
+    auto aa = std::bind_front(calc, 1,2);
+    std::cout << aa (3)<<"\n";
+    auto bb = std::bind_front(calc, 1,2,3);
+    std::cout << bb ()<<"\n";
+    auto cc=std::bind(calc, 1,std::placeholders::_2,std::placeholders::_1);
+    std::cout<<cc(3,2)<<"\n";   
+    auto dd=std::bind(calc, std::placeholders::_1,std::placeholders::_2,3);
+    std::cout<<dd(1,2); 
+}
+```
+
 ## std::atomic_ref
 
 原子引用
+
+在下面的例子中，最终将打印100
 
 ```cpp
 #include <atomic>
@@ -194,7 +277,7 @@ int main()
 }
 ```
 
-std::atomic并作用于引用不生效
+std::atomic并作用于引用不生效， 下面的例子将打印0。
 
 ```cpp
 #include <atomic>
@@ -232,7 +315,8 @@ int main()
 }
 ```
 
-修改后：
+使用atimic_ref进行修改，可以打印100。
+
 ```cpp
 #include <atomic>
 #include <thread>
@@ -272,7 +356,7 @@ int main()
 
 ## ```std::map<Key,T,Compare,Allocator>::contains```
 
-map新增contains方法
+map新增contains方法，在此之前使用的是find或者count。
 
 ```cpp
 #include <iostream>
@@ -335,7 +419,7 @@ int main()
 }
 ```
 
-## std::latch
+## std::latch锁存器
 
 latch = single-use barrier.
 
@@ -388,6 +472,7 @@ int main() {
 
 ## std::counting_semaphore
 
+计数信号量 
 
 ```cpp
 #include <chrono>
@@ -478,6 +563,7 @@ int main()
 
 ## std::size
 
+size的common方法
 
 ```cpp
 #include <iostream>
@@ -501,6 +587,7 @@ int main()
 
 
 ## std::is_bounded_array_v和std::is_unbounded_array
+
 ```cpp
 #include <iostream>
 #include <type_traits>
@@ -544,6 +631,9 @@ int main()
 ```
 
 ## std::erase_if
+
+按照条件erase数据
+
 ```cpp
 #include <iostream>
 #include <numeric>
@@ -574,6 +664,7 @@ int main()
 ```
 
 对比之前的remove_if和erase
+
 ```cpp
 #include <iostream>
 #include <vector>
@@ -615,6 +706,9 @@ int main()
 
 
 ## Mathematical constants
+
+c++20新增了一些数学常量
+
 ```cpp
 #include <numbers>
 #include <iostream>
@@ -658,6 +752,8 @@ int main()
 ```
 
 ## std::lerp
+
+线性计算
 
 a+t(b-a)
 
