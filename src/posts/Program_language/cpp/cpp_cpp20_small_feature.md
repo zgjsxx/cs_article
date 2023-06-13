@@ -5,8 +5,33 @@ tag:
 - C++
 ---
 
-
 # c++20的新增的小的特性
+
+c++20新增的特性非常多，其中concept，coroutine，module和range为四大特性，在之前的章节中已有涉及，本文则对其他的一些小改动进行讲解。
+
+- [c++20的新增的小的特性](#c20的新增的小的特性)
+  - [std::format](#stdformat)
+  - [Calendar](#calendar)
+  - [timezone](#timezone)
+  - [std::source\_location](#stdsource_location)
+  - [std::span](#stdspan)
+  - [航天飞机运算符 \<=\>](#航天飞机运算符-)
+  - [std::endian判断大小端](#stdendian判断大小端)
+  - [std::remove\_cvref](#stdremove_cvref)
+  - [bind\_front](#bind_front)
+  - [std::atomic\_ref](#stdatomic_ref)
+  - [```std::map<Key,T,Compare,Allocator>::contains```](#stdmapkeytcompareallocatorcontains)
+  - [std::barrier](#stdbarrier)
+  - [std::latch锁存器](#stdlatch锁存器)
+  - [std::counting\_semaphore](#stdcounting_semaphore)
+  - [string::starts\_with / ends\_with](#stringstarts_with--ends_with)
+  - [std::size](#stdsize)
+  - [std::is\_bounded\_array\_v和std::is\_unbounded\_array](#stdis_bounded_array_v和stdis_unbounded_array)
+  - [std::erase\_if](#stderase_if)
+  - [Mathematical constants](#mathematical-constants)
+  - [std::midpoint](#stdmidpoint)
+  - [std::lerp](#stdlerp)
+
 
 ## std::format
 
