@@ -39,6 +39,34 @@ int main()
 }
 ```
 
+
+```cpp
+#include <atomic>
+#include <thread>
+#include <iostream>
+
+std::atomic<bool> x{false};
+int a = 0;
+
+void func1() { // 线程1
+    a = 1;
+    x.store(true, std::memory_order_relaxed);
+}
+void func2() { // 线程2
+    while(!x.load(std::memory_order_relaxed));
+    std::cout << (a == 1) << std::endl;
+}
+int main() {
+    std::thread t1(func1);
+    std::thread t2(func2);
+    t2.join();
+    t1.join();
+    return 0;
+}
+```
+
+
+
 其执行结果如下所示：
 ```
 1
@@ -62,31 +90,181 @@ int main()
     a = 1;
 ```
 
+存储(store)操作;其std::memory_order参数可以取: 
+- std::memory_order_relaxed
+- std::memory_order_release
+- std::memory_order_seq_cst
+
+载入(load)操作;其std::memory_order参数可以取: 
+- std::memory_order_relaxed
+- std::memory_order_seq_cst
+- std::memory_order_acquire
+- std::memory_order_consume
+
+**memory_order_relaxed**
+
+这个很好理解，宽松的内存序，指定为这个的所有原子操作就真的仅仅是保证自身的原子性，不会对任何其他变量的读写产生影响。如果确实不需要其他的内存同步，那么这是最好的选择，比如原子计数器。
+
+```cpp
+#include <vector>
+#include <iostream>
+#include <thread>
+#include <atomic>
+ 
+std::atomic<int> cnt = {0};
+ 
+void inc_counter()
+{
+    for (int n = 0; n < 1000; ++n) {
+        cnt.fetch_add(1, std::memory_order_relaxed);
+    }
+}
+ 
+int main()
+{
+    std::vector<std::thread> v;
+    for (int n = 0; n < 10; ++n) {
+        v.emplace_back(inc_counter);
+    }
+    for (auto& t : v) {
+        t.join();
+    }
+    std::cout << "Final counter value is " << cnt << '\n';
+}
+```
+
+## release -acquire
+
+memory_order_release限制当前线程store操作之前的读写(指令)不能重排到store后面执行。
+
+memory_order_acquire限制当前线程load操作之后的读写(指令)不能重排到load前面执行。
+
+```cpp
+#include <thread>
+#include <atomic>
+#include <cassert>
+#include <string>
+ 
+std::atomic<std::string*> ptr;
+int data;
+ 
+void producer()
+{
+    std::string* p  = new std::string("Hello"); // 写入p不能重排到store后面
+    data = 42;                                  // 写入data不能重排到store后面
+    ptr.store(p, std::memory_order_release);
+}
+ 
+void consumer()
+{
+    std::string* p2;
+    while (!(p2 = ptr.load(std::memory_order_acquire)))
+        ;
+    // 读取到producer写入值，两线程间内存同步完成
+    assert(*p2 == "Hello"); // 断言绝不会失败; 读取p2不能重排到load前面
+    assert(data == 42);     // 断言绝不会失败；读取data不能重排到load前面
+}
+ 
+int main()
+{
+    std::thread t1(producer);
+    std::thread t2(consumer);
+    t1.join(); t2.join();
+}
+```
 
 
-gcc提供的：
-__ATOMIC_RELAXED：最低约束等级，表示没有线程间排序约束
 
-__ATOMIC_CONSUME：官方表示因为C++11的memory_order_consume语义不足，当前使用更强的__ATOMIC_ACQUIRE来实现。
+## release-consume
 
-__ATOMIC_ACQUIRE：对获取操作创建线程间happens-before限制，防止代码在操作前的意外hoisting
+memory_order_release限制当前线程store操作之前原子变量依赖的读写(指令)不能重排到store后面执行。
 
-__ATOMIC_RELEASE：对释放操作创建线程间happens-before限制，防止代码在操作后的意外sinking
+memory_order_consume限制当前线程load操作之后依赖原子变量的读写(指令)不能重排到load前面执行。
 
-__ATOMIC_ACQ_REL：结合了前述两种限制
+```cpp
+#include <thread>
+#include <atomic>
+#include <cassert>
+#include <string>
+ 
+std::atomic<std::string*> ptr;
+int data;
+ 
+void producer()
+{
+    std::string* p  = new std::string("Hello"); // ptr依赖p
+    data = 42;                                  // ptr不依赖data
+    ptr.store(p, std::memory_order_release);
+}
+ 
+void consumer()
+{
+    std::string* p2;
+    while (!(p2 = ptr.load(std::memory_order_consume)))
+        ;
+    // 读取到producer写入值，两线程间ptr依赖的前置写同步完成
+    assert(*p2 == "Hello"); // 断言绝不会失败，p2依赖ptr
+    assert(data == 42);     // 断言可能会失败，data不依赖ptr
+}
+ 
+int main()
+{
+    std::thread t1(producer);
+    std::thread t2(consumer);
+    t1.join(); t2.join();
+}
+```
 
-__ATOMIC_SEQ_CST：约束最强
 
+## sequence
 
-c++11：
-memory_order_relaxed：松散序列，它仅仅只保证其成员函数操作本身是原子不可分割的，但是对于顺序性不做任何保证。
+不允许重排+所有seq_cst原子变量写入顺序对于相关线程来说都是一致的
 
-memory_order_consume: 是弱化版memory_order_acquire。acquire后的内存操作一定不能重排到其前，但是consume仅仅保证依赖该原子操作的内存操作不重排到其前，而对其它内存操作不做保证。
-
-memory_order_acquire:原子操作后的内存操作不能重排到其前，但是其前的内存操作还是可能随便重排。一般与memory_order_release搭配使用，在多线程之间保证acquire后的数据一定能访问到release之前的数据。
-
-memory_order_release：release操作前的内存操作保证对其它线程可见。其前的内存操作不能重排到其后，但是其后的内存操作还是可能随便重排。
-
-memory_order_acq_rel: 有点像语法糖，被这个标记的原子操作，同时具有release和acquire的特点。
-
-memory_order_seq_cst: 默认的模式，也是最严格顺序同步的模式。所有线程中的该类型原子操作有个全局排序。原子操作前的内存操作不能重排到其后，后面的内存操作不能重排到其前。多线程间，其前的内存操作对其它线程可见。【注意】：这里的原子变量是所有，可以是不同原子变量，下面其它模式都要求是同一个原子变量。
+```cpp
+#include <thread>
+#include <atomic>
+#include <cassert>
+ 
+std::atomic<bool> x = {false};
+std::atomic<bool> y = {false};
+std::atomic<int> z = {0};
+ 
+void write_x()
+{
+    x.store(true, std::memory_order_seq_cst);
+}
+ 
+void write_y()
+{
+    y.store(true, std::memory_order_seq_cst);
+}
+ 
+void read_x_then_y()
+{
+    while (!x.load(std::memory_order_seq_cst))
+        ;
+    if (y.load(std::memory_order_seq_cst)) {
+        ++z;
+    }
+}
+ 
+void read_y_then_x()
+{
+    while (!y.load(std::memory_order_seq_cst))
+        ;
+    if (x.load(std::memory_order_seq_cst)) {
+        ++z;
+    }
+}
+ 
+int main()
+{
+    std::thread a(write_x);
+    std::thread b(write_y);
+    std::thread c(read_x_then_y);
+    std::thread d(read_y_then_x);
+    a.join(); b.join(); c.join(); d.join();
+    assert(z.load() != 0);  // 断言绝不会失败，z只有1或2两种取值
+}
+```
+https://gcc.gnu.org/wiki/Atomic/GCCMM/AtomicSync
