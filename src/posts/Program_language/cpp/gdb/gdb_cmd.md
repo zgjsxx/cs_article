@@ -463,7 +463,7 @@ finish
 0x00007ffff783feb0 in __libc_start_call_main () from /lib64/libc.so.6
 ```
 
-## call
+### call
 
 call命令可以使得我们在程序运行时去调用某一个方法。
 
@@ -500,6 +500,123 @@ Breakpoint 1, main () at main.cpp:11
 11          int b = 2;
 (gdb) call add(1,2)
 $1 = 3
+```
+
+
+### break
+
+break用于设置一个断点
+
+普通断点的设置在上面已经提到过，这里看看其他的用法
+
+- 条件断点
+
+条件断点在条件成立的时候才会触发
+
+```cpp
+#include <iostream>
+
+void func()
+{
+    int sum = 0;
+    for(int i = 0;i < 10; ++i){
+        std::cout << "i = " << i << std::endl;
+        sum += i;
+    }
+
+    std::cout << sum << std::endl;
+
+}
+
+int main()
+{
+    func();
+    std::cout << "finish" << std::endl;
+}
+```
+
+在下面的调试过程中，在循环体内设置了条件断点，只有当i=5的时候，断点才会生效。
+
+```shell
+[root@localhost test1]# gdb a.out -q
+Reading symbols from a.out...
+(gdb) b main.cpp:7 if i = 5
+Breakpoint 1 at 0x40119e: file main.cpp, line 7.
+(gdb) info b
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   0x000000000040119e in func() at main.cpp:7
+        stop only if i = 5
+(gdb) r
+Starting program: /home/work/cpp_proj/test1/a.out
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+
+Breakpoint 1, func () at main.cpp:7
+7               std::cout << "i = " << i << std::endl;
+(gdb) p i
+$1 = 5
+(gdb)
+```
+
+- 临时断点
+  
+在使用gdb时，如果想让断点只生效一次，可以使用tbreak命令(缩写为tb)。
+
+```cpp
+#include <iostream>
+
+void func()
+{
+    int sum = 0;
+    for(int i = 0;i < 10; ++i){
+        std::cout << "i = " << i << std::endl;
+        sum += i;
+    }
+
+    std::cout << sum << std::endl;
+
+}
+
+int main()
+{
+    func();
+    std::cout << "finish" << std::endl;
+}
+```
+
+在下面的调试中，在循环的内部使用tb创建了一个断点，当使用continue命令时，不再会停止在该断点处。
+
+```shell
+[root@localhost test1]# gdb a.out -q
+Reading symbols from a.out...
+(gdb) tb main.cpp:7
+Temporary breakpoint 1 at 0x40119e: file main.cpp, line 7.
+(gdb) info break
+Num     Type           Disp Enb Address            What
+1       breakpoint     del  y   0x000000000040119e in func() at main.cpp:7
+(gdb) r
+Starting program: /home/work/cpp_proj/test1/a.out
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+
+Temporary breakpoint 1, func () at main.cpp:7
+7               std::cout << "i = " << i << std::endl;
+Missing separate debuginfos, use: dnf debuginfo-install glibc-2.34-60.el9.x86_64 libgcc-11.3.1-4.3.el9.x86_64 libstdc++-11.3.1-4.3.el9.x86_64
+(gdb) c
+Continuing.
+i = 0
+i = 1
+i = 2
+i = 3
+i = 4
+i = 5
+i = 6
+i = 7
+i = 8
+i = 9
+45
+finish
+[Inferior 1 (process 81491) exited normally]
 ```
 
 
