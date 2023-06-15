@@ -6,9 +6,9 @@ tag:
 - C++
 ---
 
-# gdb的使用
+# gdb的基础命令使用
 
-gdb是c/c++程序的调试利器，在日常工作中，十分有利，本文就将总结其使用方法。
+gdb是c/c++程序的调试利器，在日常工作中，十分有利，本文就将总结其基础命令的使用。
 
 ## gdb常用命令
 
@@ -48,6 +48,23 @@ gdb是c/c++程序的调试利器，在日常工作中，十分有利，本文就
 
 打印表达式
 
+|命令名称|命令缩写|命令作用|
+|--|--|--|
+|print var|p|打印变量|
+|watch var||设置一个监控点，一旦被监视的表达式的值改变了|
+|info locals||查看当前堆栈页的所有变量|
+|info function||查询函数|
+
+查询运行信息
+
+|命令名称|命令缩写|命令作用|
+|--|--|--|
+|where/bt| |当前运行的堆栈列表；|
+|bt backtrace| |显示当前调用堆栈|
+|up/down| |改变堆栈显示的深度|
+|set args| |参数:指定运行时的参数|
+|show args| |查看设置好的参数|
+|info program| |来查看程序的是否在运行，进程号，被暂停的原因。|
 
 ## gdb命令案例详解
 
@@ -264,7 +281,6 @@ which has no line number information.
 [Inferior 1 (process 34464) exited normally]
 ```
 
-
 ### until
 
 until可以用于跳出循环，或者执行到某一行。
@@ -385,7 +401,6 @@ func () at main.cpp:11
 11          std::cout << sum << std::endl;
 ```
 
-
 ### finish
 
 finish命令的作用是将当前的函数执行完毕，返回上一层调用。有时我们不小心使用了step进入了函数内部，却发现不关心该函数内部的过程，就可以使用finish将该函数执行完毕。
@@ -426,7 +441,6 @@ Using host libthread_db library "/lib64/libthread_db.so.1".
 
 Breakpoint 1, func () at main.cpp:5
 5           int sum = 0;
-Missing separate debuginfos, use: dnf debuginfo-install glibc-2.34-60.el9.x86_64 libgcc-11.3.1-4.3.el9.x86_64 libstdc++-11.3.1-4.3.el9.x86_64
 (gdb) finish
 Run till exit from #0  func () at main.cpp:5
 i = 0
@@ -448,3 +462,47 @@ finish
 (gdb) next
 0x00007ffff783feb0 in __libc_start_call_main () from /lib64/libc.so.6
 ```
+
+## call
+
+call命令可以使得我们在程序运行时去调用某一个方法。
+
+```cpp
+#include <iostream>
+
+int add(int a, int b)
+{
+    int c = a + b;
+    return c;
+}
+int main()
+{
+    int a = 1;
+    int b = 2;
+    int c = add(1, b);
+    std::cout << "c = " << c << std::endl;
+}
+```
+
+在下面的调试过程中，我们在main函数下了一个断点，接着使用call命令调用了方法，并打印出了返回值。
+
+```shell
+[root@localhost test1]# gdb a.out -q
+Reading symbols from a.out...
+(gdb) b main.cpp:11
+Breakpoint 1 at 0x4011af: file main.cpp, line 11.
+(gdb) r
+Starting program: /home/work/cpp_proj/test1/a.out
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+
+Breakpoint 1, main () at main.cpp:11
+11          int b = 2;
+(gdb) call add(1,2)
+$1 = 3
+```
+
+
+参考文献
+
+https://github.com/hellogcc/100-gdb-tips/blob/master/src/index.md
