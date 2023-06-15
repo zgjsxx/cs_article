@@ -10,6 +10,23 @@ tag:
 
 gdb是c/c++程序的调试利器，在日常工作中，十分有利，本文就将总结其基础命令的使用。
 
+- [gdb的基础命令使用](#gdb的基础命令使用)
+  - [gdb常用命令](#gdb常用命令)
+  - [gdb命令案例详解](#gdb命令案例详解)
+    - [run](#run)
+    - [continue](#continue)
+    - [next](#next)
+    - [step](#step)
+    - [until](#until)
+    - [finish](#finish)
+    - [call](#call)
+    - [break](#break)
+    - [watch](#watch)
+    - [print](#print)
+    - [backtrace](#backtrace)
+    - [info](#info)
+
+
 ## gdb常用命令
 
 运行
@@ -39,6 +56,7 @@ gdb是c/c++程序的调试利器，在日常工作中，十分有利，本文就
 
 
 查看源代码
+
 |命令名称|命令缩写|命令作用|
 |--|--|--|
 |list|l|列出程序的原代码，默认每次显示10行|
@@ -618,6 +636,398 @@ i = 9
 finish
 [Inferior 1 (process 81491) exited normally]
 ```
+
+- 保存断点
+
+使用save breakpoints和source命令可以导出和导入断点数据。
+
+```cpp
+#include <iostream>
+
+void func()
+{
+    int sum = 0;
+    for(int i = 0;i < 10; ++i){
+        std::cout << "i = " << i << std::endl;
+        sum += i;
+    }
+
+    std::cout << sum << std::endl;
+
+}
+
+int main()
+{
+    func();
+    std::cout << "finish" << std::endl;
+
+```
+
+在下面的调试过程中，我首先在main.cpp中设置了三个断点，随后将三个断点导出到了文件中。接着删除所有的断点，然后再通过save导入之前所有的断点。
+
+```shell
+[root@localhost test]# gdb a.out  -q
+Reading symbols from a.out...
+(gdb) b main.cpp:4
+Breakpoint 1 at 0x40118e: file main.cpp, line 5.
+(gdb) b main.cpp:5
+Note: breakpoint 1 also set at pc 0x40118e.
+Breakpoint 2 at 0x40118e: file main.cpp, line 5.
+(gdb) b main.cpp:6
+Breakpoint 3 at 0x401195: file main.cpp, line 6.
+(gdb) info b
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   0x000000000040118e in func() at main.cpp:5
+2       breakpoint     keep y   0x000000000040118e in func() at main.cpp:5
+3       breakpoint     keep y   0x0000000000401195 in func() at main.cpp:6
+(gdb) save b main.brk
+Saved to file 'main.brk'.
+(gdb) delete breakpoints
+Delete all breakpoints? (y or n) y
+(gdb) info break
+No breakpoints or watchpoints.
+(gdb) source main.brk
+Breakpoint 4 at 0x40118e: file main.cpp, line 5.
+Breakpoint 5 at 0x40118e: file main.cpp, line 5.
+Breakpoint 6 at 0x401195: file main.cpp, line 6.
+(gdb) info break
+Num     Type           Disp Enb Address            What
+4       breakpoint     keep y   0x000000000040118e in func() at main.cpp:5
+5       breakpoint     keep y   0x000000000040118e in func() at main.cpp:5
+6       breakpoint     keep y   0x0000000000401195 in func() at main.cpp:6
+```
+
+### watch
+
+watch命令用于监控一个变量，通过前后值的变化判断程序是否存在bug。
+
+```cpp
+#include <iostream>
+
+void func()
+{
+    int sum = 0;
+    for(int i = 0;i < 10; ++i){
+        std::cout << "i = " << i << std::endl;
+        sum += i;
+    }
+
+    std::cout << sum << std::endl;
+
+}
+
+int main()
+{
+    func();
+    std::cout << "finish" << std::endl;
+}
+```
+
+在下面的调试过程中，我在func函数上下了一个断点。随后监控sum变量的变化。
+
+```cpp
+[root@localhost test]# gdb a.out -q
+Reading symbols from a.out...
+(gdb) b func
+Breakpoint 1 at 0x40118e: file main.cpp, line 5.
+(gdb) r
+Starting program: /home/work/cpp_proj/test/a.out
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+
+Breakpoint 1, func () at main.cpp:5
+warning: Source file is more recent than executable.
+5           int sum = 0;
+(gdb) n
+6           for(int i = 0;i < 10; ++i){
+(gdb) info locals
+i = -135593542
+sum = 0
+(gdb) watch sum
+Hardware watchpoint 2: sum
+(gdb) info watch
+Num     Type           Disp Enb Address            What
+2       hw watchpoint  keep y                      sum
+(gdb) n
+7               std::cout << "i = " << i << std::endl;
+(gdb) n
+i = 0
+8               sum += i;
+(gdb) n
+6           for(int i = 0;i < 10; ++i){
+(gdb) n
+7               std::cout << "i = " << i << std::endl;
+(gdb) n
+i = 1
+8               sum += i;
+(gdb) n
+
+Hardware watchpoint 2: sum
+
+Old value = 0
+New value = 1
+func () at main.cpp:6
+6           for(int i = 0;i < 10; ++i){
+
+```
+
+### print
+
+print用于打印程序中变量的值。
+
+```cpp
+#include <iostream>
+
+int main()
+{
+    int a = 20;
+    return 0;
+}
+```
+
+在下面的例子中，我使用了print命令分别以十六进制，十进制，八进制和二进制打印了变量的值。
+
+p/x: 十六进制
+
+p/d: 十进制
+
+p/o: 八进制
+
+p/t: 二进制
+
+```shell
+[root@localhost test]# gdb a.out -q
+Reading symbols from a.out...
+(gdb) b main.cpp:5
+Breakpoint 1 at 0x40114a: file main.cpp, line 5.
+(gdb) r
+Starting program: /home/work/cpp_proj/test/a.out
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+
+Breakpoint 1, main () at main.cpp:5
+5           int a = 20;
+Missing separate debuginfos, use: dnf debuginfo-install glibc-2.34-28.el9_0.2.x86_64 libgcc-11.2.1-9.4.el9.x86_64 libstdc++-11.2.1-9.4.el9.x86_64
+(gdb) n
+6           return 0;
+(gdb) p a
+$1 = 20
+(gdb) p/x a
+$2 = 0x14
+(gdb) p/d a
+$3 = 20
+(gdb) p/o a
+$4 = 024
+(gdb) p/t a
+$5 = 10100
+```
+
+
+### backtrace
+
+backtrace用于查看函数堆栈，通常和up/down/frame等命令配合使用。
+
+其中bt full可以打印完整的堆栈。
+
+```cpp
+#include <iostream>
+
+int func1(int a)
+{
+    int b = 1;
+    return b*a;
+}
+
+
+int func2(int a)
+{
+    int b = 2;
+    return b*func1(a);
+}
+
+int func3(int a)
+{
+    int b = 3;
+    return b*func2(a);
+}
+int main()
+{
+    int a = 20;
+    int c = func3(a);
+    return 0;
+}
+
+```
+
+在下面的调试过程中，我们在最底层的调用函数func1中设置了断点，然后使用了bt命令查看了函数堆栈。
+
+```shell
+[root@localhost test]# gdb a.out -q
+Reading symbols from a.out...
+(gdb) b main.cpp:5
+Breakpoint 1 at 0x40114d: file main.cpp, line 5.
+(gdb) r
+Starting program: /home/work/cpp_proj/test/a.out
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+
+Breakpoint 1, func1 (a=20) at main.cpp:5
+5           int b = 1;
+Missing separate debuginfos, use: dnf debuginfo-install glibc-2.34-28.el9_0.2.x86_64 libgcc-11.2.1-9.4.el9.x86_64 libstdc++-11.2.1-9.4.el9.x86_64
+(gdb) bt
+#0  func1 (a=20) at main.cpp:5
+#1  0x0000000000401179 in func2 (a=20) at main.cpp:13
+#2  0x000000000040119b in func3 (a=20) at main.cpp:19
+#3  0x00000000004011ba in main () at main.cpp:24
+(gdb) bt full
+#0  func1 (a=20) at main.cpp:5
+        b = 32767
+#1  0x0000000000401179 in func2 (a=20) at main.cpp:13
+        b = 2
+#2  0x000000000040119b in func3 (a=20) at main.cpp:19
+        b = 3
+#3  0x00000000004011ba in main () at main.cpp:24
+        a = 20
+        c = -134517304
+
+```
+
+- 使用up/down/frame切换堆栈
+
+例子和上面一样，这里还是贴一下。
+
+```cpp
+#include <iostream>
+
+int func1(int a)
+{
+    int b = 1;
+    return b*a;
+}
+
+
+int func2(int a)
+{
+    int b = 2;
+    return b*func1(a);
+}
+
+int func3(int a)
+{
+    int b = 3;
+    return b*func2(a);
+}
+int main()
+{
+    int a = 20;
+    int c = func3(a);
+    return 0;
+}
+```
+
+在下面的调试过程中，我使用了up命令向上切换函数栈，使用down向上切换函数栈，使用frame选择函数栈。
+
+```shell
+[root@localhost test]# gdb a.out -q
+Reading symbols from a.out...
+(gdb) b func1
+Breakpoint 1 at 0x40114d: file main.cpp, line 5.
+(gdb) r
+Starting program: /home/work/cpp_proj/test/a.out
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+
+Breakpoint 1, func1 (a=20) at main.cpp:5
+5           int b = 1;
+Missing separate debuginfos, use: dnf debuginfo-install glibc-2.34-28.el9_0.2.x86_64 libgcc-11.2.1-9.4.el9.x86_64 libstdc++-11.2.1-9.4.el9.x86_64
+(gdb) bt
+#0  func1 (a=20) at main.cpp:5
+#1  0x0000000000401179 in func2 (a=20) at main.cpp:13
+#2  0x000000000040119b in func3 (a=20) at main.cpp:19
+#3  0x00000000004011ba in main () at main.cpp:24
+(gdb) frame
+#0  func1 (a=20) at main.cpp:5
+5           int b = 1;
+(gdb) up 1
+#1  0x0000000000401179 in func2 (a=20) at main.cpp:13
+13          return b*func1(a);
+(gdb) up 1
+#2  0x000000000040119b in func3 (a=20) at main.cpp:19
+19          return b*func2(a);
+(gdb) down 1
+#1  0x0000000000401179 in func2 (a=20) at main.cpp:13
+13          return b*func1(a);
+(gdb) down 1
+#0  func1 (a=20) at main.cpp:5
+5           int b = 1;
+(gdb) frame 2
+#2  0x000000000040119b in func3 (a=20) at main.cpp:19
+19          return b*func2(a);
+```
+
+
+### info 
+
+info命令用于查看一些信息
+常用的有
+
+|命令|含义|
+|--|--|
+|info break |查看所有的断点|
+|info args|查看程序启动参数|
+|info locals|查看当前栈上的变量|
+|info watchpoints|查看观察点|
+|info register|查看寄存器|
+
+
+- info break
+```cpp
+#include <iostream>
+
+int func1(int a)
+{
+    int b = 1;
+    return b*a;
+}
+
+
+int func2(int a)
+{
+    int b = 2;
+    return b*func1(a);
+}
+
+int func3(int a)
+{
+    int b = 3;
+    return b*func2(a);
+}
+int main()
+{
+    int a = 20;
+    int c = func3(a);
+    return 0;
+}
+```
+
+在下面的调试过程中，我下了三个断点，使用info b查看了这三个断点
+
+```cpp
+[root@localhost test]# gdb a.out -q
+Reading symbols from a.out...
+(gdb) b func1
+Breakpoint 1 at 0x40114d: file main.cpp, line 5.
+(gdb) b func2
+Breakpoint 2 at 0x401168: file main.cpp, line 12.
+(gdb) b func3
+Breakpoint 3 at 0x40118a: file main.cpp, line 18.
+(gdb) info b
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   0x000000000040114d in func1(int) at main.cpp:5
+2       breakpoint     keep y   0x0000000000401168 in func2(int) at main.cpp:12
+3       breakpoint     keep y   0x000000000040118a in func3(int) at main.cpp:18
+```
+
 
 
 参考文献
