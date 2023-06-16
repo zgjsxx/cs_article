@@ -8,7 +8,11 @@ tag:
 
 # gdb的基础命令使用
 
-gdb是c/c++程序的调试利器，在日常工作中，十分有利，本文就将总结其基础命令的使用。
+gdb是c/c++程序的调试利器，在日常工作中，十分有利。 
+
+有人说， 有了像clion，visual studio这样的IDE工具，我们还有必要去了解gdb工具吗？
+
+其实是有必要的，在日常的代码开发中，使用这些IDE工具确实能够很好地帮助我们进行开发，但是你很难确定所有的环境都有IDE，比如线上环境，客户环境，因此了解gdb的指令还是很有必要的，本文就一些常用的gdb指令进行梳理。
 
 - [gdb的基础命令使用](#gdb的基础命令使用)
   - [gdb常用命令](#gdb常用命令)
@@ -23,13 +27,15 @@ gdb是c/c++程序的调试利器，在日常工作中，十分有利，本文就
     - [break](#break)
     - [watch](#watch)
     - [print](#print)
+    - [display](#display)
     - [backtrace](#backtrace)
     - [info](#info)
-
+  - [参考文献](#参考文献)
 
 ## gdb常用命令
 
 运行
+
 |命令名称|命令缩写|命令作用|
 |--|--|--|
 |run|r|运行一个程序|
@@ -42,8 +48,8 @@ gdb是c/c++程序的调试利器，在日常工作中，十分有利，本文就
 |call||调用程序中可见的函数并传递参数|
 |quit|q|退出gdb|
 
-
 断点
+
 |命令名称|命令缩写|命令作用|
 |--|--|--|
 |break n(行号)|b n |在第n行出设置断点|
@@ -72,13 +78,14 @@ gdb是c/c++程序的调试利器，在日常工作中，十分有利，本文就
 |watch var||设置一个监控点，一旦被监视的表达式的值改变了|
 |info locals||查看当前堆栈页的所有变量|
 |info function||查询函数|
+|display var||每次单步调试的时候都打印变量的值|
 
 查询运行信息
 
 |命令名称|命令缩写|命令作用|
 |--|--|--|
 |where/bt| |当前运行的堆栈列表；|
-|bt backtrace| |显示当前调用堆栈|
+|backtrace |bt |显示当前调用堆栈|
 |up/down| |改变堆栈显示的深度|
 |set args| |参数:指定运行时的参数|
 |show args| |查看设置好的参数|
@@ -136,7 +143,6 @@ i = 9
 [Inferior 1 (process 25956) exited normally]
 ```
 
-
 ### continue
 
 continue用于继续执行，直到下一个断点处。需要和break结合使用。看下面的例子：
@@ -190,7 +196,6 @@ Breakpoint 2, func () at demo.cpp:7
 (gdb)
 ```
 
-
 ### next
 
 next命令用于单步调试，对于用户定义的函数，next不会进入函数中执行，看下面这个例子：
@@ -236,7 +241,6 @@ Breakpoint 1, main () at main.cpp:10
 c = 3
 16      }
 ```
-
 
 ### step
 
@@ -822,6 +826,79 @@ $4 = 024
 $5 = 10100
 ```
 
+### display
+
+display和print命令比较相似，也可以用于调试阶段查看某个变量或表达式的值，它们的区别是，使用 display 命令查看变量或表达式的值，每当程序暂停执行（例如单步执行）时，GDB 调试器都会自动帮我们打印出来，而 print 命令则不会。看下面的例子：
+
+```cpp
+#include <iostream>
+
+void func()
+{
+    int sum = 0;
+    for(int i = 1;i < 10; ++i){
+        std::cout << "i = " << i << std::endl;
+        sum += i;
+    }
+
+    std::cout << sum << std::endl;
+
+}
+
+int main()
+{
+    func();
+    std::cout << "finish" << std::endl;
+}
+```
+
+在下面的调试过程中，我们在func函数上下了一个断点，并使用display去查看sum变量的值，接着当我们每次进行单步时，都会打印sum变量的值。
+
+```shell
+[root@localhost test1]# gdb a.out -q
+Reading symbols from a.out...
+(gdb) b func
+Breakpoint 1 at 0x40118e: file main.cpp, line 5.
+(gdb) r
+Starting program: /home/work/cpp_proj/test1/a.out
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+
+Breakpoint 1, func () at main.cpp:5
+5           int sum = 0;
+(gdb) display sum
+1: sum = 0
+(gdb) n
+6           for(int i = 1;i < 10; ++i){
+1: sum = 0
+(gdb) n
+7               std::cout << "i = " << i << std::endl;
+1: sum = 0
+(gdb) n
+i = 1
+8               sum += i;
+1: sum = 0
+(gdb) n
+6           for(int i = 1;i < 10; ++i){
+1: sum = 1
+(gdb) n
+7               std::cout << "i = " << i << std::endl;
+1: sum = 1
+(gdb) n
+i = 2
+8               sum += i;
+1: sum = 1
+(gdb) n
+6           for(int i = 1;i < 10; ++i){
+1: sum = 3
+(gdb) info display
+Auto-display expressions now in effect:
+Num Enb Expression
+1:   y  sum
+(gdb) undisplay 1
+(gdb) n
+7               std::cout << "i = " << i << std::endl;
+```
 
 ### backtrace
 
@@ -974,10 +1051,9 @@ info命令用于查看一些信息
 |命令|含义|
 |--|--|
 |info break |查看所有的断点|
-|info args|查看程序启动参数|
+|info args|打印当前函数的参数名和值|
 |info locals|查看当前栈上的变量|
 |info watchpoints|查看观察点|
-|info register|查看寄存器|
 
 
 - info break
@@ -1012,7 +1088,7 @@ int main()
 
 在下面的调试过程中，我下了三个断点，使用info b查看了这三个断点
 
-```cpp
+```shell
 [root@localhost test]# gdb a.out -q
 Reading symbols from a.out...
 (gdb) b func1
@@ -1028,8 +1104,121 @@ Num     Type           Disp Enb Address            What
 3       breakpoint     keep y   0x000000000040118a in func3(int) at main.cpp:18
 ```
 
+- info args/info locals
 
+```cpp
+#include <iostream>
 
-参考文献
+int add(int a, int b)
+{
+    int c = a + b;
+    return c;
+}
+
+int main()
+{
+    int a = 20;
+    int b = 20;
+    int c = add(a, b);
+    return 0;
+}
+```
+
+在下面的例子中，我在add函数中下了断点，使用info args查看了add函数的入参，使用info locals查看了栈上的变量
+
+```shell
+[root@localhost test1]# gdb a.out -q
+Reading symbols from a.out...
+(gdb) b add
+Breakpoint 1 at 0x401150: file main.cpp, line 5.
+(gdb) r
+Starting program: /home/work/cpp_proj/test1/a.out
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+
+Breakpoint 1, add (a=20, b=20) at main.cpp:5
+5           int c = a + b;
+(gdb) info args
+a = 20
+b = 20
+(gdb) info locals
+c = 0
+(gdb)
+
+```
+
+- info watch
+
+```cpp
+#include <iostream>
+
+void func()
+{
+    int sum = 0;
+    for(int i = 0;i < 10; ++i){
+        std::cout << "i = " << i << std::endl;
+        sum += i;
+    }
+
+    std::cout << sum << std::endl;
+
+}
+
+int main()
+{
+    func();
+    std::cout << "finish" << std::endl;
+}
+```
+
+在下面的调试过程中，我在func函数上下了一个断点。随后监控sum变量的变化。使用info watch查看了我们添加的watch point。
+
+```cpp
+[root@localhost test]# gdb a.out -q
+Reading symbols from a.out...
+(gdb) b func
+Breakpoint 1 at 0x40118e: file main.cpp, line 5.
+(gdb) r
+Starting program: /home/work/cpp_proj/test/a.out
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+
+Breakpoint 1, func () at main.cpp:5
+warning: Source file is more recent than executable.
+5           int sum = 0;
+(gdb) n
+6           for(int i = 0;i < 10; ++i){
+(gdb) info locals
+i = -135593542
+sum = 0
+(gdb) watch sum
+Hardware watchpoint 2: sum
+(gdb) info watch
+Num     Type           Disp Enb Address            What
+2       hw watchpoint  keep y                      sum
+(gdb) n
+7               std::cout << "i = " << i << std::endl;
+(gdb) n
+i = 0
+8               sum += i;
+(gdb) n
+6           for(int i = 0;i < 10; ++i){
+(gdb) n
+7               std::cout << "i = " << i << std::endl;
+(gdb) n
+i = 1
+8               sum += i;
+(gdb) n
+
+Hardware watchpoint 2: sum
+
+Old value = 0
+New value = 1
+func () at main.cpp:6
+6           for(int i = 0;i < 10; ++i){
+
+```
+
+## 参考文献
 
 https://github.com/hellogcc/100-gdb-tips/blob/master/src/index.md
