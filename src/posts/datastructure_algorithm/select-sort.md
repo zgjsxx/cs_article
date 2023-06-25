@@ -89,3 +89,35 @@ int main()
 ![select_sort2](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/datastructure_algorithm/select_sort/select_sort2.png)
 
 可以看出在这个过程中，相同元素的相对位置发生了改变。
+
+这个时候，有人可能会产生疑问，如果对选取最小值的算法进行修改，将小于修改为小于等于是不是就能使得选择排序变成稳定排序呢？
+
+```cpp
+void selectionSort(int arr[], int n) 
+{ 
+	int i, j, min_idx; 
+
+	// One by one move boundary of unsorted subarray 
+	for (i = 0; i < n-1; i++) 
+	{ 
+		// Find the minimum element in unsorted array 
+		min_idx = i; 
+		for (j = i+1; j < n; j++) 
+		//将这里修改为小于等于
+		if (arr[j] <= arr[min_idx]) 
+			min_idx = j; 
+
+		// Swap the found minimum element with the first element 
+		swap(&arr[min_idx], &arr[i]); 
+	} 
+} 
+```
+对于上面的例子，[3A, 2, 3B, 5, 1]，其排序结果如下所示：
+
+[3A, 2, 3B, 5, 1]   => [1, 2, 3A, 3B, 5]
+
+看似解决了问题，实则依旧存在问题，例如[1A， 3， 2， 1B， 5]
+
+[1A， 3， 2， 1B， 5] => [1B， 1A， 2， 3， 5]
+
+因此，无论是比较算法是小于还是小于等于，选择排序都不是一种稳定的排序。
