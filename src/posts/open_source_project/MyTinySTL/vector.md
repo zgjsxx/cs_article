@@ -6,7 +6,7 @@ tag:
 - MyTinySTL
 ---
 
-# vector容器
+# MyTinySTL-vector容器
 
 vector是STL中使用最为广泛的容器之一，vector的动态内存的管理功能给我们写程序带来了很大的便利性。本节就通过分析MyTinySTL中关于vector的源码了解其实现原理。
 
