@@ -19,6 +19,20 @@ pthread_mutex_t变量有四种属性
 本文使用的源码是glibc-2.34版本，http://mirror.keystealth.org/gnu/libc/glibc-2.34.tar.gz。
 
 看看最简单的类型PTHREAD_MUTEX_TIMED_NP：
+```cpp
+  if (__builtin_expect (type & ~(PTHREAD_MUTEX_KIND_MASK_NP
+				 | PTHREAD_MUTEX_ELISION_FLAGS_NP), 0))
+    return __pthread_mutex_lock_full (mutex);
+
+  if (__glibc_likely (type == PTHREAD_MUTEX_TIMED_NP))
+    {
+      FORCE_ELISION (mutex, goto elision);
+    simple:
+      /* Normal mutex.  */
+      LLL_MUTEX_LOCK_OPTIMIZED (mutex);
+      assert (mutex->__data.__owner == 0);
+    }
+```
 
 ```c
 #ifndef LLL_MUTEX_LOCK
@@ -170,3 +184,31 @@ internal_syscall4就是4个参数的系统调用方法，在方法内进入了�
     (long int) resultvar;						\
 })
 ```
+
+## futex
+
+总结下futex_wait流程：
+
+加自旋锁
+检测*uaddr是否等于val，如果不相等则会立即返回
+将进程状态设置为TASK_INTERRUPTIBLE
+将当期进程插入到等待队列中
+释放自旋锁
+创建定时任务：当超过一定时间还没被唤醒时，将进程唤醒
+挂起当前进程
+
+futex_wake流程如下：
+
+找到uaddr对应的futex_hash_bucket，即代码中的hb
+对hb加自旋锁
+遍历fb的链表，找到uaddr对应的节点
+调用wake_futex唤起等待的进程
+释放自旋锁
+
+作者：做个好人君
+链接：https://juejin.cn/post/6844903688478146574
+来源：稀土掘金
+著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
+
+
+http://blog.foool.net/2021/04/futex-%E7%BB%BC%E8%BF%B0/
