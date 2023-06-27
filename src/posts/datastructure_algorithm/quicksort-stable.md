@@ -65,6 +65,6 @@ int main()
 
 ![quick_sort1](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/datastructure_algorithm/quick-sort/quicksort1.png)
 
-6A和6B在排序过程中发生了位置变换。
+6A和6B在排序过程中发生了位置变换，因此快速排序并不是一个稳定的排序。
 
 
