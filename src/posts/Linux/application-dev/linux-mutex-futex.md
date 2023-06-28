@@ -25,18 +25,18 @@ typedef struct {
 ```
 
 其中：
-- __lock表示当前mutex的状态，0表示没有被加锁，1表示mutex已经被加锁，2表示mutex被某个线程持有并且有另外的线程在等待它的释放。
-- __count表示被加锁的次数，对于不可重入锁，该值为0或者1，对于可重入锁，count可以大于1。
-- __owner用来记录持有当前mutex的线程id。
-- __nusers用于记录多少个线程持有该互斥锁，一般来说该值只能是0或者1，但是对于读写锁，多个读线程可以共同持有锁，因此nusers通常用于读写锁的场景下。
-- __kind表示锁的类型。
+- __lock表示**当前mutex的状态**，0表示没有被加锁，1表示mutex已经被加锁，2表示mutex被某个线程持有并且有另外的线程在等待它的释放。
+- __count表示**mutex被加锁的次数**，对于不可重入锁，该值为0或者1，对于可重入锁，count可以大于1。
+- __owner用来记录**持有当前mutex的线程id**。
+- __nusers用于记录**多少个线程持有该互斥锁**，一般来说该值只能是0或者1，但是对于读写锁，多个读线程可以共同持有锁，因此nusers通常用于读写锁的场景下。
+- __kind表示**锁的类型**。
 
 pthread_mutex_t锁可以是如下的类型:
 
-- PTHREAD_MUTEX_TIMED_NP： 普通锁，当一个线程加锁以后，其余请求锁的线程将形成一个等待队列，并在解锁后按优先级获得锁。这种锁策略保证了资源分配的公平性。当锁unlock时，会唤醒等待队列中的一个线程。
-- PTHREAD_MUTEX_RECURSIVE_NP: 可重入锁，如果线程没有获得该mutex的情况下，争用该锁，那么与PTHREAD_MUTEX_TIMED_NP一样。如果一个线程已经获取锁，其可以再次获取锁，并通过多次unlock解锁。
-- PTHREAD_MUTEX_ERRORCHECK_NP: 检错锁，如果同一个线程请求同一个锁，则返回EDEADLK，而不是死锁，其他点和PTHREAD_MUTEX_TIMED_NP相同。
-- PTHREAD_MUTEX_ADAPTIVE_NP: 自适应锁，此锁在多核处理器下首先进行自旋获取锁，如果自旋次数超过配置的最大次数，则也会陷入内核态挂起。
+- PTHREAD_MUTEX_TIMED_NP： **普通锁**，当一个线程加锁以后，其余请求锁的线程将形成一个等待队列，并在解锁后按优先级获得锁。这种锁策略保证了资源分配的公平性。当锁unlock时，会唤醒等待队列中的一个线程。
+- PTHREAD_MUTEX_RECURSIVE_NP: **可重入锁**，如果线程没有获得该mutex的情况下，争用该锁，那么与PTHREAD_MUTEX_TIMED_NP一样。如果一个线程已经获取锁，其可以再次获取锁，并通过多次unlock解锁。
+- PTHREAD_MUTEX_ERRORCHECK_NP: **检错锁**，如果同一个线程请求同一个锁，则返回EDEADLK，而不是死锁，其他点和PTHREAD_MUTEX_TIMED_NP相同。
+- PTHREAD_MUTEX_ADAPTIVE_NP: **自适应锁**，此锁在多核处理器下首先进行自旋获取锁，如果自旋次数超过配置的最大次数，则也会陷入内核态挂起。
 
 
 ## mutex的加锁过程
