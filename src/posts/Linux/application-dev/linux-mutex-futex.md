@@ -129,7 +129,7 @@ __lll_lock_wait_private和__lll_lock_wait是类似的，这里首先会调用**a
 
 因此如果其**返回值不为0**，代表当前锁还是**加锁**状态，可能需要进入内核态等待(调用futex_wait)。如果其返回0，则代表，当前锁已经被释放，加锁成功，退出循环。
 
-注意futex值修改为2的目的是为了提高**pthread_mutex_unlock**的效率。在**pthread_mutex_unlock()**中，会调用atomic_exchange_rel()无条件的把mutex->__lock的值更新为0，并且检查mutex->__lock的原始值，如果原始值为0或者1，表示没有竞争发生，自然也就没有必要调用futex系统调用，浪费时间。只有检查到mutex->__lock的值大于1的时候，才需要**调用futex系统调用**，唤醒等待该锁上的线程。
+注意futex值修改为2的目的是为了提高**pthread_mutex_unlock**的效率。在**pthread_mutex_unlock**中，会调用atomic_exchange_rel()无条件的把mutex->__lock的值更新为0，并且检查mutex->__lock的原始值，如果原始值为0或者1，表示没有竞争发生，自然也就没有必要调用futex系统调用，浪费时间。只有检查到mutex->__lock的值大于1的时候，才需要**调用futex系统调用**，唤醒等待该锁上的线程。
 
 ```c
 void
