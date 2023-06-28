@@ -251,4 +251,4 @@ int sys_futex (int *uaddr, int op, int val, const struct timespec *timeout);
 
 glibc的mutex的加锁是用户态的原子操作和内核态sys_futex共同作用的结果，上述过程可以用下面这张流程图来概括：
 
-![glic-pthread-unlock](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/mutex/glibc-mutex1.png)
+![glic-mutex](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/mutex/glibc-mutex1.png)
