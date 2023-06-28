@@ -5,7 +5,7 @@ category:
 
 # 深入了解glibc的互斥锁
 
-互斥锁是**多线程**同步时常用的手段，使用互斥锁可以保护对共享资源的操作。 共享资源也被称为**临界区**，当一个线程对一个临界区加锁后，其他线程就不能进入该临界区，直到持有临界区锁的线程释放该锁。
+互斥锁是**多线程**同步时常用的手段，使用互斥锁可以保护对共享资源的操作。共享资源也被称为**临界区**，当一个线程对一个临界区加锁后，其他线程就不能进入该临界区，直到持有临界区锁的线程释放该锁。
 
 本文以glibc中mutex的实现为例，讲解其背后的实现原理。
 
@@ -25,7 +25,7 @@ typedef struct {
 ```
 
 其中：
-- lock表示当前mutex的状态，0表示没有被加锁，而1表示mutex已经被加锁。
+- lock表示当前mutex的状态，0表示没有被加锁，而1表示mutex已经被加锁。当lock > 1时，表示mutex被某个线程持有并且有另外的线程在等待它的释放。
 - count表示被加锁的次数，对于不可重入锁，该值为0或者1，对于可重入锁，count可以大于1.
 - owner用来记录持有当前mutex的线程id
 - nusers用于记录多少个线程持有该互斥锁，一般来说该值只能是0或者1，但是对于读写锁，多个读线程可以共同持有锁，因此nusers通常用于读写锁的场景下。
@@ -33,10 +33,10 @@ typedef struct {
 
 pthread_mutex_t锁有如下的类型
 
-- PTHREAD_MUTEX_TIMED_NP： 普通锁
-- PTHREAD_MUTEX_RECURSIVE_NP: 可重入锁
-- PTHREAD_MUTEX_ERRORCHECK_NP: 检错锁
-- PTHREAD_MUTEX_ADAPTIVE_NP: 自适应锁
+- PTHREAD_MUTEX_TIMED_NP： 普通锁，当一个线程加锁以后，其余请求锁的线程将形成一个等待队列，并在解锁后按优先级获得锁。这种锁策略保证了资源分配的公平性。
+- PTHREAD_MUTEX_RECURSIVE_NP: 可重入锁，可重入锁，允许同一个线程对同一个锁成功获得多次，并通过多次unlock解锁。如果是不同线程请求，则在加锁线程解锁时重新竞争。
+- PTHREAD_MUTEX_ERRORCHECK_NP: 检错锁，如果同一个线程请求同一个锁，则返回EDEADLK。
+- PTHREAD_MUTEX_ADAPTIVE_NP: 自适应锁，此锁在多核处理器下首先进行自旋获取锁，如果自旋次数超过配置的最大次数，则也会陷入内核态挂起。
 
 
 ## mutex的加锁过程
@@ -121,7 +121,7 @@ bool CAS(T* val, T new_value, T old_value) {
   __lll_lock (&(futex), private)
 ```
 
-__lll_lock_wait_private和__lll_lock_wait是类似的，其最终将调用futex_wait进行wait。
+__lll_lock_wait_private和__lll_lock_wait是类似的，其最终将调用futex_wait进行wait。这里首先会将futex原子性地修改为2，这里表明该线程锁已经被加锁，并且当前有其他线程在等待。
 
 ```c
 void
@@ -236,6 +236,14 @@ internal_syscall4就是4个参数的系统调用方法，在方法内进入了�
 ```
 
 ## sys_futex
+```c
+int futex (int *uaddr, int op, int val, const struct timespec *timeout,int *uaddr2, int val3);
+```
+
+原子性的检查uaddr中计数器的值是否为val,,如果是则让进程休眠，直到FUTEX_WAKE或者超时(time-out)。也就是把进程挂到uaddr相对应的等待队列上去。
+
+op代表用户的操作，例如FUTEX_WAIT，FUTEX_WAKE
+
 
 总结下futex_wait流程：
 
