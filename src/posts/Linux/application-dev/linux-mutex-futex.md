@@ -235,13 +235,16 @@ internal_syscall4就是4个参数的系统调用方法，在方法内进入了�
 })
 ```
 
-## sys_futex
+futex的函数原型如下所示：
+
 ```c
 int futex (int *uaddr, int op, int val, const struct timespec *timeout,int *uaddr2, int val3);
 ```
 
 原子性的检查uaddr中计数器的值是否为val,,如果是则让进程休眠，直到FUTEX_WAKE或者超时(time-out)。也就是把进程挂到uaddr相对应的等待队列上去。
 
+
+这里实际上就是检查mutex的__lock是否等于2，如果不等于2，意味着，锁可能已经被释放，可以重新加锁。
 op代表用户的操作，例如FUTEX_WAIT，FUTEX_WAKE
 
 
