@@ -64,7 +64,7 @@ pthread_mutex_t锁可以是如下的类型:
     }
 ```
 
-**lll_mutex_lock_optimized**也定义在pthread_mutex_lock.c文件中，从注释了解到，这是为单线程进行的优化，如果是单线程，则直接将mutex的__lock的值修改为1（因为不存在竞争），如果不是单线程，则调用lll_lock方法。
+**lll_mutex_lock_optimized**也定义在```nptl/pthread_mutex_lock.c```文件中，从注释了解到，这是为单线程进行的优化，如果是单线程，则直接将mutex的__lock的值修改为1（因为不存在竞争），如果不是单线程，则调用lll_lock方法。
 
 ```c
 #ifndef LLL_MUTEX_LOCK
@@ -90,7 +90,7 @@ lll_mutex_lock_optimized (pthread_mutex_t *mutex)
   lll_lock ((mutex)->__data.__lock, PTHREAD_MUTEX_PSHARED (mutex))
 ```
 
-**lll_lock**定义在lowlevellock.h文件中，又会调用到**__lll_lock**方法，由于存在竞争，因此在**__lll_lock**方法中使用了**CAS方法**尝试对mutex的__lock值进行修改。
+**lll_lock**定义在```sysdeps/nptl/lowlevellock.h```文件中，又会调用到**__lll_lock**方法，由于存在竞争，因此在**__lll_lock**方法中使用了**CAS方法**尝试对mutex的__lock值进行修改。
 
 CAS是compare-and-swap的含义，其是原子变量的实现的基础，其伪代码如下所示，即当内存mem出的值如果等于old_value，则将其替换为new_value，这个过程是原子的，底层由CMPXCHG指令保证。
 
@@ -252,3 +252,220 @@ int sys_futex (int *uaddr, int op, int val, const struct timespec *timeout);
 glibc的mutex的加锁是用户态的原子操作和内核态sys_futex共同作用的结果，上述过程可以用下面这张流程图来概括：
 
 ![glic-mutex](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/mutex/glibc-mutex1.png)
+
+
+## mutex的解锁过程
+
+同样从最简单的PTHREAD_MUTEX_TIMED_NP看起，其调用了lll_mutex_unlock_optimized方法进行unlock。
+
+```c
+  if (__builtin_expect (type, PTHREAD_MUTEX_TIMED_NP)
+      == PTHREAD_MUTEX_TIMED_NP)
+    {
+      /* Always reset the owner field.  */
+    normal:
+      mutex->__data.__owner = 0;
+      if (decr)
+	/* One less user.  */
+	--mutex->__data.__nusers;
+
+      /* Unlock.  */
+      lll_mutex_unlock_optimized (mutex);
+
+      LIBC_PROBE (mutex_release, 1, mutex);
+
+      return 0;
+    }
+```
+
+lll_mutex_unlock_optimized是对单线程解锁进行优化的函数。如果是单线程，意味着没有竞争，则可以直接将锁的值__lock修改为0。如果是多线程，则调用lll_unlock方法。
+
+```c
+static inline void
+lll_mutex_unlock_optimized (pthread_mutex_t *mutex)
+{
+  /* The single-threaded optimization is only valid for private
+     mutexes.  For process-shared mutexes, the mutex could be in a
+     shared mapping, so synchronization with another process is needed
+     even without any threads.  */
+  int private = PTHREAD_MUTEX_PSHARED (mutex);
+  if (private == LLL_PRIVATE && SINGLE_THREAD_P)
+    mutex->__data.__lock = 0;
+  else
+    lll_unlock (mutex->__data.__lock, private);
+}
+```
+
+lll_unlock定义在```sysdeps/nptl/lowlevellock.h```中。这里调用atomic_exchange_rel原子性地将__futex与0进行交换，并将原始值存放在__oldval中。
+
+如果__oldval小于等于1，意味着没有竞争，不需要唤醒其他线程。如果__oldval大于1，则意味着需要唤醒其他线程，这样就会调用__lll_lock_wake_private或__lll_lock_wake进行线程唤醒。
+
+```c
+#define __lll_unlock(futex, private)					\
+  ((void)								\
+  ({									\
+     int *__futex = (futex);						\
+     int __private = (private);						\
+     int __oldval = atomic_exchange_rel (__futex, 0);			\
+     if (__glibc_unlikely (__oldval > 1))				\
+       {								\
+         if (__builtin_constant_p (private) && (private) == LLL_PRIVATE) \
+           __lll_lock_wake_private (__futex);                           \
+         else                                                           \
+           __lll_lock_wake (__futex, __private);			\
+       }								\
+   }))
+#define lll_unlock(futex, private)	\
+  __lll_unlock (&(futex), private)
+
+```
+
+__lll_lock_wake_private和__lll_lock_wake是相似的方法，其都将调用lll_futex_wake。
+
+```c
+void
+__lll_lock_wake_private (int *futex)
+{
+  lll_futex_wake (futex, 1, LLL_PRIVATE);
+}
+libc_hidden_def (__lll_lock_wake_private)
+
+void
+__lll_lock_wake (int *futex, int private)
+{
+  lll_futex_wake (futex, 1, private);
+}
+```
+
+lll_futex_wake实际上也是对sys_futex系统调用的封装，其将传入FUTEX_WAKE参数以唤醒一个线程。
+
+```c
+/* Wake up up to NR waiters on FUTEXP.  */
+# define lll_futex_wake(futexp, nr, private)                             \
+  lll_futex_syscall (4, futexp,                                         \
+		     __lll_private_flag (FUTEX_WAKE, private), nr, 0)
+# define lll_futex_syscall(nargs, futexp, op, ...)                      \
+  ({                                                                    \
+    long int __ret = INTERNAL_SYSCALL (futex, nargs, futexp, op, 	\
+				       __VA_ARGS__);                    \
+    (__glibc_unlikely (INTERNAL_SYSCALL_ERROR_P (__ret))         	\
+     ? -INTERNAL_SYSCALL_ERRNO (__ret) : 0);                     	\
+  })
+#undef internal_syscall4
+#define internal_syscall4(number, arg1, arg2, arg3, arg4)		\
+({									\
+    unsigned long int resultvar;					\
+    TYPEFY (arg4, __arg4) = ARGIFY (arg4);			 	\
+    TYPEFY (arg3, __arg3) = ARGIFY (arg3);			 	\
+    TYPEFY (arg2, __arg2) = ARGIFY (arg2);			 	\
+    TYPEFY (arg1, __arg1) = ARGIFY (arg1);			 	\
+    register TYPEFY (arg4, _a4) asm ("r10") = __arg4;			\
+    register TYPEFY (arg3, _a3) asm ("rdx") = __arg3;			\
+    register TYPEFY (arg2, _a2) asm ("rsi") = __arg2;			\
+    register TYPEFY (arg1, _a1) asm ("rdi") = __arg1;			\
+    asm volatile (							\
+    "syscall\n\t"							\
+    : "=a" (resultvar)							\
+    : "0" (number), "r" (_a1), "r" (_a2), "r" (_a3), "r" (_a4)		\
+    : "memory", REGISTERS_CLOBBERED_BY_SYSCALL);			\
+    (long int) resultvar;						\
+})
+```
+## glibc不同属性的mutex的实现
+
+上面的章节主要聚焦在PTHREAD_MUTEX_TIMED_NP的实现,下面将对不同属性的mutex的实现进行讲解。
+
+### PTHREAD_MUTEX_TIMED_NP
+
+PTHREAD_MUTEX_TIMED_NP在上面已经有了大幅章节进行讲解，这里再回顾一下，其行为相对简单，直接调用LLL_MUTEX_LOCK_OPTIMIZED去竞争锁
+```c
+if (__glibc_likely (type == PTHREAD_MUTEX_TIMED_NP))
+{
+    FORCE_ELISION (mutex, goto elision);
+simple:
+    /* Normal mutex.  */
+    LLL_MUTEX_LOCK_OPTIMIZED (mutex);
+    assert (mutex->__data.__owner == 0);
+}
+```
+
+### PTHREAD_MUTEX_RECURSIVE_NP
+
+可重入锁意味着同一个线程可以对互斥锁加锁多次。下面是源码的实现部分。首先获取了线程的id，判断锁的owner的线程id和当前线程的id是否相等，如果相等则将锁的count值加1。如果锁的owner的线程id和当前线程的id不相等，则使用LLL_MUTEX_LOCK_OPTIMIZED进行加锁（这里就和普通锁一样了）。
+
+```c
+  else if (__builtin_expect (PTHREAD_MUTEX_TYPE (mutex)
+			     == PTHREAD_MUTEX_RECURSIVE_NP, 1))
+    {
+        /* Recursive mutex.  */
+        pid_t id = THREAD_GETMEM (THREAD_SELF, tid);
+
+        /* Check whether we already hold the mutex.  */
+        if (mutex->__data.__owner == id)
+        {
+            /* Just bump the counter.  */
+            if (__glibc_unlikely (mutex->__data.__count + 1 == 0))
+            /* Overflow of the counter.  */
+            return EAGAIN;
+
+            ++mutex->__data.__count;
+
+            return 0;
+        }
+        LLL_MUTEX_LOCK_OPTIMIZED (mutex);
+
+        assert (mutex->__data.__owner == 0);
+        mutex->__data.__count = 1;
+    }
+```
+
+### PTHREAD_MUTEX_ADAPTIVE_NP
+
+自适应锁在没有加锁成功时，会进行自旋，当自旋超过一定次数时，将调用LLL_MUTEX_LOCK尝试加锁，加锁失败将睡眠。
+
+```c
+  else if (__builtin_expect (PTHREAD_MUTEX_TYPE (mutex)
+			  == PTHREAD_MUTEX_ADAPTIVE_NP, 1))
+    {
+      if (LLL_MUTEX_TRYLOCK (mutex) != 0)
+	{
+	  int cnt = 0;
+	  int max_cnt = MIN (max_adaptive_count (),
+			     mutex->__data.__spins * 2 + 10);
+	  do
+	    {
+	      if (cnt++ >= max_cnt)
+		{
+		  LLL_MUTEX_LOCK (mutex);
+		  break;
+		}
+	      atomic_spin_nop ();
+	    }
+	  while (LLL_MUTEX_TRYLOCK (mutex) != 0);
+
+	  mutex->__data.__spins += (cnt - mutex->__data.__spins) / 8;
+	}
+      assert (mutex->__data.__owner == 0);
+    }
+```
+
+### PTHREAD_MUTEX_ERRORCHECK_NP
+
+检错锁的作用是避免同一个线程对同一个互斥锁加锁多次导致死锁。这里就是获取了锁的owner的线程id，并于当前的线程id进行对比，如果相等，则返回EDEADLK错误。
+
+```cpp
+  else
+    {
+      pid_t id = THREAD_GETMEM (THREAD_SELF, tid);
+      assert (PTHREAD_MUTEX_TYPE (mutex) == PTHREAD_MUTEX_ERRORCHECK_NP);
+      /* Check whether we already hold the mutex.  */
+      if (__glibc_unlikely (mutex->__data.__owner == id))
+	return EDEADLK;
+      goto simple;
+    }
+```
+
+
+## 总结
+
+本文从glic源码去分析了互斥锁的底层实现原理，其实现包含了用户态到内核态的过程，利用了CAS技术和sys_futex系统调用。互斥锁也有多种属性，构成了普通锁/可重入锁/检错锁/自适应锁等类型，每种类型都有其各自的特性，开发时，需要结合场景选择合适的属性。
