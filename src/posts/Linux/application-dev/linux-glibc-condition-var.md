@@ -52,15 +52,17 @@ struct __pthread_cond_s
 - __g1_start: G1的开始位置
 - __g1_orig_size: G1的原始长度
 - __wseq32：等待的序列号
-- __g_refs: futex wait的引用计数
+- __g_refs: futex waiter的引用计数
 - __g_signals：可以被消费的信号数
-- __g_size：g1和g2队列的长度
+- __g_size：g1和g2在产生切换时，里面剩余的waiter数量。
 - 
-## ___pthread_cond_signal
+## pthread_cond_signal
 
- * 1. 检查 cond __wseq, 若没有waiter则直接返回
- * 2. 有waiter, 检查是否需要切换组(例如首次调用 wait 后 G1 为空，G2有一个等待者，则首次调用 signal 后需要将 G2 切换为 G1)
- * 3. 递增 __g_signals, 递减__g_size(未唤醒的waiters个数)，再调用futex_wake
+pthread_cond_signal是条件变量发送信号的方法，其过程如下所示：
+
+- 1. 检查 cond __wseq, 若没有waiter则直接返回
+- 2. 有waiter, 检查是否需要切换组(例如首次调用 wait 后 G1 为空，G2有一个等待者，则首次调用 signal 后需要将 G2 切换为 G1)
+- 3. 递增 __g_signals, 递减__g_size(未唤醒的waiters个数)，再调用futex_wake
 
 首先读取条件变量的等待任务的数量。 ```wref >> 3``` 等同于```wref/8```，wref每次是按照8递增的，在pthread_conf_wait函数中有相应实现。
 
@@ -73,6 +75,9 @@ struct __pthread_cond_s
 ```
 
 这里获取条件变量中的序列号，通过序列号来获取现在的g1数组的下标（0或者1）。
+
+刚开始时wseq为偶数，因此g1为1。
+
 ```c
   unsigned long long int wseq = __condvar_load_wseq_relaxed (cond);
   unsigned int g1 = (wseq & 1) ^ 1;
@@ -80,7 +85,9 @@ struct __pthread_cond_s
   bool do_futex_wake = false;
 ```
 
-这里首先检查g1的队列中是否有waiter，如果有，直接将g1对应的信号数组的值+2，并将g1对应的waiter数组减去1。
+这里首先检查G1的是否有waiter，如果有，直接将g1对应的信号数组的值+2，并将g1对应的waiter数组减去1。
+
+下面就检查G2是否有waiter。
 
 ```c
   if ((cond->__data.__g_size[g1] != 0)
@@ -99,6 +106,58 @@ struct __pthread_cond_s
 ```
 
 __condvar_quiesce_and_switch_g1将会对g1和g2做切换。单词quiesce翻译为安静。意思是条件变量安静的切换g1数组。
+
+__condvar_quiesce_and_switch_g1首先检查g2是否有waiter，如果没有waiter，则不进行操作。
+
+```c
+  unsigned int old_orig_size = __condvar_get_orig_size (cond);
+  uint64_t old_g1_start = __condvar_load_g1_start_relaxed (cond) >> 1;
+  if (((unsigned) (wseq - old_g1_start - old_orig_size)
+	  + cond->__data.__g_size[g1 ^ 1]) == 0)
+	return false;
+```
+
+下面将g1的signal值和1进行与操作，标记此时g1已经被close。
+
+```c
+  atomic_fetch_or_relaxed (cond->__data.__g_signals + g1, 1);
+```
+
+接下来，将g1中剩下的waiter全部唤醒。
+
+```c
+unsigned r = atomic_fetch_or_release (cond->__data.__g_refs + g1, 0); 
+while ((r >> 1) > 0)
+{
+    for (unsigned int spin = maxspin; ((r >> 1) > 0) && (spin > 0); spin--)
+    {
+        r = atomic_load_relaxed (cond->__data.__g_refs + g1);
+    }
+    if ((r >> 1) > 0)
+    {
+        r = atomic_fetch_or_relaxed (cond->__data.__g_refs + g1, 1) | 1;
+
+        if ((r >> 1) > 0)
+            futex_wait_simple (cond->__data.__g_refs + g1, r, private);
+        r = atomic_load_relaxed (cond->__data.__g_refs + g1);
+    }
+}
+```
+
+下面这里就将对g1和g2进行切换。
+
+```c
+    g1 ^= 1;
+    *g1index ^= 1;
+
+    unsigned int orig_size = wseq - (old_g1_start + old_orig_size);
+    __condvar_set_orig_size (cond, orig_size);
+
+    cond->__data.__g_size[g1] += orig_size;
+
+    if (cond->__data.__g_size[g1] == 0)
+        return false;
+```
 
 接下来将互斥锁进行释放，接着如果需要进入内核，则调用futex_wake对waiter进行唤醒。
 
@@ -129,20 +188,21 @@ pthread_cond_wait是等待条件变量的方法，其过程如下所示：
 3. 自旋等待，检查 __g_signals，自旋次数结束，进入 futex_wait_cancelable，休眠
 4. 完成后，需要对mutex进行加锁
 
+![glic-cond-var](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/cond-var/cond-var.png)
+
+
 
 下面就对照源码进行解析。
 
 pthread_cond_wait首先会获取一个等待的序列号。条件变量的结构体中有一个字段是__wseq，这个便是所谓的序列号，每次pthread_cond_wait都会将序列号加上2。
 
-从条件变量的初始化可以知道，wseq初始值为0。而wseq每次原子地递增2，因此当前wseq是一个偶数。当g1和g2发生切换时，wseq会发生变化
+从条件变量的初始化可以知道，wseq初始值为0。而wseq每次原子地递增2，因此当前wseq是一个偶数。wseq的奇偶性不是一成不变的，当g1和g2发生切换时，wseq会发生变化。
 
 ```c
 #define PTHREAD_COND_INITIALIZER { { {0}, {0}, {0, 0}, {0, 0}, 0, 0, {0, 0} } }
 ```
 
-
-接下来讲wseq和1进行与操作，由于wseq为偶数，因此g等于0。于是这个时候会将waiter放在g1队列中。
-
+接下来将wseq和1进行与操作，由于wseq为偶数，因此g等于0。
 
 ```c
   uint64_t wseq = __condvar_fetch_add_wseq_acquire (cond, 2);
@@ -157,6 +217,7 @@ pthread_cond_wait首先会获取一个等待的序列号。条件变量的结构
 ```
 
 接下来调用__pthread_mutex_unlock_usercnt释放互斥锁。
+
 ```c
   err = __pthread_mutex_unlock_usercnt (mutex, 0);
   if (__glibc_unlikely (err != 0))
@@ -186,6 +247,89 @@ pthread_cond_wait首先会获取一个等待的序列号。条件变量的结构
 	    }
 ```
 
+接下来，如果signal的值是低位为1，意味着当前的组已经被closed，直接跳出wait方法。
+
+如果signals的值低位不是1，并且大于0，则认为获取到了有效的信号。跳过下面的逻辑。
+
+```c
+    if (signals & 1)
+    goto done;
+
+    /* If there is an available signal, don't block.  */
+    if (signals != 0)
+    break;
+```
+
+如果逻辑没有走到这里，意味着自旋过程中，没有收到信号，于是尝试开始进行阻塞的动作。	  
+
+首先将引用计数增加2。
+
+```c
+    atomic_fetch_add_acquire (cond->__data.__g_refs + g, 2);
+    if (((atomic_load_acquire (cond->__data.__g_signals + g) & 1) != 0)
+        || (seq < (__condvar_load_g1_start_relaxed (cond) >> 1)))
+    {
+        /* Our group is closed.  Wake up any signalers that might be
+        waiting.  */
+        __condvar_dec_grefs (cond, g, private);
+        goto done;
+    }
+```
+
+下面是进行一些清理工作。
+
+```c
+    struct _pthread_cleanup_buffer buffer;
+    struct _condvar_cleanup_buffer cbuffer;
+    cbuffer.wseq = wseq;
+    cbuffer.cond = cond;
+    cbuffer.mutex = mutex;
+    cbuffer.private = private;
+    __pthread_cleanup_push (&buffer, __condvar_cleanup_waiting, &cbuffer);
+    err = __futex_abstimed_wait_cancelable64 (
+    cond->__data.__g_signals + g, 0, clockid, abstime, private);
+
+    __pthread_cleanup_pop (&buffer, 0);
+    if (__glibc_unlikely (err == ETIMEDOUT || err == EOVERFLOW))
+    {
+        __condvar_dec_grefs (cond, g, private);
+        /* If we timed out, we effectively cancel waiting.  Note that
+        we have decremented __g_refs before cancellation, so that a
+        deadlock between waiting for quiescence of our group in
+        __condvar_quiesce_and_switch_g1 and us trying to acquire
+        the lock during cancellation is not possible.  */
+        __condvar_cancel_waiting (cond, seq, g, private);
+        result = err;
+        goto done;
+    }
+    else
+    __condvar_dec_grefs (cond, g, private);
+
+    /* Reload signals.  See above for MO.  */
+    signals = atomic_load_acquire (cond->__data.__g_signals + g);
+```
+
+```c
+    uint64_t g1_start = __condvar_load_g1_start_relaxed (cond);
+    if (seq < (g1_start >> 1))
+    {
+        if (((g1_start & 1) ^ 1) == g)
+        {
+            unsigned int s = atomic_load_relaxed (cond->__data.__g_signals + g);
+            while (__condvar_load_g1_start_relaxed (cond) == g1_start)
+            {
+                if (((s & 1) != 0)
+                || atomic_compare_exchange_weak_relaxed
+                    (cond->__data.__g_signals + g, &s, s + 2))
+                {
+                    futex_wake (cond->__data.__g_signals + g, 1, private);
+                    break;
+            }
+        }
+    }
+```
+
+
 ## gdb观察条件变量的内部值的变化
 
 ```cpp
@@ -196,7 +340,6 @@ pthread_cond_wait首先会获取一个等待的序列号。条件变量的结构
 #include <unistd.h>
 pthread_t t1;
 pthread_t t2;
-pthread_t t3;
 pthread_mutex_t mutex;
 pthread_cond_t cond;
 int i=0;
@@ -248,6 +391,11 @@ int main(){
 
 在程序中，创建了两个线程，一个线程wait，一个线程signal。我们在signal的方法中下了断点。
 
+
+在上文中，我们知道，pthread_cond_wait每次会首先获取一个序列号，并将该序列号加上2。从上述的打印中的内容，我们看到__wseq的值确实为2。
+
+此时还没有收到信号，因此__g_signals = {0, 0}。由于其中一个线程已经调用futex_wait进行sleep，因此__g_refs = {2, 0}。
+
 ```shell
 [root@localhost test]# gdb a.out  -q
 Reading symbols from a.out...done.
@@ -273,13 +421,13 @@ $1 = {__data = {{__wseq = 2, __wseq32 = {__low = 2, __high = 0}}, {__g1_start = 
 (gdb)
 ```
 
-在上文中，我们知道，pthread_cond_wait每次会首先获取一个序列号，并将该序列号加上2。从上述的打印中的内容，我们看到__wseq的值确实为2。
-
 接下来我们使用next，使得其中一个线程进行signal操作。
 
 signal操作的g1切换的过程中将修改__wseq的值，会将__wseq和1做异或操作。
 
 ```2 ^ 1 = 3```，因此此时cond中的__wseq的值为3。
+
+此时的g1为0，因此 __g_signals = {2, 0}。
 
 ```shell
 (gdb) n
