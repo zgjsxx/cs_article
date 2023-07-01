@@ -23,7 +23,7 @@ typedef union
 } pthread_cond_t;
 ```
 
-```__pthread_cond_s```的定义如下所示，字段很多，比之前的互斥锁复杂了很多。
+```__pthread_cond_s```的定义如下所示，字段很多，比互斥锁复杂了很多。
 
 ```c
 struct __pthread_cond_s
@@ -75,7 +75,7 @@ pthread_cond_signal是条件变量发送信号的方法，其过程如下所示�
 - 2. 有waiter, 检查是否需要切换组(G1为空，G2有一个等待者，则需要将 G2 切换为 G1)
 - 3. 唤醒G1中剩余的waiter。
 
-这里开始涉及G1和G2的概念。这里给出其含义，即新的waiter将加入G2,signal将从G1中取waiter唤醒，如果G1没有waiter，在从G2中取信号唤醒。
+这里开始涉及G1和G2的概念。这里给出其含义，即新的waiter将加入G2,signal将从G1中取waiter进行唤醒，如果G1没有waiter，再从G2中取waiter唤醒。
 
 接下来通过源码分析其执行过程。
 
@@ -110,7 +110,7 @@ __wref按照8递增的原因，在注释中也给出了,因为低3位有了其�
 
 接着检查G1中是否有waiter，如果有，向G1组中发送信号值（对应的signals+2），并将G1中剩余的waiter减去1。
 
-如果G1已经没有剩余的waiter，那么就需要从G2中取waiter。这里通过__condvar_quiesce_and_switch_g1实现，实际上__condvar_quiesce_and_switch_g1是将G1和G2的身份做了调换。
+如果G1已经没有剩余的waiter，那么就需要从G2中取waiter。这里通过```__condvar_quiesce_and_switch_g1```实现，实际上```__condvar_quiesce_and_switch_g1```是将G1和G2的身份做了调换。
 
 ```c
   if ((cond->__data.__g_size[g1] != 0)
@@ -372,17 +372,17 @@ ___pthread_cond_wait (pthread_cond_t *cond, pthread_mutex_t *mutex)
 
 ## 条件变量的虚假唤醒是如何产生的?
 
-在pthread_cond_signal中，首先会原子性地修改一个signal变量的值，如果此时一个waiter还没有进入内核wait，还在自旋检查该变量，那么这个waiter就会被直接唤醒，而不会调用futex_wait。
+在```pthread_cond_signal```中，首先会原子性地修改一个**signal变量**的值，如果此时一个waiter还没有进入内核wait，还在自旋检查该变量，那么这个waiter就会被直接唤醒，而不会调用futex_wait。
 
 在修改完这个signal变量的值之后，将会调用futex_wait唤醒一个waiter。
 
-如果此时有一个signal的A线程，一个已经调用futex_wait的B线程，和一个正在wait的C线程，signal线程调用pthead_cond_signal就可能同时将B线程和C线程全部唤醒。
+如果此时有一个signal的A线程，一个已经调用futex_wait的B线程，和一个正在wait的C线程，signal线程调用```pthead_cond_signal```就可能同时将B线程和C线程全部唤醒。
 
 ![glic-cond-var](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/cond-var/cond-var3.png)
 
 从源码的注释中，导致虚假唤醒的场景还不止于此，但是上述是一个最经典的场景。
 
-由于虚假唤醒的存在，就要求我们在写条件变量时一定要记得写循环判等，类似于下面的形式。
+由于**虚假唤醒**的存在，就要求我们在写条件变量时一定要记得写循环判等，类似于下面的形式。
 
 ```cpp
 while(!flag)
@@ -394,6 +394,7 @@ while(!flag)
 ## gdb观察条件变量的内部值的变化
 
 接下来，结合gdb，边运行边打印，观察条件变量内部数据的变化。
+
 ### 程序源码
 
 ```cpp
