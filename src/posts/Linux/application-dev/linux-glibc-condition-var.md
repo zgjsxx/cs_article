@@ -6,13 +6,13 @@ category:
 
 # 深入了解glibc的条件变量
 
-条件变量是日常开发中多线程同步的一个重要手段，使用条件变量，可以使得我们可以构建处生产者-消费者这样的模型。
+**条件变量**是日常开发中进行**多线程同步**的一个重要手段，使用条件变量，可以使得我们可以构建出**生产者-消费者**这样的模型。
 
 本文将从glibc条件变量的源码出发，讲解其背后的实现原理。
 
 ## pthread_cond_t的结构
 
-pthread_cond_t是glibc的条件变量的结构，其___data字段比较重要，进一步我们查看```__pthread_cond_s```的定义。
+```pthread_cond_t```是glibc的条件变量的结构，其```___data```字段比较重要，进一步我们查看```__pthread_cond_s```的定义。
 
 ```c
 typedef union
@@ -23,10 +23,9 @@ typedef union
 } pthread_cond_t;
 ```
 
-```__pthread_cond_s```的定义如下所示，字段很多，至少比之前的互斥锁复杂了很多。
+```__pthread_cond_s```的定义如下所示，字段很多，比之前的互斥锁复杂了很多。
 
 ```c
-
 struct __pthread_cond_s
 {
   __extension__ union
@@ -64,19 +63,23 @@ struct __pthread_cond_s
 - __g_refs: 表示G1和G2futex waiter的引用计数，例如{2，2}表示G1和G2各有一个waiter。
 - __g_signals：可以被消费的信号数
 - __g_size：G1和G2在切换之后，G1里面剩余的waiter数量。
+
+附录中有源码中对于这些字段的详细解释，也可以参考。
   
-这些字段是比较复杂的，下面将会对pthread_cond_signal和pthread_cond_wait两个函数进行详解，届时将会理解这些字段的含义。
+总之这些字段是比较复杂的，下面将会对```pthread_cond_signal```和```pthread_cond_wait```两个函数进行详解，届时将会理解这些字段的含义。
 ## pthread_cond_signal
 
 pthread_cond_signal是条件变量发送信号的方法，其过程如下所示：
 
-- 1. 检查 cond __wrefs, 若没有waiter则直接返回
+- 1. 检查__wrefs, 若没有waiter则直接返回
 - 2. 有waiter, 检查是否需要切换组(G1为空，G2有一个等待者，则需要将 G2 切换为 G1)
 - 3. 唤醒G1中剩余的waiter。
 
-下面通过源码分析其执行过程。
+这里开始涉及G1和G2的概念。这里给出其含义，即新的waiter将加入G2,signal将从G1中取waiter唤醒，如果G1没有waiter，在从G2中取信号唤醒。
 
-pthread_cond_signal首先将读取条件变量的等待任务的数量。 ```__wref >> 3``` 等同于```__wref/8```，wref每次是按照8递增的，在pthread_conf_wait函数中有相应实现。
+接下来通过源码分析其执行过程。
+
+```pthread_cond_signal```首先将读取条件变量的等待任务的数量。 ```__wref >> 3``` 等同于```__wref/8```，wref每次是按照8递增的，在pthread_conf_wait函数中有相应实现。
 
 __wref按照8递增的原因，在注释中也给出了,因为低3位有了其它用途。
 
@@ -94,7 +97,7 @@ __wref按照8递增的原因，在注释中也给出了,因为低3位有了其�
     return 0;
 ```
 
-这里获取条件变量中的序列号，通过序列号来获取现在的G1数组的下标（0或者1）。
+接下来获取条件变量中的序列号，通过序列号来获取现在的G1数组的下标（0或者1）。
 
 刚开始时wseq为偶数，因此G1的index为1。
 
@@ -107,7 +110,7 @@ __wref按照8递增的原因，在注释中也给出了,因为低3位有了其�
 
 接着检查G1中是否有waiter，如果有，向G1组中发送信号值（对应的signals+2），并将G1中剩余的waiter减去1。
 
-如果G1已经没有剩余的waiter，那么就需要从G2中取waiter。实际上__condvar_quiesce_and_switch_g1是将G1和G2的身份做了调换。
+如果G1已经没有剩余的waiter，那么就需要从G2中取waiter。这里通过__condvar_quiesce_and_switch_g1实现，实际上__condvar_quiesce_and_switch_g1是将G1和G2的身份做了调换。
 
 ```c
   if ((cond->__data.__g_size[g1] != 0)
@@ -139,7 +142,7 @@ __condvar_quiesce_and_switch_g1首先检查G2是否有waiter，如果没有waite
 	return false;
 ```
 
-下面将G1的signal值和1进行与操作，标记此时g1已经被close。因为程序的并发性，在G1和G2切换的时候可能还会有新的线程加入到旧的G1中。于是就给他们发送特殊的信号值，使得这些waiter可以感知。从这个点，也能联想到为什么条件变量会存在**虚假唤醒**。
+下面将G1的signal值和1进行与操作，标记此时g1已经被close。因为程序的并发性，在G1和G2切换的时候可能还会有新的waiter加入到旧的G1中。于是就给他们发送特殊的信号值，使得这些waiter可以感知。从这个点，也能联想到为什么条件变量会存在**虚假唤醒**。
 
 ```c
   atomic_fetch_or_relaxed (cond->__data.__g_signals + g1, 1);
@@ -168,7 +171,7 @@ while ((r >> 1) > 0)
 
 接下来，开始对G1和G2进行切换。换的过程很简单，就是将G1的index和G2的index做了切换。
 
-切换之后，为了知道当前G1的一些信息，会计算其起始下标和长度。这个起始下标的含义起始时针对历史上所有的waiter而言的。
+切换之后，为了知道当前G1的一些信息，会计算其起始下标和长度。这个起始下标的含义起始时针对历史上所有的waiter而言的。这个点不是很好理解，可以参考下文中对于pthread_cond_signal和pthread_conf_wait的梳理。
 
 ```c
     wseq = __condvar_fetch_xor_wseq_release (cond, 1) >> 1;
@@ -188,9 +191,9 @@ while ((r >> 1) > 0)
     return true;
 ```
 
-__condvar_quiesce_and_switch_g1到此位置就结束了，实际上就是当旧的G1中所有的waiter都唤醒时，将老的G1和G2身份对调。于是老的G2就成为了G1。后续将从G1继续唤醒waiter。
+__condvar_quiesce_and_switch_g1到此为止就结束了，实际上就是当旧的G1中所有的waiter都唤醒时，将老的G1和G2身份对调。于是老的G2就成为了G1。后续将从G1继续唤醒waiter。
 
-回到pthread_cond_signal，最后一部分代码则将互斥锁进行释放，接着如果需要进入内核，则调用futex_wake对waiter进行唤醒。
+回到```pthread_cond_signal```，最后一部分代码则将互斥锁进行释放，接着如果需要进入内核，则调用**futex_wake**对waiter进行唤醒。
 
 ```c
   __condvar_release_lock (cond, private);
@@ -202,11 +205,11 @@ __condvar_quiesce_and_switch_g1到此位置就结束了，实际上就是当旧�
 
 ## pthread_cond_wait
 
-pthread_cond_wait是等待条件变量的方法，其过程如下所示：
+```pthread_cond_wait```是等待条件变量的方法，其过程如下所示：
 
 1. 申请一个新的__wseq，实际上就是老的__wseq加上2。
 2. 释放互斥锁
-3. 自旋等待，检查 __g_signals，自旋次数结束，进入 futex_wait_cancelable，休眠
+3. 自旋等待，检查 __g_signals，自旋次数结束，进入futex_wait，休眠
 4. 完成后，需要对mutex进行加锁
 
 
@@ -664,6 +667,51 @@ $6 = {__data = {{__wseq = 8, __wseq32 = {__low = 8, __high = 0}}, {__g1_start = 
 
 下面继续执行，分析的情况是类似的，不再展开。
 
+
+## 附录
+
+### pthread_cond_s各字段含义
+```shell
+   __wseq: Waiter sequence counter
+     * LSB is index of current G2.
+     * Waiters fetch-add while having acquire the mutex associated with the
+       condvar.  Signalers load it and fetch-xor it concurrently.
+   __g1_start: Starting position of G1 (inclusive)
+     * LSB is index of current G2.
+     * Modified by signalers while having acquired the condvar-internal lock
+       and observed concurrently by waiters.
+   __g1_orig_size: Initial size of G1
+     * The two least-significant bits represent the condvar-internal lock.
+     * Only accessed while having acquired the condvar-internal lock.
+   __wrefs: Waiter reference counter.
+     * Bit 2 is true if waiters should run futex_wake when they remove the
+       last reference.  pthread_cond_destroy uses this as futex word.
+     * Bit 1 is the clock ID (0 == CLOCK_REALTIME, 1 == CLOCK_MONOTONIC).
+     * Bit 0 is true iff this is a process-shared condvar.
+     * Simple reference count used by both waiters and pthread_cond_destroy.
+     (If the format of __wrefs is changed, update nptl_lock_constants.pysym
+      and the pretty printers.)
+   For each of the two groups, we have:
+   __g_refs: Futex waiter reference count.
+     * LSB is true if waiters should run futex_wake when they remove the
+       last reference.
+     * Reference count used by waiters concurrently with signalers that have
+       acquired the condvar-internal lock.
+   __g_signals: The number of signals that can still be consumed.
+     * Used as a futex word by waiters.  Used concurrently by waiters and
+       signalers.
+     * LSB is true iff this group has been completely signaled (i.e., it is
+       closed).
+   __g_size: Waiters remaining in this group (i.e., which have not been
+     signaled yet.
+     * Accessed by signalers and waiters that cancel waiting (both do so only
+       when having acquired the condvar-internal lock.
+     * The size of G2 is always zero because it cannot be determined until
+       the group becomes G1.
+     * Although this is of unsigned type, we rely on using unsigned overflow
+       rules to make this hold effectively negative values too (in
+       particular, when waiters in G2 cancel waiting).
+```
 ## 总结
 
 glibc中的条件变量的底层实现是相对复杂的，其将信号分成了两个组G1和G2，pthread_cond_wait会将waiter加入到G2组，而pthread_cond_wait将会从G1中进行唤醒，如果G1全部唤醒，将会检查G2，如果G2存在waiter，将切换G1和G2，如此循环往复。 由于需要考虑并发性的问题，程序中加入了很多的检查逻辑，因此程序理解起来是相对复杂的。除此之外，从其源码中，我们也可以更好的理解为什么条件变量会存在虚假唤醒。
