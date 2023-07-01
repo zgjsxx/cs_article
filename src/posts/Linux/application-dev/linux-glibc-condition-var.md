@@ -294,7 +294,17 @@ pthread_cond_wait首先会获取一个等待的序列号。条件变量的结构
     }
 ```
 
-下面是进行一些清理工作。这里感兴趣的话可以自行研究，这里不细讲。
+下面开始调用futex_wait进行等待。注意这里调用的是__futex_abstimed_wait_cancelable64，看起来好像是可以传递时间参数的。但是___pthread_cond_wait传入的参数是NULL，因此等同于futex_wait。
+
+```c
+int
+___pthread_cond_wait (pthread_cond_t *cond, pthread_mutex_t *mutex)
+{
+  /* clockid is unused when abstime is NULL. */
+  return __pthread_cond_wait_common (cond, mutex, 0, NULL);
+}
+```
+
 
 ```c
     struct _pthread_cleanup_buffer buffer;
@@ -327,7 +337,7 @@ pthread_cond_wait首先会获取一个等待的序列号。条件变量的结构
     signals = atomic_load_acquire (cond->__data.__g_signals + g);
 ```
 
-
+下面的代码是针对并发问题的处理，这里可以自行研究。
 
 ```c
     uint64_t g1_start = __condvar_load_g1_start_relaxed (cond);
@@ -350,9 +360,33 @@ pthread_cond_wait首先会获取一个等待的序列号。条件变量的结构
 ```
 
 
+## pthread_cond_signal和pthread_cond_wait梳理
+
+上面对两个函数进行了详解的分析，这里提供一张流程图，用以对上述过程加以理解。
+
 ![glic-cond-var](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/cond-var/cond-var.png)
 
 
+## 条件变量的虚假唤醒是如何产生的?
+
+在pthread_cond_signal中，首先会原子性地修改一个signal变量的值，如果此时一个waiter还没有进入内核wait，还在自旋检查该变量，那么这个waiter就会被直接唤醒，而不会调用futex_wait。
+
+在修改完这个signal变量的值之后，将会调用futex_wait唤醒一个waiter。
+
+如果此时有一个signal的A线程，一个已经调用futex_wait的B线程，和一个正在wait的C线程，signal线程调用pthead_cond_signal就可能同时将B线程和C线程全部唤醒。
+
+![glic-cond-var](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/cond-var/cond-var3.png)
+
+从源码的注释中，导致虚假唤醒的场景还不止于此，但是上述是一个最经典的场景。
+
+由于虚假唤醒的存在，就要求我们在写条件变量时一定要记得写循环判等，类似于下面的形式。
+
+```cpp
+while(!flag)
+{
+    cv.wait(mtx);
+}
+```
 
 ## gdb观察条件变量的内部值的变化
 
