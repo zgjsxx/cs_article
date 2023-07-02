@@ -59,7 +59,7 @@ struct __pthread_cond_s
 - __wrefs: G1和G2所有等待的线程数，是按照8的倍数来的，1个线程为8，2个线程是16，以此类推。
 - __g1_start: G1的起点的在历史waiter中的序号。
 - __g1_orig_size: G1的原始长度。低2位代表条件变量的内部的锁。
-- __wseq32：等待的序列号。
+- __wseq：序列号,用于标记waiter的先后顺序。
 - __g_refs: 表示G1和G2futex waiter的引用计数，例如{2，2}表示G1和G2各有一个waiter。
 - __g_signals：可以被消费的信号数
 - __g_size：G1和G2在切换之后，G1里面剩余的waiter数量。
