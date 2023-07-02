@@ -459,15 +459,15 @@ int main(){
 
 程序开始时G2的index = 0 ， G1的index = 1。
 
-首先我们分析**__wseq**，在上文的解析中知道，```pthread_cond_wait```每次会首先获取一个序列号，并将该序列号加上1。 实际操作时，因为__wseq的LSB（最低位）代表了G2的下标，因此每个waiter会将序列号加2(1 << 1)。由于有两个waiter，因此__wseq应该为4。从下面的gdb的打印中的内容，确实如此。
+首先我们分析 **__wseq**，在上文的解析中知道，```pthread_cond_wait```每次会首先获取一个序列号，并将该序列号加上1。 实际操作时，因为__wseq的LSB（最低位）代表了G2的下标，因此每个waiter会将序列号加2(1 << 1)。由于有两个waiter，因此__wseq应该为4。从下面的gdb的打印中的内容，确实如此。
 
-接着分析**__g_refs**， 由于其中两个waiter线程已经调用futex_wait进行sleep，而新的waiter总是加入到G2中，且目前G2的index是0，因此__g_refs = {4, 0}。 __g_refs中元素是4而不是2的原因和__wseq是类似的。
+接着分析 **__g_refs**， 由于其中两个waiter线程已经调用futex_wait进行sleep，而新的waiter总是加入到G2中，且目前G2的index是0，因此__g_refs = {4, 0}。 __g_refs中元素是4而不是2的原因和__wseq是类似的。
 
-接着分析**__wrefs**，其代表了waiter的总数量，目前有2个waiter，每个waiter会使得__wrefs增加8，因此__wrefs = 16。之所以增加8，是因为其低3位有了其它用途，这个点上面也提到过，这里再提及一次，下面的分析中将不再重复。
+接着分析 **__wrefs**，其代表了waiter的总数量，目前有2个waiter，每个waiter会使得__wrefs增加8，因此__wrefs = 16。之所以增加8，是因为其低3位有了其它用途，这个点上面也提到过，这里再提及一次，下面的分析中将不再重复。
 
-接着分析**__g_size**，它表示G1和G2交换后，G1中剩余的waiter数量。由于目前还没有G1和G2的切换，因此__g_size = {0,0}。
+接着分析 **__g_size**，它表示G1和G2交换后，G1中剩余的waiter数量。由于目前还没有G1和G2的切换，因此__g_size = {0,0}。
 
-最后分析**__g1_start**和**__g1_orig_size**，这里没有出现G1和G2的切换，因此__g1_start和__g1_orig_size都还是初始值0。
+最后分析 **__g1_start**和**__g1_orig_size**，这里没有出现G1和G2的切换，因此__g1_start和__g1_orig_size都还是初始值0。
 
 此时，G1和G2的构成如下图所示：
 
@@ -507,15 +507,15 @@ $1 = {__data = {{__wseq = 4, __wseq32 = {__low = 4, __high = 0}}, {__g1_start = 
 
 在Signal线程执行signal操作时，此时G1的长度为0(初始状态下，waiter都是加入G2的，G1为空），因此下面将会遇到G1和G2的切换。
 
-首先分析**__wseq**。__wseq在G1和G2切换时，奇偶性会发生变化。计算方法为```4^1 = 5```。因此__wseq = 5。
+首先分析 **__wseq**。__wseq在G1和G2切换时，奇偶性会发生变化。计算方法为```4^1 = 5```。因此__wseq = 5。
 
-接着分析**__g_refs**。 由于signal线程调用```pthread_cond_signal```对waiter进行了唤醒。因此__g_refs需要减去2，因此其等于{2，0}。
+接着分析 **__g_refs**。 由于signal线程调用```pthread_cond_signal```对waiter进行了唤醒。因此__g_refs需要减去2，因此其等于{2，0}。
 
-接着分析**__g_size**。因为此前G2的waiter有2个，已经唤醒了一个，还剩下一个没有唤醒，因此这里g_size = {1，0}。
+接着分析 **__g_size**。因为此前G2的waiter有2个，已经唤醒了一个，还剩下一个没有唤醒，因此这里g_size = {1，0}。
 
-接着分析**__g1_start**。__g1_start指的是当前的G1数组在历史waiter中的序号。毫无疑问，初始状态下，__g1_start = 1。
+接着分析 **__g1_start**。__g1_start指的是当前的G1数组在历史waiter中的序号。毫无疑问，初始状态下，__g1_start = 1。
 
-接着分析**__g1_orig_size**, __g1_orig_size指的是当前的G1在历史waiter图中的长度。之前G2的waiter数量为2，切换后G1的原始长度也为2，因此__g1_orig_size = (2 << 2) = 8。
+接着分析 **__g1_orig_size**, __g1_orig_size指的是当前的G1在历史waiter图中的长度。之前G2的waiter数量为2，切换后G1的原始长度也为2，因此__g1_orig_size = (2 << 2) = 8。
 
 注意此时G1的index = 0， G2的index = 1，已经发生改变。
 
@@ -540,15 +540,15 @@ $2 = {__data = {{__wseq = 5, __wseq32 = {__low = 5, __high = 0}}, {__g1_start = 
 
 注意此时G1的index = 0， G2的index = 1。
 
-首先分析**__wseq**。此前__wseq值为5。此时由于又加入了一个waiter，因此__wseq增加2,__wseq = 7。
+首先分析 **__wseq**。此前__wseq值为5。此时由于又加入了一个waiter，因此__wseq增加2,__wseq = 7。
 
-接着分析**__g1_start**。由于没有发生G1和G2的切换，因此其值保持不变，仍为1。
+接着分析 **__g1_start**。由于没有发生G1和G2的切换，因此其值保持不变，仍为1。
 
-接着分析**__g_refs**。此时G1仍然有一个waiter没有唤醒，而新的waiter会加入G2，因此其值为{2，2}。
+接着分析 **__g_refs**。此时G1仍然有一个waiter没有唤醒，而新的waiter会加入G2，因此其值为{2，2}。
 
-接着分析**__g_size**，G1中还剩下一个waiter没有唤醒，因此其值等于{1，0}。
+接着分析 **__g_size**，G1中还剩下一个waiter没有唤醒，因此其值等于{1，0}。
 
-接着分析**__g1_orig_size**。由于没有发生G1和G2的切换，因此其值保持不变，仍为8。
+接着分析 **__g1_orig_size**。由于没有发生G1和G2的切换，因此其值保持不变，仍为8。
 
 接着分析 **__wrefs**，因为G1和G2总共有2个waiter，因此其值等于16。
 
@@ -575,15 +575,15 @@ $3 = {__data = {{__wseq = 7, __wseq32 = {__low = 7, __high = 0}}, {__g1_start = 
 
 接着我们使用next，这会使得Signal线程调用pthread_cond_signal唤醒一个waiter。
 
-首先分析**__wseq**。由于没有新的waiter，因此__wseq值不变，仍为7。
+首先分析 **__wseq**。由于没有新的waiter，因此__wseq值不变，仍为7。
 
-接着分析**__g1_start**。由于没有发生G1和G2的切换，因此其值保持不变，仍为1。
+接着分析 **__g1_start**。由于没有发生G1和G2的切换，因此其值保持不变，仍为1。
 
-接着分析**__g_refs**。Signal线程调用了pthread_conf_signal方法唤醒了一个waiter，因此其值为{0，2}。
+接着分析 **__g_refs**。Signal线程调用了pthread_conf_signal方法唤醒了一个waiter，因此其值为{0，2}。
 
-接着分析**__g_size**，Signal线程调用了pthread_conf_signal方法唤醒了一个waiter，因此其值等于{0，0}。
+接着分析 **__g_size**，Signal线程调用了pthread_conf_signal方法唤醒了一个waiter，因此其值等于{0，0}。
 
-接着分析**__g1_orig_size**。由于没有发生G1和G2的切换，因此其值保持不变，仍为8。
+接着分析 **__g1_orig_size**。由于没有发生G1和G2的切换，因此其值保持不变，仍为8。
 
 接着分析 **__wrefs**，因为G1和G2总共有1个waiter，因此其值等于8。
 
@@ -608,17 +608,17 @@ $4 = {__data = {{__wseq = 7, __wseq32 = {__low = 7, __high = 0}}, {__g1_start = 
 
 注意此时G1的index = 0， G2的index = 1
 
-首先分析**__wseq**。此时又加入了一个waiter，因此__wseq值为9。
+首先分析 **__wseq**。此时又加入了一个waiter，因此__wseq值为9。
 
-接着分析**__g1_start**。由于没有发生G1和G2的切换，因此其值保持不变，仍为1。
+接着分析 **__g1_start**。由于没有发生G1和G2的切换，因此其值保持不变，仍为1。
 
-接着分析**__g_refs**。此时G2又加入了一个waiter，因此其值为{0，4}(G2的index=1，因此4在第二个位置上)。
+接着分析 **__g_refs**。此时G2又加入了一个waiter，因此其值为{0，4}(G2的index=1，因此4在第二个位置上)。
 
-接着分析**__g_size**。目前G1中没有waiter了，因此值等于{0，0}。
+接着分析 **__g_size**。目前G1中没有waiter了，因此值等于{0，0}。
 
-接着分析**__g1_orig_size**。由于没有发生G1和G2的切换，因此其值保持不变，仍为8。
+接着分析 **__g1_orig_size**。由于没有发生G1和G2的切换，因此其值保持不变，仍为8。
 
-接着分析**__wrefs**，因为G1和G2总共有2个waiter，因此其值等于16。
+接着分析 **__wrefs**，因为G1和G2总共有2个waiter，因此其值等于16。
 
 __g_signals的值很难被捕获到，其值在pthread_cond_signal的内部发生改变。
 
@@ -644,15 +644,15 @@ $5 = {__data = {{__wseq = 9, __wseq32 = {__low = 9, __high = 0}}, {__g1_start = 
 
 接着我们使用next，使得Signal线程调用pthread_conf_signal方法。这个时候由于G1为0，因此会发生G1和G2的切换。
 
-首先分析**__wseq**。此时G1和G2发生了切换，__wseq的奇偶性会发生变化，计算方法为```9 ^ 1 = 8```，因此__wseq = 8。
+首先分析 **__wseq**。此时G1和G2发生了切换，__wseq的奇偶性会发生变化，计算方法为```9 ^ 1 = 8```，因此__wseq = 8。
 
-接着分析**__g1_start**。由于G1和G2发生了切换，当前G2中的第一个waiter属于历史上的第三个waiter，历史值是从0开始的，因此此时G1的起始waiter的序号为2，再进行偏移，就得到了4。
+接着分析 **__g1_start**。由于G1和G2发生了切换，当前G2中的第一个waiter属于历史上的第三个waiter，历史值是从0开始的，因此此时G1的起始waiter的序号为2，再进行偏移，就得到了4。
 
-接着分析**__g_refs**。目前G1还有一个waiter还没有被唤醒，且目前G1的index = 1，因此__g_refs =  {0, 2}。
+接着分析 **__g_refs**。目前G1还有一个waiter还没有被唤醒，且目前G1的index = 1，因此__g_refs =  {0, 2}。
 
-接着分析**__g_size**，在G1和G2切换之前，G2有两个waiter，目前唤醒了一个，还剩下一个，因此其值等于{0, 1}。
+接着分析 **__g_size**，在G1和G2切换之前，G2有两个waiter，目前唤醒了一个，还剩下一个，因此其值等于{0, 1}。
 
-接着分析**__g1_orig_size**。发生G1和G2切换前，G2有两个任务，因此__g1_orig_size=8。
+接着分析 **__g1_orig_size**。发生G1和G2切换前，G2有两个任务，因此__g1_orig_size=8。
 
 接着分析 **__wrefs**，因为G1和G2总共有2个waiter，因此其值等于16。
 
