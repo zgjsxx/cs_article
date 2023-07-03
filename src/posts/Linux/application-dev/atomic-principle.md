@@ -7,6 +7,41 @@ category:
 # 原子变量的底层实现原理
 
 
+```cpp
+int main()
+{
+    int value  = 0;
+    __sync_fetch_and_add(&value, 1);
+}
+```
+
+```s
+        .file   "test2.cpp"
+        .text
+        .globl  main
+        .type   main, @function
+main:
+.LFB0:
+        .cfi_startproc
+        pushq   %rbp
+        .cfi_def_cfa_offset 16
+        .cfi_offset 6, -16
+        movq    %rsp, %rbp
+        .cfi_def_cfa_register 6
+        movl    $0, -4(%rbp)
+        lock addl       $1, -4(%rbp)
+        movl    $0, %eax
+        popq    %rbp
+        .cfi_def_cfa 7, 8
+        ret
+        .cfi_endproc
+.LFE0:
+        .size   main, .-main
+        .ident  "GCC: (GNU) 11.3.1 20221121 (Red Hat 11.3.1-4)"
+        .section        .note.GNU-stack,"",@progbits
+
+```
+
 ```c
 //n++
 type __sync_fetch_and_add (type *ptr, type value); //m + n
