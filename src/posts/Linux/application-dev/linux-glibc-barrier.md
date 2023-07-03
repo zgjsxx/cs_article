@@ -168,15 +168,46 @@ void* handle(void *data)
 
 int main()
 {
-        pthread_t t1,t2;
-        pthread_barrier_init(&b,NULL,2); //初始化屏障
-        b_real = (pthread_barrier *)&b;
-        pthread_mutex_init(&numlock,NULL);
-        pthread_create(&t1,NULL,handle,NULL);
-        pthread_create(&t2,NULL,handle,NULL);
-        pthread_join(t1, NULL);
-        pthread_join(t2, NULL);
+    pthread_t t1,t2;
+    pthread_barrier_init(&b,NULL,2); //初始化屏障
+    b_real = (pthread_barrier *)&b;
+    pthread_mutex_init(&numlock,NULL);
+    pthread_create(&t1,NULL,handle,NULL);
+    pthread_create(&t2,NULL,handle,NULL);
+    pthread_join(t1, NULL);
+    pthread_join(t2, NULL);
 
-        exit(0);
+    exit(0);
 }
 ```
+
+在pthread_barrier_wait方法上下一个断点，在代码中是30行，运行代码，然后打印b_real的值。
+
+目前还没有线程进入barrier，因此in=0。当前还是属于第一轮，因此current_round = 0。count在程序中设置，因此其值为2。程序并没有设置进程间共享的属性，因此shared = 0。
+
+目前还没有完成一轮，因此out = 0。
+
+```shell
+[root@localhost test4]# gdb a.out  -q
+Reading symbols from a.out...
+(gdb) b 30
+Breakpoint 1 at 0x401219: file test.cpp, line 30.
+(gdb) r
+Starting program: /home/work/cpp_proj/test4/a.out
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+[New Thread 0x7ffff77ff640 (LWP 151331)]
+[New Thread 0x7ffff6ffe640 (LWP 151332)]
+in = 0
+thread enter wait point
+[Switching to Thread 0x7ffff77ff640 (LWP 151331)]
+
+Thread 2 "a.out" hit Breakpoint 1, handle (data=0x0) at test.cpp:30
+30              pthread_barrier_wait(&b);
+Missing separate debuginfos, use: dnf debuginfo-install glibc-2.34-60.el9.x86_64 libgcc-11.3.1-4.3.el9.x86_64 libstdc++-11.3.1-4.3.el9.x86_64
+(gdb) p *b_real
+$1 = {in = 0, current_round = 0, count = 2, shared = 0, out = 0}
+(gdb)
+```
+
+
