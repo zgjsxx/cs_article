@@ -193,7 +193,7 @@ while ((r >> 1) > 0)
 
 __condvar_quiesce_and_switch_g1到此为止就结束了，实际上就是当旧的G1中所有的waiter都唤醒时，将老的G1和G2身份对调。于是老的G2就成为了G1。后续将从G1继续唤醒waiter。
 
-回到```pthread_cond_signal```，最后一部分代码则将互斥锁进行释放，接着如果需要进入内核，则调用**futex_wake**对waiter进行唤醒。
+回到```pthread_cond_signal```，最后一部分代码则将互斥锁进行释放，接着如果需要进入内核，则调用**futex_wake**对waiter进行唤醒。注意这里futex_wake的第二个参数是1，代表，将唤醒一个waiter。
 
 ```c
   __condvar_release_lock (cond, private);
