@@ -15,11 +15,11 @@ category:
     int pthread_barrier_wait(pthread_barrier_t *barrier)
 ```
 
-本文将从```pthread_barrier_wait```出发，将其其背后的实现原理。
+本文将从```pthread_barrier_wait```出发，讲解其背后的实现原理。
 
 ## pthread_barrier_t的结构
 
-pthread_barrier_t的结构定义在```sysdeps/nptl/bits/pthreadtypes.h```中，是一个联合体。联合中有两个字段，第一个字段是char类型的数组。
+```pthread_barrier_t```的结构定义在```sysdeps/nptl/bits/pthreadtypes.h```中，是一个联合体。联合体中有两个字段，第一个字段是char类型的数组。
 
 ```c
 typedef union
@@ -347,3 +347,5 @@ $4 = {in = 4, current_round = 2, count = 2, shared = 0, out = 2}
 ## 总结
 
 在源码面前，所有的问题都是非常清晰的。本文通过分析```pthread_barrier_wait.c```的源码，了解了屏障可以使得一批线程同时等待在一个点，并同时运行的原理。 屏障是可以被重复使用的，使用了```in```,```current_round```,```count```三个变量实现了这个点。
+
+在案例分析中，安装了glibc的debuginfo，跟踪了其中的内部变量的值的变化，验证了之前源码的分析。
