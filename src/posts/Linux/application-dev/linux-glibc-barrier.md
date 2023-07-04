@@ -6,9 +6,12 @@ category:
 
 # 深入理解glibc barrier的实现原理
 
-在多线程的同步方式中，屏障可以协调多个线程，使其同时停止在某一个点，然后再统一运行。
+在多线程的同步方式中，屏障可以协调多个线程，使其同时停止在某一个点，然后再统一运行,其效果如下所示：
 
-```pthread_barrier_wait```实现了该功能。
+![barrier](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/barrier/barrier.png)
+
+
+glibc中```pthread_barrier_wait```实现了该功能。
 
 ```c
 #include <pthread.h>
