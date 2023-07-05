@@ -6,15 +6,86 @@ tag:
 ---
 
 
-# 面试题：堆排序是一种稳定排序吗？
+# 堆排序算法及其稳定性分析？
 
-在回答该问题前，首先需要了解什么是稳定排序。
+## 什么是堆排序？
+
+堆排序是利用数据结构堆而设计的一种排序算法。
+
+堆分为两种，**大顶堆**和**小顶堆**。
+
+所谓大顶堆就是每个节点的值都大于或者等于其左右孩子节点的值。
+
+小顶堆则是相反的，每个节点的值都小于或者等于其左右孩子节点的值。
+
+下面是一个大顶堆的示例，其拥有下面的性质:
+
+```arr[i] >= arr[2i+1] && arr[i] >= arr[2i+2]```
+
+![heapsort1](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/datastructure_algorithm/heapsort-stable/heapsort1.png)
+
+下面是一个小顶堆的实例，其拥有下面的性质：
+
+```arr[i] <= arr[2i+1] && arr[i] <= arr[2i+2]```  
+
+![heapsort2](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/datastructure_algorithm/heapsort-stable/heapsort2.png)
+
+大顶堆和小顶堆数据结构是堆排序的基础，下面就看堆排序是如何利用堆来进行排序的。
+
+堆排序的步骤如下：
+- 1.将原始数组转换成一个大顶堆(如果要求升序)或者小顶堆(如果要求降序)。
+- 2.将大顶堆或者小顶堆的首元素与最后一个元素交换
+- 3.剔除尾部元素，将剩下的元素重新构成一个大顶堆或者小顶堆，重复2。
+
+以一个例子来看一下上述过程是怎样的。
+
+原始数组```arr = [3,1,4,5,2]```， 对其进行升序。
+
+步骤1：首先将原数组构建成一个大顶堆。首先从叶子节点开始，将1和5进行对调。
+
+![heapsort-demo](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/datastructure_algorithm/heapsort-stable/heapsort-demo1.png)
+
+步骤2：继续进行调整，将5和3进行对调，此时已经成为了一个大顶堆。
+
+![heapsort-demo](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/datastructure_algorithm/heapsort-stable/heapsort-demo2.png)
+
+
+步骤3：将堆顶元素和尾部元素进行对调。
+
+![heapsort-demo](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/datastructure_algorithm/heapsort-stable/heapsort-demo3.png)
+
+步骤4：重新构建一个大顶堆。
+
+![heapsort-demo](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/datastructure_algorithm/heapsort-stable/heapsort-demo4.png)
+
+步骤5：将堆顶元素和尾部元素进行对调。
+
+![heapsort-demo](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/datastructure_algorithm/heapsort-stable/heapsort-demo5.png)
+
+步骤6：重新构建一个大顶堆。
+
+![heapsort-demo](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/datastructure_algorithm/heapsort-stable/heapsort-demo6.png)
+
+步骤7：将堆顶元素和尾部元素进行对调。
+
+![heapsort-demo](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/datastructure_algorithm/heapsort-stable/heapsort-demo7.png)
+
+步骤8：将堆顶元素和尾部元素进行对调。
+
+![heapsort-demo](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/datastructure_algorithm/heapsort-stable/heapsort-demo8.png)
+
+
+复杂度：
+
+时间复杂度：O(nlogn)
+
+## 稳定性分析
 
 **稳定性**就是指对于两个关键字相等的记录，它们在序列中的相对位置，在排序之前和排序之后没有发生改变。通俗地讲就是有两个关键字相等的数据A、B，排序前，A的位置是 i ，B的位置是 j，此时 i < j，则如果在排序后A的位置还是在B之前，那么称它是稳定的。
 
 那么堆排序是一个稳定排序吗？
 
-## 堆排序的稳定性分析
+### 堆排序的稳定性分析
 
 直接上答案堆排序并不是一个稳定排序。
 
