@@ -178,6 +178,16 @@ typedef enum memory_order {
     memory_order_seq_cst
 } memory_order;
 ```
+
+|memory order(MO)|作用|
+|--|--|
+|memory_order_relaxed|无fencing作用，cpu和编译器可以重排指令|
+|memory_order_consume|后面依赖此原子变量的访存指令勿重排至此条指令之前,注：性能比memory_order_acquire高|
+|memory_order_acquire|后面访存指令勿重排至此条指令之前|
+|memory_order_release|前面访存指令勿重排到此条指令之后|
+|memory_order_acq_rel|acquare + release|
+|memory_order_seq_cst|acq_rel + 所有使用seq_cst的指令有严格的全序关系|
+
 之前在场景2中，因为指令的重排导致了意料之外的错误，通过使用原子变量并选择合适内存序，可以解决这个问题。下面先来看看这几种内存序
 
 ### memory_order_release/memory_order_acquire
