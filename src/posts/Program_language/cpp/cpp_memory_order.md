@@ -245,3 +245,4 @@ step4使得c依赖于flag，当step4线程B读取到flag的值为true的时候�
 参考文章：
 https://blog.csdn.net/chansoncc/article/details/88186350?share_token=4b2577c7-3323-4f4d-9e94-0240bf5b640c
 
+https://wudaijun.com/2019/04/cache-coherence-and-memory-consistency/
