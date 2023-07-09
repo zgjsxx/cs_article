@@ -11,6 +11,7 @@ struct lock_rec_t {
 三元组(space， page_no， n_bits)可以唯一的确定一行的位置。
 
 
+
 ha_innodb.cc
 
 行锁：
