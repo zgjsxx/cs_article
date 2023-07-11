@@ -140,9 +140,9 @@ mysql的server文件名是mysqld。如果直接使用mysqld运行可能会遇到
 
 ## gdb 调试
 
-下面尝试使用gdb对mysql进行调试。
+本节中尝试使用gdb对mysql进行调试。
 
-Inodb的行记录中，有一个字段是heap_no，占用 13 比特，表示当前记录在页面堆中的相对位置。
+在Inodb的行记录中，有一个字段是heap_no，占用 13 比特，表示当前记录在页面堆中的相对位置。其中0和1有特殊用途，因此页面中的第一条记录heap_no为2， 第二条记录heap_no为3，以此类推。
 
 下面使用gdb进行验证这一点。
 
@@ -173,8 +173,7 @@ mysql> select * from user_tbl;
 2 rows in set (0.00 sec)
 ```
 
-
-这个时候使用```gdb attach <mysql_pid>```附加到进程中。在lock_rec_lock方法上下一个断点。至于为什么在这个函数上下断点，无需理解，仅仅要知道后面打印rec_lock变量，其中含有heap_no的值。
+这个时候使用```gdb attach <mysql_pid>```附加到进程中。在lock_rec_lock方法上下一个断点。至于为什么在这个函数上下断点，无需理解，仅仅要知道后面打印的rec_lock变量中含有heap_no的值。
 
 ```shell
 [root@localhost bin]# gdb attach 27536
@@ -232,7 +231,7 @@ Breakpoint 1 at 0x4d9f25f: file /home/work/cpp_proj/mysql-server-mysql-8.0.33/st
 Continuing.
 ```
 
-在另一个窗口的mysql客户端中，输入下面的update命令更新user_id=2的记录。
+在另一个窗口的mysql客户端中，输入下面的update命令更新```user_id=2```的记录。
 ```shell
 update user_tbl set user_name = 'zhangsan1' where user_id = 2;
 ```
@@ -254,7 +253,7 @@ Continuing.
 [Thread 0x7f7d286f8640 (LWP 33266) exited]
 ```
 
-在另一个窗口的mysql客户端中，输入下面的update命令更新user_id=1的记录。
+在另一个窗口的mysql客户端中，输入下面的update命令更新```user_id=1```的记录。
 
 ```shell
 update user_tbl set user_name = 'zhangsan1' where user_id = 1;
@@ -272,3 +271,4 @@ $2 = {m_thr = 0x0, m_trx = 0x0, m_mode = 1027, m_size = 9, m_index = 0x7f7d40164
 
 ```
 
+到此为止，调试完毕，验证了heap_no的含义。该调试没有任何现实含义，仅仅是一个练手的记录。
