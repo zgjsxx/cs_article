@@ -1,25 +1,18 @@
 # workflow 线程池分析
 
+
+
+```c
+typedef struct msg_t {
+int data; // 存储的消息
+struct msg_t* next; // 链接到下一个消息的指针
+} msg_t;
+```
+
+那么我们可以设置linkoff为4，为data这个int的内存大小，这样子link就是next这个指针的地址，```*link=NULL```，即将这个next指针置为NULL，然后```*queue->put_tail```代表了当前队尾的next指针，```*queue->put_tail = link```也就是将link添加到当前消息队列的队尾了，```queue->put_tail = link```则是正常更新队尾，这两行就是所谓的”拉链“操作。然后 ```*(void **)*queue->get_head```实际是取出当前队首的next指针然后再更新```*queue->get_head```，也即将链头移动到下一条消息。这个队列的核心实际就是在msg内部保留一个next指针，用于实现链表，而不由队列自身维护链表，这样子msg的生命周期就由msg的生产消费者维护，从而队列自身不需要额外的内存开销来维护链表。
+
 msgqueue.h
 ```c
-/*
-  Copyright (c) 2020 Sogou, Inc.
-
-  Licensed under the Apache License, Version 2.0 (the "License");
-  you may not use this file except in compliance with the License.
-  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
-
-  Author: Xie Han (xiehan@sogou-inc.com)
-*/
-
 #ifndef _MSGQUEUE_H_
 #define _MSGQUEUE_H_
 
@@ -55,33 +48,6 @@ void msgqueue_destroy(msgqueue_t *queue);
 
 msgqueue.c
 ```c
-/*
-  Copyright (c) 2020 Sogou, Inc.
-
-  Licensed under the Apache License, Version 2.0 (the "License");
-  you may not use this file except in compliance with the License.
-  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
-
-  Author: Xie Han (xiehan@sogou-inc.com)
-*/
-
-/*
- * This message queue originates from the project of Sogou C++ Workflow:
- * https://github.com/sogou/workflow
- *
- * The idea of this implementation is quite simple and obvious. When the
- * get_list is not empty, the consumer takes a message. Otherwise the consumer
- * waits till put_list is not empty, and swap two lists. This method performs
- * well when the queue is very busy, and the number of consumers is big.
- */
 
 #include <errno.h>
 #include <stdlib.h>
