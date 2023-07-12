@@ -1,27 +1,71 @@
+---
+category: 
+- Linux
+tags:
+- Linux
+---
+
 # workflow 线程池分析
 
+线程池是日常开发中很常用的一种管理线程的工具。它是**池化技术**中的一种。
 
+池化技术的初衷就是将一些资源进行重复利用，来避免重复的构建来提高执行效率。类似的还有数据库连接池，字符串常量池，httpClient 连接池。
+
+本文将分享一个好用的线程池，其来源于搜狗开源高性能网络框架workflow。
+
+workflow 是搜狗公司近期开源发布的一款 C++ 服务器引擎，支撑搜狗几乎所有后端 C++ 在线服务，包括所有搜索服务，云输入法，在线广告等，每日处理超百亿请求。
+
+下面就通过阅读源码的方式来深入了解workflow线程池的实现原理。
+
+## workflow线程池
+
+workflow的线程池主要分布在四个文件中，msgqueue.h/msgqueue.c/thrdpool.h/thrdpool.c。
+
+首先我们分析msgqueue.h/msgqueue.c
+
+### msgqueue
+
+从名字中得知，这个是一个消息队列。这个消息队列中盛放的就是需要在线程池中执行的任务。所谓**任务**就是一个执行函数和一个对应的入参。
+
+在workflow中，任务的定义是thrdpool_task，有两个参数，第一个是一个函数指针routine，第二个参数是context上下文。
 
 ```c
-typedef struct msg_t {
-int data; // 存储的消息
-struct msg_t* next; // 链接到下一个消息的指针
-} msg_t;
+struct thrdpool_task
+{
+	void (*routine)(void *);
+	void *context;
+};
 ```
 
-那么我们可以设置linkoff为4，为data这个int的内存大小，这样子link就是next这个指针的地址.
+接下来看一下msgqueue的定义。 其中包含了两个队列。一个队列用于放置新任务，一个队列用于拿取新任务。当get的任务队列为空时，就将get队列和put队列进行切换。如果get和put共用一个队列，那么放置任务和取任务都需要加锁，而使用两个队列的好处是只有当get的任务队列为空时进行切换时，才需要进行加锁。
 
-```*link=NULL```，即将这个next指针置为NULL，
+```__msgqueue```结构体的定义中，get_head就是读队列的队头，put_head是放置队列的队头，put_tail是放置队列的队尾。
 
-然后```*queue->put_tail```代表了当前队尾的next指针，
+msg_max代表最大能够放置的任务数量。
 
-```*queue->put_tail = link```也就是将link添加到当前消息队列的队尾了，
+```c
+struct __msgqueue
+{
+	size_t msg_max;
+	size_t msg_cnt;
+	int linkoff;
+	int nonblock;
+	void *head1;
+	void *head2;
+	void **get_head;
+	void **put_head;
+	void **put_tail;
+	pthread_mutex_t get_mutex;
+	pthread_mutex_t put_mutex;
+	pthread_cond_t get_cond;
+	pthread_cond_t put_cond;
+};
+```
 
-```queue->put_tail = link```则是正常更新队尾，这两行就是所谓的”拉链“操作。
-
-然后 ```*(void **)*queue->get_head```实际是取出当前队首的next指针然后再更新```*queue->get_head```，也即将链头移动到下一条消息。这个队列的核心实际就是在msg内部保留一个next指针，用于实现链表，而不由队列自身维护链表，这样子msg的生命周期就由msg的生产消费者维护，从而队列自身不需要额外的内存开销来维护链表。
+有了上述的初步概念之后，我们看看msgqueue中会提供哪些方法。如下所示是msgqueue.h的源代码。
 
 msgqueue.h
+
 ```c
 #ifndef _MSGQUEUE_H_
 #define _MSGQUEUE_H_
@@ -53,8 +97,45 @@ void msgqueue_destroy(msgqueue_t *queue);
 #endif
 
 #endif
-
 ```
+
+因为其实c语言编写的代码，为了使其可以被c和c++程序都调用，因此在代码中使用了```extern "C"```。
+
+msgqueue的头文件中提供了6个方法，其作用总结如下：
+- msgqueue_create：创建msgqueue。
+- msgqueue_put：放置任务到msgqueue中。
+- msgqueue_get：从msgqueue中取出任务。
+- msgqueue_set_nonblock：将msgqueue设置为nonblock。
+- msgqueue_set_block：将msgqueue设置为block。
+- msgqueue_destroy：销毁msgqueu额。
+
+上述接口做到了见文知意，值得学习。
+
+下面看看这些接口是如何实现的。
+
+
+### thrdpool
+
+```c
+typedef struct msg_t {
+int data; // 存储的消息
+struct msg_t* next; // 链接到下一个消息的指针
+} msg_t;
+```
+
+那么我们可以设置linkoff为4，为data这个int的内存大小，这样子link就是next这个指针的地址.
+
+```*link=NULL```，即将这个next指针置为NULL，
+
+然后```*queue->put_tail```代表了当前队尾的next指针，
+
+```*queue->put_tail = link```也就是将link添加到当前消息队列的队尾了，
+
+```queue->put_tail = link```则是正常更新队尾，这两行就是所谓的”拉链“操作。
+
+然后 ```*(void **)*queue->get_head```实际是取出当前队首的next指针然后再更新```*queue->get_head```，也即将链头移动到下一条消息。这个队列的核心实际就是在msg内部保留一个next指针，用于实现链表，而不由队列自身维护链表，这样子msg的生命周期就由msg的生产消费者维护，从而队列自身不需要额外的内存开销来维护链表。
+
+
 
 msgqueue.c
 ```c
