@@ -114,6 +114,22 @@ msgqueue的头文件中提供了6个方法，其作用总结如下：
 下面看看这些接口是如何实现的。
 
 
+#### msgqueue_create
+
+
+#### msgqueue_put
+
+#### msgqueue_get
+
+
+#### msgqueue_set_nonblock
+
+
+#### msgqueue_set_block
+
+#### msgqueue_destroy
+
+
 ### thrdpool
 
 ```c
