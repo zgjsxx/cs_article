@@ -539,3 +539,33 @@ void thrdpool_destroy(void (*pending)(const struct thrdpool_task *),
 		free(pool);
 }
 ```
+
+
+main.c
+```c
+#include <iostream>
+#include <unistd.h>
+#include "thrdpool.h"
+#include "msgqueue.h"
+
+void test(void* arg)
+{
+    std::cout << "Hello World" << std::endl;
+}
+
+int main()
+{
+    thrdpool_t* pool = thrdpool_create(10, 256*1024);
+    
+    struct thrdpool_task task = {
+        .routine	=	test,
+        .context	=	NULL
+    };
+
+    thrdpool_schedule(&task, pool);
+
+    while(1){
+        sleep(1);
+    }
+}
+```
