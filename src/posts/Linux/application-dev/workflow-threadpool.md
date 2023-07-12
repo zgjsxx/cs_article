@@ -116,6 +116,64 @@ msgqueue的头文件中提供了6个方法，其作用总结如下：
 
 #### msgqueue_create
 
+第一眼看到这个代码，居然是这种梯形的代码，难以说是优美的，不知道是不是我没有领悟到其中的精髓？这个梯形的代码应该可以使用if-return进行优化。
+
+```
+	ret = pthread_mutex_init(&queue->get_mutex, NULL);
+	if (ret != 0)
+	{
+	}
+	ret = pthread_mutex_init(&queue->put_mutex, NULL);
+	if (ret != 0) 
+```
+
+```c
+msgqueue_t *msgqueue_create(size_t maxlen, int linkoff)
+{
+	msgqueue_t *queue = (msgqueue_t *)malloc(sizeof (msgqueue_t));
+	int ret;
+
+	if (!queue)
+		return NULL;
+
+	ret = pthread_mutex_init(&queue->get_mutex, NULL);
+	if (ret == 0)
+	{
+		ret = pthread_mutex_init(&queue->put_mutex, NULL);
+		if (ret == 0)
+		{
+			ret = pthread_cond_init(&queue->get_cond, NULL);
+			if (ret == 0)
+			{
+				ret = pthread_cond_init(&queue->put_cond, NULL);
+				if (ret == 0)
+				{
+					queue->msg_max = maxlen;
+					queue->linkoff = linkoff;
+					queue->head1 = NULL;
+					queue->head2 = NULL;
+					queue->get_head = &queue->head1;
+					queue->put_head = &queue->head2;
+					queue->put_tail = &queue->head2;
+					queue->msg_cnt = 0;
+					queue->nonblock = 0;
+					return queue;
+				}
+
+				pthread_cond_destroy(&queue->get_cond);
+			}
+
+			pthread_mutex_destroy(&queue->put_mutex);
+		}
+
+		pthread_mutex_destroy(&queue->get_mutex);
+	}
+
+	errno = ret;
+	free(queue);
+	return NULL;
+}
+```
 
 #### msgqueue_put
 
