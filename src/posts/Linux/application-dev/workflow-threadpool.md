@@ -213,7 +213,7 @@ void msgqueue_put(void *msg, msgqueue_t *queue)
 }
 ```
 
-msgqueue_put是一个相对较难理解的方法。尤其是下面这两个更是劝退了很多人。
+msgqueue_put是一个相对较难理解的方法。尤其是下面这两行更是劝退了很多人。
 
 ```c
 	*queue->put_tail = link;
@@ -234,10 +234,9 @@ struct __thrdpool_task_entry
 };
 ```
 
-
 下面开始一行一行的看代码。
 
-下面代码的目的其实就是取出了msg中link指针所在的位置。因为msg的类型是```void*```，而```void*```指针无法进行加减，因此首先将msg转换成```char*```。给其加上了```queue->linkoff```,linkoff其实就是msg的类型中link指针的偏移量，对于```__thrdpool_task_entry```而言，linkoff值为0。 所以第1行代码将msg中的linkoff指针的地址传给link。
+第1-2行代码的目的其实就是取出了msg中link指针所在的位置。因为msg的类型是```void*```，而```void*```指针无法进行加减，因此首先将msg转换成```char*```。给其加上了```queue->linkoff```,linkoff其实就是msg的类型中link指针的偏移量，对于```__thrdpool_task_entry```而言，linkoff值为0。 所以第1行代码将msg中的linkoff指针的地址传给link。
 
 第二行代码就比较好理解，就是将linkoff指针指向了NULL。如下图所示：
 
@@ -250,11 +249,11 @@ struct __thrdpool_task_entry
 	*link = NULL;//(2)
 ```
 
-接着往下看,下面这块代码的作用是如果队列中的消息已经放满，并且是block模式，则将停止放消息，直到队列中的消息被消费。如果是non-block模式，则可以一直放消息，没有数量限制。
+接着往下看,下面这块代码的作用是如果队列中的消息已经放满，并且是block模式，则将停止放消息，直到队列中的消息被消费。如果是non-block模式，则可以一直放消息，不会阻塞。
 
 第3行代码使用put_mutex给临界区上锁，因为可能有多个线程同时put。
 
-第4行和第5行是条件变量的常规写法，即循环判等，直到条件满足。
+第4行和第5行是条件变量的常规写法，即**循环判等**，直到条件满足。
 
 ```c
 	pthread_mutex_lock(&queue->put_mutex); //(3)
@@ -273,7 +272,7 @@ struct __thrdpool_task_entry
 
 ![msgqueue_put](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/workflow-threadpool/msgqueue_put2.png)
 
-因此第6行的作用就是让head2指向了link。其效果如下图所示。
+因此第6行的作用就是让head2指向了msg中的link。其效果如下图所示。
 
 ![msgqueue_put](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/workflow-threadpool/msgqueue_put3.png)
 
@@ -329,7 +328,7 @@ void *msgqueue_get(msgqueue_t *queue)
 
 第3行，如果get_head为不为空，则意味着可以从中取出msg。第4行的目的是重新计算出msg消息的起始地址。第5行是让get_head指向了get队列的下一个msg。
 
-如下图所示，是将msg指针指向了msg消息的地址，
+如下图所示，是将msg指针指向了msg消息的地址：
 
 ![msgqueue_get](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/workflow-threadpool/msgqueue_get1.png)
 
@@ -368,8 +367,6 @@ static size_t __msgqueue_swap(msgqueue_t *queue)
 }
 ```
 
-下面逐一进行分析。
-
 第1-2行比较好理解，就是取出了队列的头部元素的地址。cnt代表put队列中的消息的数量。
 
 第3行将get_head指向了put队列的头部。注意此时已经加上了get_mutex，所以不会有并发的问题。
@@ -383,7 +380,6 @@ static size_t __msgqueue_swap(msgqueue_t *queue)
 10-12行代表则是将两个队列的指针进行切换。
 
 第13行释放queue->put_mutex，生产者可以继续生产。
-
 
 #### msgqueue_set_nonblock
 
@@ -518,7 +514,7 @@ thrdpool_create的入参是nthreads和stacksize，分别代表线程数量和线
 
 第6行给pool创建了一个消息队列msgqueue。
 
-第7-14行，当消息队列创建成功后，初始化pool中的mutex和线程key。并设置了线程池的线程数量和stack。
+第7-14行，当消息队列创建成功后，初始化pool中的mutex和线程key，这个key用于设置线程私有变量。并设置了线程池的线程数量和stack。
 
 第15行调用了__thrdpool_create_threads进行实际的线程创建。后面将针对该方法讲解。如果创建成功，16行将pool变量进行返回。
 
