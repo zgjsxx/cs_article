@@ -19,6 +19,8 @@ workflow 是搜狗公司近期开源发布的一款 C++ 服务器引擎，支撑
 
 ## workflow线程池
 
+workflow的项目地址位于https://github.com/sogou/workflow.git。
+
 workflow的线程池主要分布在四个文件中，msgqueue.h/msgqueue.c/thrdpool.h/thrdpool.c。
 
 首先我们分析msgqueue.h/msgqueue.c
@@ -37,22 +39,7 @@ struct thrdpool_task
 };
 ```
 
-接下来看一下msgqueue的定义。 其中包含了两个队列。一个队列用于放置新任务，一个队列用于拿取新任务。当get的任务队列为空时，就将get队列和put队列进行切换。如果get和put共用一个队列，那么放置任务和取任务都需要加锁，而使用两个队列的好处是只有当get的任务队列为空时进行切换时，才需要进行加锁。
-
-```__msgqueue```结构体的定义中，get_head就是读队列的队头，put_head是放置队列的队头，put_tail是放置队列的队尾。
-
-msg_max代表最大能够放置的任务数量。
-
-nonblock表示消息队列的阻塞模式。如果是阻塞的，当队列中消息放满了，则不再继续放，直到队列中消息被消费。如果是非阻塞的，则可以一直放消息。
-
-linkoff代表link指针的偏移量。例如下面的msg，其linkoff值就是4。
-
-```c
-typedef struct msg_t {
-	int data; 
-	struct msg_t* link; 
-} msg_t;
-```
+接下来看一下__msgqueue的定义。__msgqueue是消息队列的主体，其定义如下所示：
 
 ```c
 struct __msgqueue
@@ -73,6 +60,23 @@ struct __msgqueue
 };
 ```
 
+ 其中包含了两个队列。一个队列用于放置新任务，一个队列用于拿取新任务。当get的任务队列为空时，就将get队列和put队列进行切换。如果get和put共用一个队列，那么放置任务和取任务都需要加锁，而使用两个队列的好处是只有当get的任务队列为空时进行切换时，才需要进行加锁。
+
+```__msgqueue```结构体的定义中，get_head就是读队列的队头，put_head是放置队列的队头，put_tail是放置队列的队尾。head1和head2是两个头指针，初始化时，get_head指向head1，put_head指向head2。
+
+msg_max代表最大能够放置的任务数量。msg_cnt代表目前put队列中的消息数量。
+
+nonblock表示消息队列的阻塞模式。如果是阻塞的，那么消息队列获取消息和放置消息就存在等待操作，例如当消息队列满时，就不能放置新消息。而如果是非阻塞模式，那么获取消息和放置消息都不存在等待操作。通常在线程池退出时会将线程池设置为non-block的。
+
+linkoff代表link指针的偏移量。例如下面的msg，其linkoff值就是4。
+
+```c
+typedef struct msg_t {
+	int data; 
+	struct msg_t* link; 
+} msg_t;
+```
+
 有了上述的初步概念之后，我们看看msgqueue中会提供哪些方法。如下所示是msgqueue.h的源代码。
 
 msgqueue.h
@@ -90,12 +94,6 @@ extern "C"
 {
 #endif
 
-/* A simple implementation of message queue. The max pending messages may
- * reach two times 'maxlen' when the queue is in blocking mode, and infinite
- * in nonblocking mode. 'linkoff' is the offset from the head of each message,
- * where spaces of one pointer size should be available for internal usage.
- * 'linkoff' can be positive or negative or zero. */
-
 msgqueue_t *msgqueue_create(size_t maxlen, int linkoff);
 void msgqueue_put(void *msg, msgqueue_t *queue);
 void *msgqueue_get(msgqueue_t *queue);
@@ -110,7 +108,7 @@ void msgqueue_destroy(msgqueue_t *queue);
 #endif
 ```
 
-因为其实c语言编写的代码，为了使其可以被c和c++程序都调用，因此在代码中使用了```extern "C"```。
+因为其是c语言编写的代码，为了使其可以被c和c++程序都调用，因此在代码中使用了```extern "C"```。
 
 msgqueue的头文件中提供了6个方法，其作用总结如下：
 - msgqueue_create：创建msgqueue。
@@ -124,25 +122,9 @@ msgqueue的头文件中提供了6个方法，其作用总结如下：
 
 下面看看这些接口是如何实现的。
 
-
 #### msgqueue_create
 
-第一眼看到这个代码，居然是这种梯形的代码，难以说是优美的，不知道是不是我没有领悟到其中的精髓？这个梯形的代码应该可以使用if-return进行优化。
-
-```c
-	ret = pthread_mutex_init(&queue->get_mutex, NULL);
-	if (ret != 0)
-	{
-		//...
-	}
-	ret = pthread_mutex_init(&queue->put_mutex, NULL);
-	if (ret != 0) 
-	{
-		//...
-	}
-```
-
-下面继续看msgqueue_create的实现。其实该代码并不难，主要就是对一些变量进行初始化。初始化了get_mutex/put_mutex/get_cond/put_cond。在这些互斥锁和条件变量创建成功后，初始化maxlen/linkoff/msg_cnt/nonblock，并将msgqueue中的队列指针设置为空。
+第一眼看到这个代码，居然是这种梯形的代码，难以说是优美的，不知道是不是我没有领悟到其中的精髓？
 
 ```c
 msgqueue_t *msgqueue_create(size_t maxlen, int linkoff)
@@ -191,6 +173,23 @@ msgqueue_t *msgqueue_create(size_t maxlen, int linkoff)
 	return NULL;
 }
 ```
+
+这个梯形的代码应该可以使用if-return进行优化。
+
+```c
+	ret = pthread_mutex_init(&queue->get_mutex, NULL);
+	if (ret != 0)
+	{
+		//...
+	}
+	ret = pthread_mutex_init(&queue->put_mutex, NULL);
+	if (ret != 0) 
+	{
+		//...
+	}
+```
+
+msgqueue_create的实现并不难，主要就是对一些变量进行初始化。初始化了get_mutex/put_mutex/get_cond/put_cond。在这些互斥锁和条件变量创建成功后，初始化maxlen/linkoff/msg_cnt/nonblock，并将msgqueue中的队列指针设置为空。
 
 #### msgqueue_put
 
