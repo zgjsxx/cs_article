@@ -567,9 +567,11 @@ static int __thrdpool_create_threads(size_t nthreads, thrdpool_t *pool)
 
 第8-13行循环地进行线程的创建。若创建成功，则将线程池中的线程数进行递增。线程的入口方法是__thrdpool_routine，将在下面进行讲解。
 
-第14-16行当线程创建完毕后要对attr进行销毁。如果创建出的线程数量等于期望的数量，则返沪，否则创建失败，销毁线程池。
+第14-16行当线程创建完毕后要对attr进行销毁。如果创建出的线程数量等于期望的数量，则返回，否则创建失败，销毁线程池。
 
 #### __thrdpool_routine
+
+__thrdpool_routine是线程的入口函数，一般线程池的入口函数都会有一个循环，不停的接受任务运行。
 
 ```c
 static void *__thrdpool_routine(void *arg)
@@ -618,10 +620,9 @@ static void *__thrdpool_routine(void *arg)
 
 第6行，向pool->key中设置了一个pool的地址值。这将用于后面判断一个线程是否属于某个线程池。
 
-第7到17行，循环从消息队列中取出任务执行，如果取到的消息为空，则退出。因为线程池退出的时候会设置消息队列为non-block，因此取到的消息可能为空。第7行中，```pool->terminate```在线程池没有退出时其值为NULL，当线程池destroy时，会对其赋值。
+第7到17行，循环从消息队列中取出任务执行，如果取到的消息为空，则退出。因为线程池退出的时候会设置消息队列为non-block，因此取到的消息可能为空。第7行中，```pool->terminate```在线程池没有退出时其值为NULL，当线程池destroy时，会对其赋值。第15到17行的作用需要特别说明一下，这是在线程池内部调用destroy线程池会走到这里，调用destroy的线程将会等待线程池内其他线程退出，等运行到第15-17行时，就需要销毁线程池。workflow线程池销毁的原则时，谁调用destroy，谁销毁。外部线程调用destroy，就由外部线程destroy线程池。内部线程调用destroy，就由内部线程destroy线程池。
 
 第18-23行，则代表线程已经退出了，这里会首先挂上pool->mutex。因为线程可能存在同时退出的场景。这里的设计思路是让线程逐一退出，让后一个线程去join前一个线程。后面在讲解destroy时，还会再提到这里。
-
 
 #### thrdpool_schedule
 
@@ -680,8 +681,6 @@ int thrdpool_increase(thrdpool_t *pool)
 	errno = ret;
 	return -1;
 }
-
-
 ```
 
 #### thrdpool_in_pool
@@ -736,6 +735,7 @@ void thrdpool_destroy(void (*pending)(const struct thrdpool_task *),
 
 #### __thrdpool_terminate
 
+__thrdpool_terminate的源码如下：
 
 ```c
 static void __thrdpool_terminate(int in_pool, thrdpool_t *pool)
@@ -760,7 +760,7 @@ static void __thrdpool_terminate(int in_pool, thrdpool_t *pool)
 		pthread_join(pool->tid, NULL);//(12)
 }
 ```
-第1行和第4行对条件变量```pool->termincate```设置了初值。将消息队列设置为non-block，使得空等消息的线程迅速走入退出流程。如果是线程池中的线程发出了destory请求，则将自身设置为detach，同时将线程池的线程数量减去1。
+第1行和第4行对条件变量```pool->termincate```设置了初值。将消息队列设置为non-block，使得空等消息的线程迅速走入退出流程。如果是线程池中的线程发出了destory请求，则将自身设置为detach，同时将线程池的线程数量减去1。（注意这里是和__thrdpool_routine的第15-17行相呼应的）。
 
 第8-9行则是等待所有的线程都退出。上面提到```__thrdpool_routine```会join前一个线程，并向```pool->termincate```发送信号。
 
@@ -781,23 +781,27 @@ static void __thrdpool_terminate(int in_pool, thrdpool_t *pool)
 
 ## demo
 
-文件结构如下所示：
+workflow的线程池做到基本的开箱即用，不依赖于其他的代码，仅需将masqueue.c/msgqueue.h/thrdpool.h/thrdpool.c包含进来，添加测试代码main.cpp即可。
+
+demo的文件结构如下所示：
 
 ```shell
 [root@localhost workflow-thread]# tree .
 .
-├── a.out
 ├── main.cpp
-├── msgqueue.cpp
+├── msgqueue.c
 ├── msgqueue.h
-├── thrdpool.cpp
+├── thrdpool.c
 └── thrdpool.h
 ```
 
-main.cpp
+下面是main.cpp的内容：
 
 ```c
-//g++ main.cpp msgqueue.cpp thrdpool.cpp
+//gcc -c msgqueue.c 
+//gcc -c thrdpool.c
+//g++ main.cpp msgqueue.o thrdpool.o 
+
 #include <iostream>
 #include <unistd.h>
 #include "thrdpool.h"
@@ -848,6 +852,7 @@ int main()
 
 ```
 
+运行结果如下所示：
 
 ![demo](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/workflow-threadpool/demo.png)
 
