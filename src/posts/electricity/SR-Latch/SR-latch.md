@@ -2,6 +2,7 @@
 
 由或非门组成的锁存器：
 
+
 ![SR锁存器](https://github.com/zgjsxx/static-img-repo/raw/main/blog/electricity/SR-latch/SR-latch.png)
 
 其真值表和Q先前的值有关系：
@@ -16,3 +17,6 @@
 |0 | 1| 1 | 0|
 |1 | 1| 0 | 0|
 |1 | 1| 1 | 0|
+
+
+总结起来就是，${S}_{D}$为1，Q置1，${R}_{D}$为1,$Q$置0。${S}_{D}$和${R}_{D}$同为0，Q保持之前的状态。${S}_{D}$和${R}_{D}$不应该出现同时为1的状态(又想写1，又想写0)。
