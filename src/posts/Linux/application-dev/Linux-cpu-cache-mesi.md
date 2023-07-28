@@ -1,10 +1,14 @@
 # CPU缓存哪些事儿
 
 
-https://www.scss.tcd.ie/Jeremy.Jones/VivioJS/caches/MESIHelp.htm
-https://cloud.tencent.com/developer/article/1495957
+
 
 ## cache line
+
+cache line 又分为多种类型，分别为直接映射缓存，多路组相连缓存，全相连缓存。
+
+
+### 直接映射缓存
 
 将一个内存地址划分为三块，分别是Tag, Index，Offset。
 
@@ -15,3 +19,16 @@ https://cloud.tencent.com/developer/article/1495957
 下面是一个例子：
 
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache/cpu-cache-line2.png)
+
+
+### 多路组相连缓存
+
+
+
+### 全相连缓存
+
+
+## 参考文献
+
+https://www.scss.tcd.ie/Jeremy.Jones/VivioJS/caches/MESIHelp.htm
+https://cloud.tencent.com/developer/article/1495957
