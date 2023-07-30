@@ -23,10 +23,14 @@ cache line 又分为多种类型，分别为直接映射缓存，多路组相连
 
 ### 多路组相连缓存
 
+![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache/multi-way.png)
 
 
 ### 全相连缓存
 
+![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache/full-connected.png)
+
+全连接缓存中所有的cache line都位于一个组(set)内，因此地址中将不会划出一部分作为index。在判断cache line是否命中时，需要遍历所有的cache line，将其与虚拟地址中的tag成分进行对比，如果相等，则意味着匹配上了。因此对于全连接缓存而言，任意地址的数据可以缓存在任意的cache line中，这可以避免缓存的颠簸，但是与此同时，硬件上的成本也是最高。
 
 ## 参考文献
 
