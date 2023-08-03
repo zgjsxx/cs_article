@@ -9,9 +9,40 @@ CPU高速缓存集成于CPU的内部，其是CPU可以高效运行的成分之�
 
 ## 为什么需要高速缓存？
 
+在现代计算机的体系架构中，为了存储数据，引入了下面一些元件
+- 1.CPU寄存器
+- 2.CPU高速缓存
+- 3.内存
+- 4.硬盘
+
+从1->4,速度越来越慢，价格越来越低，容量越来越大。 这样的设计使得一台计算机的价格会处于一个合理的区间，使得计算机可以走进千家万户。
+
+由于硬盘的速度比内存访问慢，因此我们在开发应用软件时，经常会使用redis/memcached这样的组件来加快速度。
+
+而由于CPU和内存速度的不同，于是产生了CPU高速缓存。
+
+下面这张表反应了CPU高速缓存和内存的速度差距。
+
+|存储器类型|时钟周期|
+|--|--|
+|L1 cache|4|
+|L2 cache|11|
+|L3 cache|24|
+|内存|167|
+
+通常cpu内有3级缓存，即L1、L2、L3缓存。其中L1缓存分为**数据缓存**和**指令缓存**，cpu先从L1缓存中获取指令和数据，如果L1缓存中不存在，那就从L2缓存中获取。每个cpu核心都拥有属于自己的L1缓存和L2缓存。如果数据不在L2缓存中，那就从L3缓存中获取。而L3缓存就是所有cpu核心共用的。如果数据也不在L3缓存中，那就从内存中获取了。当然，如果内存中也没有那就只能从硬盘中获取了。
+
+![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache/L1-L2-L3.png)
+
+对这样的分层概念有了了解之后，就可以进一步的了解高速缓存的内部细节。
+
 ## 高速缓存的内部结构
 
+CPU Cache 在读取内存数据时，每次不会只读一个字或一个字节，而是一块块地读取，这每一小块数据也叫 CPU 缓存行（CPU Cache Line）。这也是对局部性原理的运用，当一个指令或数据被拜访过之后，与它相邻地址的数据有很大概率也会被拜访，将更多或许被拜访的数据存入缓存，可以进步缓存命中率。
+
 cache line 又分为多种类型，分别为**直接映射缓存**，**多路组相连缓存**，**全相连缓存**。
+
+下面依次介绍。
 
 ### 直接映射缓存
 
@@ -102,12 +133,86 @@ for (int c = 0; c < col; c++) {
 }
 ```
 
-答案是按行进行遍历。
+我们分别编写下面的测试代码，首先是按行遍历的时间：
 
-按行遍历时， 在访问```matrix[r][c]```时，会将后面的一些元素一并加载到cache line中，那么后面访问```matrix[r][c+1]```和```matrix[r][c+2]```时就可以命中缓存，这样就可以极大的提高缓存访问的速度。
+```cpp
+#include <chrono>
+#include <iostream>
+const int row = 1024;
+const int col = 1024;
+int matrix[row][col];
 
+//按行遍历
+int main(){
+    for (int r = 0; r < row; r++) {
+        for (int c = 0; c < col; c++) {
+            matrix[r][c] = r+c;
+        }
+    }
+    auto start = std::chrono::steady_clock::now();
+    
+    //按行遍历
+    int sum_row = 0;
+    for (int r = 0; r < row; r++) {
+        for (int c = 0; c < col; c++) {
+            sum_row += matrix[r][c];
+        }
+    }
 
-## 参考文献
+    auto finish = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(finish - start);
+    std::cout << duration.count() << "ms" << std::endl;
+}
+```
+
+标准输出打印了：2ms
+
+接着是按列遍历的测试代码：
+
+```cpp
+#include <chrono>
+#include <iostream>
+const int row = 1024;
+const int col = 1024;
+int matrix[row][col];
+
+//按行遍历
+int main(){
+    for (int r = 0; r < row; r++) {
+        for (int c = 0; c < col; c++) {
+            matrix[r][c] = r+c;
+        }
+    }
+    auto start = std::chrono::steady_clock::now();
+    
+    //按列遍历
+    int sum_col = 0;
+    for (int c = 0; c < col; c++) {
+        for (int r = 0; r < row; r++) {
+            sum_col += matrix[r][c];
+        }
+    }
+
+    auto finish = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(finish - start);
+    std::cout << duration.count() << "ms" << std::endl;
+}
+```
+
+标准输出打印了：8ms
+
+答案很明显了，按行遍历速度比按列遍历快很多。
+
+原因就是按行遍历时， 在访问```matrix[r][c]```时，会将后面的一些元素一并加载到cache line中，那么后面访问```matrix[r][c+1]```和```matrix[r][c+2]```时就可以命中缓存，这样就可以极大的提高缓存访问的速度。
+
+如下图所示，在访问```matrix[0][0]```时，```matrix[0][1]```，```matrix[0][2]```，```matrix[0][2]```也被加载进了高速缓存中，因此随后遍历时就可以用到缓存。
+
+![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache/write_fast_code_using_cache.png)
+
+而按列遍历时，访问完```matrix[0][0]```之后，下一个要访问的数据是```matrix[1][0]```，不在高速缓存中，于是需要再次访问内存，这就使得程序的访问速度相较于按行缓存会慢很多。
+
+## 参考文章
 
 https://www.scss.tcd.ie/Jeremy.Jones/VivioJS/caches/MESIHelp.htm
 https://cloud.tencent.com/developer/article/1495957
+https://www.6hu.cc/archives/79496.html
