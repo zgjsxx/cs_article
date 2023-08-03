@@ -1,3 +1,8 @@
+---
+category: 
+- Linux
+---
+
 # CPU缓存哪些事儿
 
 CPU高速缓存集成于CPU的内部，其是CPU可以高效运行的成分之一，本文围绕下面三个话题来讲解CPU缓存的作用：
@@ -30,7 +35,7 @@ CPU高速缓存集成于CPU的内部，其是CPU可以高效运行的成分之�
 |L3 cache|24|
 |内存|167|
 
-通常cpu内有3级缓存，即L1、L2、L3缓存。其中L1缓存分为**数据缓存**和**指令缓存**，cpu先从L1缓存中获取指令和数据，如果L1缓存中不存在，那就从L2缓存中获取。每个cpu核心都拥有属于自己的L1缓存和L2缓存。如果数据不在L2缓存中，那就从L3缓存中获取。而L3缓存就是所有cpu核心共用的。如果数据也不在L3缓存中，那就从内存中获取了。当然，如果内存中也没有那就只能从硬盘中获取了。
+通常cpu内有3级缓存，即L1、L2、L3缓存。其中L1缓存分为**数据缓存**和**指令缓存**，cpu先从L1缓存中获取指令和数据，如果L1缓存中不存在，那就从L2缓存中获取。每个cpu核心都拥有属于自己的L1缓存和L2缓存。如果数据不在L2缓存中，那就从L3缓存中获取。而L3缓存就是**所有cpu核心共用**的。如果数据也不在L3缓存中，那就从内存中获取了。当然，如果内存中也没有那就只能从硬盘中获取了。
 
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache/L1-L2-L3.png)
 
@@ -38,7 +43,7 @@ CPU高速缓存集成于CPU的内部，其是CPU可以高效运行的成分之�
 
 ## 高速缓存的内部结构
 
-CPU Cache 在读取内存数据时，每次不会只读一个字或一个字节，而是一块块地读取，这每一小块数据也叫 CPU 缓存行（CPU Cache Line）。这也是对局部性原理的运用，当一个指令或数据被拜访过之后，与它相邻地址的数据有很大概率也会被拜访，将更多或许被拜访的数据存入缓存，可以进步缓存命中率。
+CPU Cache 在读取内存数据时，每次不会只读一个字或一个字节，而是一块块地读取，这每一小块数据也叫**CPU 缓存行**（CPU Cache Line）。这也是对局部性原理的运用，当一个指令或数据被拜访过之后，与它相邻地址的数据有很大概率也会被拜访，将更多或许被拜访的数据存入缓存，可以进步缓存命中率。
 
 cache line 又分为多种类型，分别为**直接映射缓存**，**多路组相连缓存**，**全相连缓存**。
 
@@ -46,7 +51,7 @@ cache line 又分为多种类型，分别为**直接映射缓存**，**多路组
 
 ### 直接映射缓存
 
-直接映射缓存会将一个内存地址**固定映射**到某一行的cache line。
+**直接映射缓存**会将一个内存地址**固定映射**到某一行的cache line。
 
 其思想是将一个内存地址划分为三块，分别是Tag, Index，Offset(这里的内存地址指的是虚拟内存)。将cacheline理解为一个数组，那么通过Index则是数组的下标，通过Index就可以获取对应的cache-line。再获取cache-line的数据后，获取其中的Tag值，将其与地址中的Tag值进行对比，如果相同，则代表该内存地址位于该cache line中，即cache命中了。最后根据Offset的值去data数组中获取对应的数据。整个流程大概如下图所示：
 
@@ -66,11 +71,11 @@ cache line 又分为多种类型，分别为**直接映射缓存**，**多路组
 
 当我们访问0x00时，cache miss，于是从内存中加载到第0行cache line中。当访问0x40时，第0行cache line中的tag与地址中的tag成分不一致，因此又需要再次从内存中加载数据到第0行cache line中。最后再次访问0x00时，由于cache line中存放的是0x40地址的数据，因此cache再次miss。可以看出在这个过程中，cache并没有起什么作用，访问了相同的内存地址时，cache line并没有对应的内容，而都是从内存中进行加载。
 
-这种现象叫做cache颠簸（cache thrashing）。针对这个问题，引入多路组相连缓存。下面一节将讲解多路组相连缓存的工作原理。
+这种现象叫做**cache颠簸**（cache thrashing）。针对这个问题，引入多路组相连缓存。下面一节将讲解多路组相连缓存的工作原理。
 
 ### 多路组相连缓存
 
-多路组相连的原理相比于直接映射缓存复杂一些，这里将以两路组相连这种场景来进行讲解。
+**多路组相连缓存**的原理相比于直接映射缓存复杂一些，这里将以两路组相连这种场景来进行讲解。
 
 所谓**多路**就是指原来根据虚拟的地址中的index可以唯一确定一个cache line，而现在根据index可以找到多行cache line。而**两路**的意思就是指通过index可以找到2个cache line。在找到这个两个cache line后，遍历这两个cache line，比较其中的tag值，如果相等则代表命中了。
 
@@ -92,7 +97,7 @@ cache line 又分为多种类型，分别为**直接映射缓存**，**多路组
 
 这个时候如果我们依次访问了0x00，0x40，0x00会发生什么？
 
-当我们访问0x00时，cache miss，于是从内存中加载到第一路的第0行cache line中。当访问0x40时，第一路第0行cache line中的tag与地址中的tag成分不一致，于是从内存中加载数据到第2路第0行cache line中。最后再次访问0x00时，此时会访问到第0行第一路的cache line中，因此cache就生效了。由此可以看出，由于多路组相连的缓存可以改善cache颠簸的问题。
+当我们访问0x00时，cache miss，于是从内存中加载到第0路的第0行cache line中。当访问0x40时，第0路第0行cache line中的tag与地址中的tag成分不一致，于是从内存中加载数据到第1路第0行cache line中。最后再次访问0x00时，此时会访问到第0路第0行的cache line中，因此cache就生效了。由此可以看出，由于多路组相连的缓存可以改善cache颠簸的问题。
 
 ### 全相连缓存
 
@@ -100,12 +105,11 @@ cache line 又分为多种类型，分别为**直接映射缓存**，**多路组
 
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache/full-connected.png)
 
-下面还是以8个cache line的全相连缓存为例，假设现在有一个虚拟地址是```0000001100101100```,其tag值为0x19，其index为1，offset为4。依次遍历，直到遍历到第4行cache line时，tag匹配上。
+下面还是以8个cache line的全相连缓存为例，假设现在有一个虚拟地址是```0000001100101100```,其tag值为0x19，offset为4。依次遍历，直到遍历到第4行cache line时，tag匹配上。
 
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache/full-connected2.png)
 
 全连接缓存中所有的cache line都位于一个组(set)内，因此地址中将不会划出一部分作为index。在判断cache line是否命中时，需要遍历所有的cache line，将其与虚拟地址中的tag成分进行对比，如果相等，则意味着匹配上了。因此对于全连接缓存而言，任意地址的数据可以缓存在任意的cache line中，这可以避免缓存的颠簸，但是与此同时，硬件上的成本也是最高。
-
 
 ## 如何利用缓存写出高效率的代码？
 
