@@ -331,3 +331,9 @@ MiB Swap:   2072.0 total,   2072.0 free,      0.0 used.   3174.2 avail Mem
    1436 root      20   0   18764  12060  10248 S   0.0   0.3   0:00.03 sshd
    1433 root      20   0   18756  12036  10184 S   0.0   0.3   0:00.04 sshd
 ```
+
+### top交互模式下查看帮助
+
+在交互模式下，如果想查看一些帮助信息，使用敲入h来进行：
+
+![top-interactive-help](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/tool/top/top_help.png)
