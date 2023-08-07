@@ -334,6 +334,6 @@ MiB Swap:   2072.0 total,   2072.0 free,      0.0 used.   3174.2 avail Mem
 
 ### top交互模式下查看帮助
 
-在交互模式下，如果想查看一些帮助信息，使用敲入h来进行：
+在交互模式下，敲入h可以查看帮助信息：
 
 ![top-interactive-help](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/tool/top/top_help.png)
