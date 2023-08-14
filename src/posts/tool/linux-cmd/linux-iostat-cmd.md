@@ -215,8 +215,6 @@ dd if=/dev/zero of=./a.dat bs=8k count=1M oflag=direct
 
 ![top-interactive-help](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/tool/iostat/iostat_demo2.png)
 
-stress命令也可用于模拟CPU，内存，磁盘的压力测试。
-
 
 ## 参考文章
 
