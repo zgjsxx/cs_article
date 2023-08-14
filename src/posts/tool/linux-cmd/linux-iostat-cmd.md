@@ -4,7 +4,7 @@ category:
 - tool
 ---
 
-# iostat命令详解
+# Linux性能分析之iostat命令详解
 
 iostat命令是IO性能分析的常用工具，其是input/output statistics的缩写。本文将着重于下面几个方面介绍iostat命令：
 
