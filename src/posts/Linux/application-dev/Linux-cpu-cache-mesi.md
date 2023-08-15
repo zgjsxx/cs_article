@@ -79,3 +79,4 @@ MESI协议是一种用于保证缓存一致性的协议，其对应了CPU cache�
 
 https://www.scss.tcd.ie/Jeremy.Jones/VivioJS/caches/MESIHelp.htm
 https://juejin.cn/post/7158395475362578462
+https://blog.51cto.com/qmiller/5285102
