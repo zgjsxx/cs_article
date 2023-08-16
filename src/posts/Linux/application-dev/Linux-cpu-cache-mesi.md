@@ -32,7 +32,7 @@ MESI协议是一种用于保证缓存一致性的协议，其对应了CPU cache�
 
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/MESI-state.png)
 
-状态E转状态M
+**状态E转状态M**
 
 初始化状态为E：
 
@@ -43,7 +43,7 @@ MESI协议是一种用于保证缓存一致性的协议，其对应了CPU cache�
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/EtoM_2.png)
 
 
-状态M转状态S
+**状态M转状态S**
 
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/MtoS_1.png)
 
@@ -51,7 +51,7 @@ MESI协议是一种用于保证缓存一致性的协议，其对应了CPU cache�
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/MtoS_2.png)
 
 
-状态S转状态I
+**状态S转状态I**
 
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/StoI_1.png)
 
@@ -59,7 +59,7 @@ MESI协议是一种用于保证缓存一致性的协议，其对应了CPU cache�
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/StoI_2.png)
 
 
-状态S转状态E
+**状态S转状态E**
 
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/StoE_1.png)
 
@@ -67,7 +67,27 @@ MESI协议是一种用于保证缓存一致性的协议，其对应了CPU cache�
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/StoE_2.png)
 
 
+**状态I转状态E**
 
+![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoE_1.png)
+
+
+![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoE_2.png)
+
+**状态I转状态S**
+
+![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoS_1.png)
+
+
+![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoS_2.png)
+
+
+**状态E转状态I**
+
+![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/EtoI_1.png)
+
+
+![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/EtoI_2.png)
 
 写缓冲区（Store Buffer）
 
