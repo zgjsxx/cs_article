@@ -7,7 +7,7 @@ category:
 
 在本站的文章**CPU缓存那些事儿**中， 介绍了cpu的多级缓存的架构和cpu缓存行cacheline的结构。CPU对于缓存的操作包含读和写，读操作在cacheline中有所涉及，在本文中，将讨论CPU对于缓存进行写时的行为。
 
-## CPU对高速缓存的读操作
+## 单核CPU对高速缓存的读操作
 
 CPU对于高速缓存的读操作的过程在之前的文章中有提到过，这里梳理一下其流程：
 
@@ -17,19 +17,41 @@ CPU对于高速缓存的读操作的过程在之前的文章中有提到过，�
 - 4.执行缓存淘汰策略，腾出位置
 - 5.加载内存数据到cache line中，将cache块上的内容读取到cpu中。
 
-## CPU对于高速缓存的写操作
+对于单核CPU， 对cache的读操作的流程如下所示：
 
-### 写直达
+![single-cpu-read](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/single_cpu_read.png)
 
+## 单核CPU对于高速缓存的写操作
+
+CPU对于高速缓存的写操作比读操作要复杂一些，写操作会修改cache中的数据，而这一数据最终需要同步到内存中，对于同步到内存这一步骤的不同，写操作的策略可以分为写直达策略和写回策略。注意这里的讨论仍然是针对单核CPU而言的。
+
+### 写直达策略
+
+写直达策略的思想是对于写入操作，同时修改cache中的数据和内存中的数据，使得cache和内存中的数据保持一致。这将使得cache和内存拥有数据的强一致性。
+
+写直达策略可以被细化为下列的步骤：
+1.判断待写入的数据是否已经存在于cache中。如写入的数据已经存在于cache中，则跳转到步骤2，否则跳转到步骤3。
+2.将数据写入cache中。
+3.将数据写入内存。
+
+其流程如下所示：
+
+写直达的优缺点如下：
+
+优点：对于写操作而言，可以保证内存和高速缓存内容的强一致性。
+
+缺点：由于每次写入操作都需要同时写入cache和写入内存，使得写操作的耗时增加，失去了高速缓存的高效性。
 
 ### 写回策略
 
-
-## 写操作带来的不一致问题
-
+写直达策略的思想是当需要修改cache时，延迟修改内存。在每个cache line上增加了Dirty的标记，当修改了cache中的内容时，会将Dirty标记置位，表明它的数据和内存数据不一致。注意此时，并不会立即写回内存。只有当cache块被替换出去时，才会回写到内存中。
 
 
-### MESI协议
+### 多CPU核的缓存一致性问题。
+
+上面的写直达策略和写回策略可以解决单核CPU的cache和内存的一致性问题。而现代的CPU往往都是多核CPU，每个核心都拥有其自己的cache。那么对于写操作而言，除了保证本CPU的cache和内存的一致性，还需要保证其它CPU的cache和内存的一致性问题。
+
+MESI协议就是用来解决这个问题的。
 
 MESI协议是一种用于保证缓存一致性的协议，其对应了CPU cache的四种状态，每个字母代表了一种状态，其含义如下：
 
@@ -39,6 +61,10 @@ MESI协议是一种用于保证缓存一致性的协议，其对应了CPU cache�
 - I（Invalidated，已失效）： 表明 Cache 块的数据是过时的。
 
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/MESI-state.png)
+
+对于MESI协议，有一个可视化的网站可以演示其过程，网址：https://www.scss.tcd.ie/Jeremy.Jones/VivioJS/caches/MESIHelp.htm。
+
+下面我们借助该网站来理解MESI每个状态的变换过程。
 
 **状态E转状态M**
 
@@ -128,13 +154,24 @@ MESI协议是一种用于保证缓存一致性的协议，其对应了CPU cache�
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoM_2.png)
 
 
+
+## 写缓冲区和失效队列
+
+
+
 写缓冲区（Store Buffer）
 
-由于在写入操作之前，CPU 核心 1 需要先广播 RFO 请求获得独占权，在其它核心回应 ACK 之前，当前核心只能空等待，这对 CPU 资源是一种浪费。因此，现代 CPU 会采用 “写缓冲区” 机制：写入指令放到写缓冲区后并发送 RFO 请求后，CPU 就可以去执行其它任务，等收到 ACK 后再将写入操作写到 Cache 上。
+从上面的对于MESI的理解中，不难发现，MESI协议其实并不高效。例如当CPU1将要修改cache line时，需要广播RFO获得独占权，当收到其它cpu核的ACK之前，CPU1只能空等。 这对于CPU1而言，是一种资源的浪费。写缓冲区就是为了解决这个问题的。当CPU核需要写操作时，会将写操作放入缓冲区中，然后就可以执行其它指令了。当收到其它核心的ACK后，就可以将写入的内容写入cache中。
 
 失效队列（Invalidation Queue）
 
-由于其他核心在收到 RFO 请求时，需要及时回应 ACK。但如果核心很忙不能及时回复，就会造成发送 RFO 请求的核心在等待 ACK。因此，现代 CPU 会采用 “失效队列” 机制：先把其它核心发过来的 RFO 请求放到失效队列，然后直接返回 ACK，等当前核心处理完任务后再去处理失效队列中的失效请求。
+写缓冲区是对写操作发送命令时的优化，而失效队列则是针对收写操作命令时的优化。
+
+对于其它的CPU核心而言，在其收到RFO请求时，需要更新当前CPU的cache line状态，并回复ACK。然而在收到RFO请求时，CPU核心可能在处理其它的事情，不能及时回复
+
+写缓冲区和失效队列将RFO请求的收发修改为了异步的，这实际上实现的是一种最终一致性。这也会引入新的问题，即CPU对于指令会有重排。如果有一些程序对于内存序有要求，那么就需要进行考虑。
+
+## 参考文献
 
 https://www.scss.tcd.ie/Jeremy.Jones/VivioJS/caches/MESIHelp.htm
 https://juejin.cn/post/7158395475362578462
