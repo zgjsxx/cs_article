@@ -5,7 +5,7 @@ category:
 
 # CPU缓存一致性原理
 
-在本站的文章**CPU缓存那些事儿**中， 介绍了cpu的多级缓存的架构和cpu缓存行cache line的结构。CPU对于缓存的操作包含读和写，读操作在cacheline中有所涉及，在本文中，将重点讨论CPU对于缓存进行写时的行为。
+在本站的文章**CPU缓存那些事儿**中， 介绍了cpu的多级缓存的架构和cpu缓存行cache line的结构。CPU对于缓存的操作包含读和写，读操作在cache line中有所涉及，在本文中，将重点讨论CPU对于缓存进行写时的行为。
 
 ## 单核CPU对高速缓存的读操作
 
@@ -44,9 +44,9 @@ CPU对于高速缓存的写操作比读操作要复杂一些，写操作会修�
 
 写直达的优缺点如下：
 
-优点：对于写操作而言，可以保证内存和高速缓存内容的强一致性。
+优点：对于写操作而言，可以保证内存和高速缓存内容的**强一致性**。
 
-缺点：由于每次写入操作都需要将数据写入内存，使得写操作的耗时增加，失去了高速缓存的高效性。
+缺点：由于每次写入操作都需要将数据写入内存，使得写操作的耗时增加，失去了**高速缓存的高效性**。
 
 ### 写回策略(Write-Back)
 
@@ -96,97 +96,96 @@ MESI 协议其实是 CPU Cache 的有限状态机，其四种状态的转化如�
 
 下面我们借助该网站来理解MESI每个状态的变换过程。
 
-**独占状态转已修改状态 E->M**
+**独占状态E转已修改状态M E->M**
 
-在cpu0上加载a0,则其初始化状态为E：
+如下图所示，此时cpu0上有a0的缓存，a0的缓存状态是独占状态E。
 
-![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/EtoM_1.png)
+![EtoM_1](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/EtoM_1.png)
 
-cpu0执行write a0操作，由于其它cpu上没有a0数据，状态E转为状态M：
+此时cpu0执行write a0操作，由于其它cpu上没有a0数据，状态E转为状态M：
 
-![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/EtoM_2.png)
-
-
-**已修改状态转共享状态,M->S**
-
-在cpu0上执行 read a0，然后执行write a0,则其初始化状态为M：
-
-![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/MtoS_1.png)
-
-随后cpu1上执行read a0的操作，则cpu 0上的a0状态从M转为S：
-
-![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/MtoS_2.png)
+![EtoM_2](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/EtoM_2.png)
 
 
-**共享状态转已失效状态， S->I**
+**已修改状态M转共享状态S,M->S**
 
-S的初始状态可以由**M->S**的步骤形成：
+如下图所示，此时cpu0上有a0的缓存，a0的缓存状态是已修改状态M:
 
-![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/StoI_1.png)
+![MtoS_1](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/MtoS_1.png)
+
+随后cpu1上执行read a0的操作，则cpu 0上的a0从状态M转为状态S：
+
+![MtoS_2](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/MtoS_2.png)
+
+
+**共享状态S转已失效状态I， S->I**
+
+如下图所示，此时cpu0上有a0的缓存，其状态为S。除此以外，cpu1上也有a0的缓存。
+
+![StoI_1](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/StoI_1.png)
 
 此时cpu1上执行write a0的操作，则cpu0上的a0状态从S转为了I：
 
-![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/StoI_2.png)
+![StoI_2](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/StoI_2.png)
 
 
-**共享状态转独占状态,S->E**
+**共享状态S转独占状态E, S->E**
 
-S的初始状态可以由**M->S**的步骤形成：
+如下图所示，此时cpu0上有a0的缓存，其状态为S。除此以外，cpu1上也有a0的缓存。
 
-![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/StoE_1.png)
+![StoE_1](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/StoE_1.png)
 
 此时cpu1上执行write a0的操作，则cpu1上的a0状态从S转为了E：
 
-![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/StoE_2.png)
+![StoE_2](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/StoE_2.png)
 
 
-**已失效状态转独占状态,I->E**
+**已失效状态I转独占状态E,I->E**
 
 状态I转状态E有两种路径，第一种是通过Processor Read, 此时a0数据仅存在于cpu0的cache中：
 
-![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoE_1.png)
-
+![ItoE_1](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoE_1.png)
 
 cpu0执行read a0操作，a0状态从I转为了E：
 
-![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoE_2.png)
+![ItoE_2](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoE_2.png)
 
 第二种是通过process write， 注意此时a0数据存在于cpu0和cpu1的cache中：
 
-![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoE_3.png)
+![ItoE_3](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoE_3.png)
 
 cpu0执行write a0操作，a0状态从I转为了E：
 
-![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoE_4.png)
+![ItoE_4](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoE_4.png)
 
-**已失效状态转共享状态,I->S**
+**已失效状态I转共享状态S,I->S**
 
 此时cpu0上a0的状态是I， 而cpu1上a0的状态是E：
 
-![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoS_1.png)
+![ItoS_1](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoS_1.png)
 
 此时cpu0执行read a0操作，cpu0上的a0从I转为S：
 
-![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoS_2.png)
+![ItoS_2](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoS_2.png)
 
 
-**独占状态转已失效状态，E->I**
+**独占状态E转已失效状态I，E->I**
 
 此时cpu0上的有a0的缓存，且状态为E，其它cpu上没有a0的缓存：
 
-![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/EtoI_1.png)
+![EtoI_1](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/EtoI_1.png)
 
 此时cpu1执行write a0的操作，此时cpu0上a0的状态从E转为I：
 
-![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/EtoI_2.png)
+![EtoI_2](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/EtoI_2.png)
 
-**已修改转共享状态,E->S**
+**已修改状态E转共享状态S,E->S**
 
 如下图所示，此时cpu0的独占a0：
 
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/EtoS_1.png)
 
-此时cpu1执行read a0的操作
+此时cpu1执行read a0的操作：
 
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/EtoS_2.png)
 
@@ -201,15 +200,15 @@ cpu0执行write a0操作，a0状态从I转为了E：
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/MtoI_2.png)
 
 
-**状态I转状态M，I->M**
+**已失效状态I转已修改状态M，I->M**
 
 此时cpu0上a0缓存的状态是I，其它cpu上没有a0的缓存：
 
-![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoM_1.png)
+![ItoM_1](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoM_1.png)
 
 此时cpu0执行write a0, 则cpu0上的a0从I转为了E：
 
-![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoM_2.png)
+![ItoM_2](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoM_2.png)
 
 
 ### 写缓冲区和失效队列
@@ -228,21 +227,46 @@ cpu0执行write a0操作，a0状态从I转为了E：
 
 写缓冲区和失效队列将RFO请求的收发修改为了异步的，这实际上实现的是一种最终一致性。这也会引入新的问题，即CPU对于指令会有重排。如果有一些程序对于内存序有要求，那么就需要进行考虑。
 
+考虑下面的场景，cpu0和cpu1分别执行下面的指令：
 
 cpu0上指令
 ```shell
-a = 2
-x = b
+a = 1  //A1
+x = b  //A2
 ```
 
 cpu1上指令
 ```shell
-b = 2
-y = a
+b = 1 //B1
+y = a //B2
 ```
+
+![MESI-issue](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/MESI-issue.png)
+
+由于store-buffer的存在，尽管A1操作先于A2操作之前发生，但是A1操作完成时间可能晚于A2，如下表中反应的顺序：
+
+|顺序|cpu0|cpu1|
+|--|--|--|
+|0|a=1写入store buffer|b = 1写入store buffer|
+|1|x=b||
+|2||y = a|
+|3||b = 1操作完成|
+|4|a=1操作完成||
+
+尽管A1操作发生于B2之前，但是由于写操作的异步特性，当执行到y=a时，读取到的还是旧值。同理x=b也可能读取到旧的值。
+
+对于这种cpu层面的指令重排问题，则需要内存屏障进行解决。
+
+
+## 总结
+- 对于单核cpu，写操作需要考虑cache和内存的一致性，通常有写直达和写回两种策略。
+- 对于多核cpu，除了cache和内存的一致性需要保证，还需要保证每个cpu的cache的数据的一致性。
+- MESI协议就是一种解决多核cpu缓存一致性的算法
+- 为了改善MESI的效率，引入了store-buffer和Invalidation Queue，提升了效率，但是也引入了指令重排的问题。通常可以使用内存屏障解决。
 
 ## 参考文献
 
 https://www.scss.tcd.ie/Jeremy.Jones/VivioJS/caches/MESIHelp.htm
+https://blog.csdn.net/weixin_46215617/article/details/115433851?share_token=0637ba7e-fc4b-4d21-8d6b-000301e7fe3e
 https://juejin.cn/post/7158395475362578462
 https://blog.51cto.com/qmiller/5285102
