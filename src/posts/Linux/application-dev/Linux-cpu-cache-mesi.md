@@ -170,52 +170,76 @@ cpu0执行write a0操作，a0状态从I转为了E：
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoS_2.png)
 
 
-**状态E转状态I，E->I**
+**独占状态转已失效状态，E->I**
+
+此时cpu0上的有a0的缓存，且状态为E，其它cpu上没有a0的缓存：
 
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/EtoI_1.png)
 
+此时cpu1执行write a0的操作，此时cpu0上a0的状态从E转为I：
 
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/EtoI_2.png)
 
-**状态E转状态S,E->S**
+**已修改转共享状态,E->S**
+
+如下图所示，此时cpu0的独占a0：
 
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/EtoS_1.png)
 
+此时cpu1执行read a0的操作
 
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/EtoS_2.png)
 
-**状态M转状态I， M->I**
+**独占状态M转失效状态I， M->I**
+
+此时cpu0上拥有a0的缓存，且状态为M，其它cpu上没有a0的缓存：
 
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/MtoI_1.png)
 
+此时cpu1执行write a0的操作,则cpu0上a0缓存的状态从**独占**(M)转为了**失效**(I)：
 
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/MtoI_2.png)
 
 
 **状态I转状态M，I->M**
 
+此时cpu0上a0缓存的状态是I，其它cpu上没有a0的缓存：
+
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoM_1.png)
 
+此时cpu0执行write a0, 则cpu0上的a0从I转为了E：
 
 ![cache line](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/application-dev/CPU-cache-mesi/ItoM_2.png)
 
 
+### 写缓冲区和失效队列
 
-## 写缓冲区和失效队列
+写缓冲区和失效队列实际上是对MESI的优化策略。
 
-
-
-写缓冲区（Store Buffer）
+**写缓冲区（Store Buffer）**
 
 从上面的对于MESI的理解中，不难发现，MESI协议其实并不高效。例如当CPU1将要修改cache line时，需要广播RFO获得独占权，当收到其它cpu核的ACK之前，CPU1只能空等。 这对于CPU1而言，是一种资源的浪费。写缓冲区就是为了解决这个问题的。当CPU核需要写操作时，会将写操作放入缓冲区中，然后就可以执行其它指令了。当收到其它核心的ACK后，就可以将写入的内容写入cache中。
 
-失效队列（Invalidation Queue）
+**失效队列（Invalidation Queue）**
 
 写缓冲区是对写操作发送命令时的优化，而失效队列则是针对收写操作命令时的优化。
 
 对于其它的CPU核心而言，在其收到RFO请求时，需要更新当前CPU的cache line状态，并回复ACK。然而在收到RFO请求时，CPU核心可能在处理其它的事情，不能及时回复
 
 写缓冲区和失效队列将RFO请求的收发修改为了异步的，这实际上实现的是一种最终一致性。这也会引入新的问题，即CPU对于指令会有重排。如果有一些程序对于内存序有要求，那么就需要进行考虑。
+
+
+cpu0上指令
+```shell
+a = 2
+x = b
+```
+
+cpu1上指令
+```shell
+b = 2
+y = a
+```
 
 ## 参考文献
 
