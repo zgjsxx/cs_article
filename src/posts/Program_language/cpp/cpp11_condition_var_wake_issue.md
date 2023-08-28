@@ -2,19 +2,23 @@ category:
 - C++
 ---
 
-# c++11中的多线程同步 - 条件变量的唤醒丢失和虚假唤醒问题
+# 条件变量的虚假唤醒和唤醒丢失问题
+
+条件变量时多线程同步的重要手段，然而不正确的使用条件变量将导致很多问题。典型的问题就是**虚假唤醒**和**唤醒丢失**。本文将探索这两个问题的产生原因以及解决办法。
 
 ## 什么是虚假唤醒？
 
-虚假唤醒既可能是操作系统层面导致的，也可能是应用层代码导致的。
+**虚假唤醒**是指当你对线程进行唤醒时，你不希望被唤醒的线程也被唤醒的现象。
+
+**虚假唤醒**既可能是**操作系统层面**导致，也可能是**应用层代码**导致。
 
 **内核层面导致的虚假唤醒**
 
-内核层面导致的虚假唤醒，当你调用signal_one方法时，操作系统不保证只唤醒一个线程。
+内核层面导致的虚假唤醒的意思是，当你调用notify_one/signal_one等方法时，操作系统并不保证只唤醒一个线程。
 
-这里参考[Linux Man](https://linux.die.net/man/3/pthread_cond_signal)给出的原因。
+这里参考[Linux pthread_cond_signal Man](https://linux.die.net/man/3/pthread_cond_signal)给出的原因。
 
-假设这里有三个线程， A线程正在signal，B线程正在wait， C线程已经wait。
+假设这里有三个线程， A线程正在signal，B线程正在wait，C线程已经wait。
 
 ```cpp
 pthread_cond_wait(mutex, cond):
@@ -59,7 +63,7 @@ pthread_cond_signal(cond):
 |12| |pthread_mutex_unlock(cond->mutex);|
 |13| |pthread_mutex_lock(mutex);|
 
-在这个场景之下，signal一次，就会同时唤醒B线程和C线程。
+在这个场景之下，pthread_cond_signal，就会同时唤醒B线程和C线程。
 
 有关于虚假唤醒，man页面还有下面的一些陈述。
 
@@ -67,9 +71,13 @@ pthread_cond_signal(cond):
 
 其意思是允许虚假唤醒的另一个好处是应用程序被迫围绕条件等待编写谓词测试循环。 这也使得应用程序能够容忍相同条件变量上的多余条件广播或信号，这些条件变量可能在应用程序的其他部分中进行编码。 因此，最终的应用程序更加稳健。 因此，IEEE Std 1003.1-2001 明确记录了可能发生虚假唤醒。
 
+pthread库之所以允许虚假，是为了性能上的考虑。pthread库希望应用程序某些时候在进入内核态之前就被唤醒，这样就可以避免进入内核态的开销。关于其详细原因，可以参考本站的另一篇文章**深入了解glibc的条件变量**进行了解。
+
 **应用层导致的虚假唤醒**
 
-出了操作系统层面的虚假唤醒，应用层同样会导致虚假唤醒，例如下面的代码，生产者只生产了一个元素，但是确调用了notify_all，导致两个线程都被唤醒，而其中的一个线程无法获得相应的任务。
+除了操作系统层面的虚假唤醒，应用层不正确的代码实现同样会引起虚假唤醒问题。
+
+例如下面的代码，生产者只生产了一个元素，但是确调用了notify_all，导致两个线程都被唤醒，而其中的一个线程无法获得相应的任务。
 
 ```cpp
 #include <condition_variable>
@@ -115,14 +123,15 @@ int main()
     consumer2.join();
     return 0;
 }
-
 ```
+
+点击在线运行： [have a try](https://godbolt.org/z/1xMd7qzcK)。
 
 ## 如何避免虚假唤醒？
 
-避免虚假唤醒的最佳办法就是添加测试循环。
+无论是内核层面导致的虚假唤醒或者是应用层导致的虚假唤醒都可以通过**添加测试循环**进行避免。
 
-所谓测试循环就是在wait的外层添加while循环，或者给wait方法传入一个函数指针用于判断是否可以退出，如下所示：
+所谓**测试循环**就是在wait的外层添加while循环判断是否需要wait，或者给wait方法传入一个函数指针用于判断是否需要wait，如下所示：
 
 ```cpp
 while(!flag)
@@ -153,12 +162,14 @@ std::queue<std::string> q;
 
 void Producer()
 {
-    std::this_thread::sleep_for(2000ms);
-    std::cout << "Ready Send notification." << std::endl;
-    mtx.lock();
-    q.push("message");
-    mtx.unlock();
-    cv.notify_all();
+    for(int i = 0;i < 2; i++){
+        std::this_thread::sleep_for(2000ms);
+        std::cout << "Ready Send notification." << std::endl;
+        mtx.lock();
+        q.push("message");
+        mtx.unlock();
+        cv.notify_all();
+    }
  }
 
 void Consumer()
@@ -167,11 +178,12 @@ void Consumer()
     std::unique_lock<std::mutex> lck(mtx);
 
     /*
+    方法1：
     while(q.empty()){
         cv.wait(lck);
     }
     */
-    cv.wait(lck,[]{return !q.empty();});
+    cv.wait(lck,[]{return !q.empty();});//方法2
 
     std::string msg = q.front();
     q.pop();
@@ -192,6 +204,10 @@ int main()
 ```
 
 ## 什么是唤醒丢失
+
+**唤醒丢失**简而言之就是我曾经唤醒了你，但是没有收到。
+
+详细来说就是某个线程在调用notify时，另一个线程还没有进行wait，那么这个线程后面wait时将陷入无限的等待中。
 
 下面的例子是一个使用条件变量的demo：
 
@@ -234,10 +250,9 @@ void Consumer()
 
 很显然，上述的例子是一个错误的例子。
 
-
 ## 如何避免唤醒丢失?
 
-如果在signal时，线程没有处于wait，那么就会发生唤醒丢失。这个似乎是无法避免的。我们所要做的就是即便丢失了唤醒，程序还是会根据条件去判断是否要进行wait，而不是无脑地wait。
+如果在notify时，线程没有处于wait，那么就会发生唤醒丢失。这个似乎是无法避免的。我们所要做的就是即便丢失了唤醒，程序还是会根据条件去判断是否要进行wait，而不是无脑地wait。
 
 对于上面的例子，添加上一个flag表明是否可以处理。当生产者准备好数据后，将flag置为true。
 
@@ -253,33 +268,32 @@ std::mutex mtx;
 bool flag = false;
 
 void Producer()
-{   
+{
     mtx.lock();
     flag = true;
-     std::cout << "Ready Send notification." << std::endl;
+    std::cout << "Ready Send notification." << std::endl;
     mtx.unlock();
-     cv.notify_one();   // 发送通知
+    cv.notify_one();   // 发送通知
  }
 
 void Consumer()
 {
     std::this_thread::sleep_for(2000ms);
-     std::cout << "Wait for notification." << std::endl;
-     std::unique_lock<std::mutex> lck(mtx);
-     cv.wait(lck,[]{return flag;});    // 等待通知并唤醒继续执行下面的指令
-     std::cout << "Process." << std::endl;
+    std::cout << "Wait for notification." << std::endl;
+    std::unique_lock<std::mutex> lck(mtx);
+    cv.wait(lck,[]{return flag;});    // 等待通知并唤醒继续执行下面的指令
+    std::cout << "Process." << std::endl;
 }
 
- int main()
- {
-     std::thread producer(Producer);
-     std::thread consumer(Consumer);
-     producer.join();
-     consumer.join();
-     return 0;
+int main()
+{
+    std::thread producer(Producer);
+    std::thread consumer(Consumer);
+    producer.join();
+    consumer.join();
+    return 0;
 }
 ```
 
-
 ## 总结
-- 条件变量是多线程同步中重要的手段，唤醒丢失和虚假唤醒是使用条件变量时会遇到的问题，使用时需要添加循环测试条件以规避上述问题。
+- 条件变量是多线程同步中重要的手段，唤醒丢失和虚假唤醒是使用条件变量时会遇到的问题，这两个问题并不是无法避免的，使用时需要添加循环测试条件就可以规避上述问题。
