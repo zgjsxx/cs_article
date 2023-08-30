@@ -39,7 +39,9 @@ c++11中thread和pthread相比有如下的一些优点：
 
 下面看看使用```std::thread```创建线程的几种方式。
 
-## 使用普通函数创建线程
+## ```std::thread```创建线程的方式
+
+### 使用普通函数创建线程
 
 ```cpp
 #include<iostream>
@@ -58,7 +60,7 @@ int main()
 }
 ```
 
-## 使用仿函数创建线程
+### 使用仿函数创建线程
 
 ```cpp
 #include<iostream>
@@ -84,7 +86,7 @@ int main()
 }
 ```
 
-## 使用lambda表达式创建线程
+### 使用lambda表达式创建线程
 
 ```cpp
 #include<iostream>
@@ -104,28 +106,94 @@ int main()
 }
 ```
 
-## 使用detach进行分离线程
+### 使用成员函数创建线程
+
+使用成员函数创建线程有下面几种实现的思路
+
+- 直接传参给std::thread
 
 ```cpp
-#include<iostream>
+#include <iostream>
+#include <algorithm>
+#include <vector>
 #include <thread>
 
-void myprint()
-{
-    std::cout<<"thread start to run" << std::endl;
-}
+class Test{
+public:
+    Test() = default;
+    ~Test() = default;
+public:
+    void func(){
+        std::cout << "test func" << std::endl;
+    }
+};
 
 int main()
 {
-    std::thread th(myprint);
-    th.detach();
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(300));
-    std::cout << "main thread end" << std::endl;
+    Test testobj;
+    std::thread th1{&Test::func, &testobj};
+    th1.join();
 }
 ```
 
-detach分离线程，这种方式平常使用较少。也容易引用一些问题。
+- 使用std::bind生成function对象再传给std::thread
+
+```cpp
+#include <iostream>
+#include <algorithm>
+#include <vector>
+#include <thread>
+#include <functional>
+
+class Test{
+public:
+    Test() = default;
+    ~Test() = default;
+public:
+    void func(){
+        std::cout << "test func" << std::endl;
+    }
+};
+
+int main()
+{
+    Test testobj;
+    std::function<void()> testfunc = std::bind(&Test::func, &testobj);
+    std::thread th1{testfunc};
+    th1.join();
+}
+```
+
+- 封装成lambda函数再传给std::thread
+
+```cpp
+#include <iostream>
+#include <algorithm>
+#include <vector>
+#include <thread>
+#include <functional>
+
+class Test{
+public:
+    Test() = default;
+    ~Test() = default;
+public:
+    void func(){
+        std::cout << "test func" << std::endl;
+    }
+};
+
+int main()
+{
+    Test testobj;
+    auto testfunc = [&testobj](){
+        testobj.func();
+    };
+
+    std::thread th1{testfunc};
+    th1.join();
+}
+```
 
 ## thread的传参
 
