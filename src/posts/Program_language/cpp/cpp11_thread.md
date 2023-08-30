@@ -5,17 +5,37 @@ category:
 
 # c++11中的多线程std::thread
 
-在c++11中提供了新的多线程的创建方式```std::thread```, 丰富了对于多线程的使用。 ```std::thread```类的构造函数的格式如下所示：
+在c++11中提供了新的多线程的创建方式```std::thread```, 丰富了对于多线程的使用。 ```std::thread```类的原型如下所示：
 
 ```cpp
-thread() noexcept;       //default constructor   其中noexcept表示函数不会抛出异常，如果抛出异常程序就会终止
- 
-template <class Fn, class... Args> 
-explicit thread (Fn&& fn, Args&&... args);   //initialization constructor  explicit 表示不支持隐式转换
- 
-thread (const thread&) = delete;        //copy constructor delete表示不生成默认拷贝构造函数，并且可以禁止使用某个函数，也就表示不可以使用一个线程初始化另一个线程
- 
-thread (thread&& x) noexcept;    //move constructor
+namespace std {
+class thread {
+public:
+    // 类型声明:
+    class id;
+    typedef implementation-defined native_handle_type;
+
+    // 构造函数、拷贝构造函数和析构函数声明:
+    thread() noexcept;
+    template <class F, class ...Args> explicit thread(F&& f, Args&&... args);
+    ~thread();
+    thread(const thread&) = delete;
+    thread(thread&&) noexcept;
+    thread& operator=(const thread&) = delete;
+    thread& operator=(thread&&) noexcept;
+
+    // 成员函数声明:
+    void swap(thread&) noexcept;
+    bool joinable() const noexcept;
+    void join();
+    void detach();
+    id get_id() const noexcept;
+    native_handle_type native_handle();
+
+    // 静态成员函数声明:
+    static unsigned hardware_concurrency() noexcept;
+};
+}
 ```
 
 其包含了一个默认的构造函数和一个模板构造函数。该模板构造函数是explicit，代表不允许隐式转换。 其拷贝构造函数声明为delete，代表不可以使用一个线程初始化另一个线程。 其拥有一个移动构造函数。
@@ -39,7 +59,7 @@ c++11中thread和pthread相比有如下的一些优点：
 
 下面看看使用```std::thread```创建线程的几种方式。
 
-## ```std::thread```创建线程的方式
+## std::thread创建线程的方式
 
 ### 使用普通函数创建线程
 
@@ -195,7 +215,21 @@ int main()
 }
 ```
 
-## thread的传参
+## std::thread的销毁
+
+在```std::thread```的析构函数中有下面的判断，即当一个线程在析构时处于可以join的状态，那么将会调用```std::terminate```方法，这将会异常终止程序的运行。
+
+```cpp
+    ~thread()
+    {
+      if (joinable())
+	    std::terminate();
+    }
+```
+
+因此如果一个线程是可以join的，那么在析构前一定要join掉。**effective modern c++**一书中的Item37也曾提到，使```std::thread```在所有路径最后都不可结合（unjoinable）。
+
+## std::thread的传参
 
 在上面的例子中，我们创建的函数都是没有入参的。下面我们讨论下如何传参并且需要注意的一些点。
 
@@ -333,3 +367,50 @@ int main()
 ```String & s`````` 是不可以指向一个右值的。这里不熟悉的可以重新温故一下左值引用，右值引用。
 
 形参```T```、```const T&```或```T&&``` 可以接受右值， ```T &```不可以接受右值。 因此如果函数形参是```T &```， 则传参时必须要使用```std::ref```。
+
+
+## std::thread的native handle
+
+c++中的线程库```std::thread```所提供的线程控制能力非常有限， 线程创建完成后即开始运行，只提供了joinable, join, detach，为了弥补这个不足，c++提供了一个```std::thread::native_handle()``` 函数来获取与特性线程库实现相关的handle,以此来提供更多线程控制能力。
+
+```cpp
+#include <thread>
+#include <mutex>
+#include <iostream>
+#include <chrono>
+#include <cstring>
+#include <pthread.h>
+
+std::mutex iomutex;
+void f(int num)
+{
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    sched_param sch;
+    int policy;
+    pthread_getschedparam(pthread_self(), &policy, &sch);
+    std::lock_guard<std::mutex> lk(iomutex);
+    std::cout << "Thread " << num << " is executing at priority "
+              << sch.sched_priority << '\n';
+}
+
+int main()
+{
+    std::thread t1(f, 1), t2(f, 2);
+
+    sched_param sch;
+    int policy;
+    pthread_getschedparam(t1.native_handle(), &policy, &sch);
+    sch.sched_priority = 20;
+    if (pthread_setschedparam(t1.native_handle(), SCHED_FIFO, &sch)) {
+        std::cout << "Failed to setschedparam: " << std::strerror(errno) << '\n';
+    }
+
+    t1.join(); t2.join();
+}
+```
+
+## 总结
+- c++11提供的std::thread提供了简便的创建线程的方式
+- 确保线程在所有路径上都是unjoinable的
+- 如果std::thread提供的接口不能满足你的开发需求，可以尝试用native handle操调用线程库原生的接口进行操作。
