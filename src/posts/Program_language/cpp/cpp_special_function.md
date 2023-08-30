@@ -127,12 +127,11 @@ int main()
 }
 ```
 
-
 ## 析构函数
 
 构造函数的作用是帮助**销毁一个实例**。
 
-这很好理解，但是合适需要自定义析构函数呢？
+这很好理解，但是何时需要自定义析构函数呢？
 
 首先看下面这个类，这个类需要写自定义析构函数吗？
 
@@ -175,7 +174,7 @@ public:
     }
 
 private:
-    char* name_;
+    char* name_{nullptr};
 }
 ```
 
@@ -201,11 +200,11 @@ public:
     }
 
 private:
-    char* name_;
+    char* name_{nullptr};
 }
 ```
 
-其实这个类到目前为止还是有问题的，在下文中会解释为什么。
+其实这个类到目前为止还是有问题的，在下文中提到拷贝操作时会解释为什么。
 
 再看看下面这个例子，需要为其自定义析构函数吗？
 
@@ -248,7 +247,7 @@ private：
 
 通常一个类需要**管理一些资源时**(原始指针，线程，文件描述符等)，通常需要为其编写自定义的析构函数，因为此时的默认的析构函数的行为是不正确的。
 
-接下来需要了解一个著名的**rule of three定理**，如果一个类需要用户定义的析构函数、用户定义的复制构造函数或用户定义的复制赋值运算符三者中的一个，那么它几乎肯定需要这三个函数。
+接下来需要了解一个著名的**rule of three定理**，如果一个类需要用户**自定义的析构函数**、**用户定义的复制构造函数**或**用户定义的赋值运算符**三者中的一个，那么它几乎肯定需要这三个函数。
 
 例如下面的例子
 
@@ -287,7 +286,7 @@ int main()
 }
 ```
 
-如果使用默认的复制构造函数，将会出现double free的错误。此时s1和s3的name_成员指向同一处内存，s1和s3析构时将重复析构。
+如果使用默认的复制构造函数，将会出现double free的错误。因为默认的复制构造函数是值拷贝，此时s1和s3的name_成员指向同一处内存，s1和s3析构时将重复析构。
 
 如果使用默认的赋值运算符，不仅会有double free的问题，还会有一处内存泄漏。由于s2被赋值为了s1，因此s2原来的name_指向的内存将不再有指针指向，于是产生了内存泄漏。接下来，同理s1和s2的name_成员指向同一处内存，s1和s2析构时将重复析构。
 
@@ -354,12 +353,11 @@ int main()
     name_ = new_cstring;
 ```
 
-
 ## 复制构造函数和赋值运算符
 
 复制构造函数的作用是**使用一个已经存在的对象去创建一个新的对象**。
 
-赋值运算符的作用是将原有对象的所有成员变量赋值给一个已经创建的对象。
+赋值运算符的作用是将**一个对象的所有成员变量**赋值给**另一个已经创建的对象**。
 
 二者的区别在于一个是**创建一个新对象**，一个是**赋值给一个已经存在的对象**。
 
@@ -386,13 +384,10 @@ Student(const Student& other) // II. copy constructor
 
 赋值运算符的编写的注意点相对较多。
 
-首先要添加自我赋值判断。
-
-其次由于赋值运算符是对一个已经存在的对象再次赋值，因此首先需要销毁原有对象的成员。
-
-接着需要处理成员对象的赋值，如果存在类管理的指针，则需要进行深拷贝。
-
-最后需要将```*this```进行返回，以便进行连续赋值。
+- 首先要添加自我赋值判断。
+- 其次由于赋值运算符是对一个已经存在的对象再次赋值，因此首先需要销毁原有对象的成员。
+- 接着需要处理成员对象的赋值，如果存在类管理的指针，则需要进行深拷贝。
+- 最后需要将```*this```进行返回，以便进行连续赋值。
 
 ```cpp
 Student& operator=(const Student& other) // III. copy assignment
@@ -414,7 +409,7 @@ Student& operator=(const Student& other) // III. copy assignment
 
 如果你的类没有管理资源，那么浅拷贝可能是合适的。如果你的类是管理某些资源的（**原始指针**，**线程对象**，**文件描述符**等），那么大概率默认的复制构造函数和赋值运算符是不合适的。
 
-但是要注意有时候，成员虽然有原始指针，但是并不代表该原始指针由该类管理。
+但是要注意有时候，类成员虽然包含原始指针，但是并不代表该原始指针由该类管理。
 
 例如下面的例子中，Client类中拥有handler_指针，但是该指针的生命周期并不由该类管理，该类仅仅是使用该指针，因此在这种场景下，浅拷贝就没有问题，默认的复制构造函数和赋值运算符就可以满足要求。
 
@@ -498,7 +493,7 @@ int main()
 
 ## 移动构造函数和移动运算符
 
-移动语义在c++11之后大面积使用，它允许将一个对象的所有权从一个对象转移到另一个对象，而不需要进行数据的拷贝。 这种转移可以在对象生命周期的任意时刻进行，可以说是一种轻量级的复制操作。
+**移动语义**在c++11之后大面积使用，它允许将一个对象的所有权从一个对象转移到另一个对象，而不需要进行数据的拷贝。 这种转移可以在对象生命周期的任意时刻进行，可以说是一种轻量级的复制操作。
 
 而移动构造函数和移动运算符就是在类中支持移动语义的二个方法。
 
@@ -710,12 +705,12 @@ public:
 
       if (this != &other)
       {
-         // Free the existing resource.
-         delete[] _data;
+          // Free the existing resource.
+          delete[] _data;
 
-         _length = other._length;
-         _data = new int[_length];
-         std::copy(other._data, other._data + _length, _data);
+          _length = other._length;
+          _data = new int[_length];
+          std::copy(other._data, other._data + _length, _data);
       }
       return *this;
    }
@@ -724,30 +719,8 @@ public:
     : _data(nullptr)
     , _length(0)
     {
-    std::cout << "In MemoryBlock(MemoryBlock&&). length = "
-                << other._length << ". Moving resource." << std::endl;
-
-    // Copy the data pointer and its length from the
-    // source object.
-    _data = other._data;
-    _length = other._length;
-
-    // Release the data pointer from the source object so that
-    // the destructor does not free the memory multiple times.
-    other._data = nullptr;
-    other._length = 0;
-    }
-
-    // Move assignment operator.
-    MemoryBlock& operator=(MemoryBlock&& other) noexcept
-    {
-    std::cout << "In operator=(MemoryBlock&&). length = "
-                << other._length << "." << std::endl;
-
-    if (this != &other)
-    {
-        // Free the existing resource.
-        delete[] _data;
+        std::cout << "In MemoryBlock(MemoryBlock&&). length = "
+                    << other._length << ". Moving resource." << std::endl;
 
         // Copy the data pointer and its length from the
         // source object.
@@ -759,12 +732,34 @@ public:
         other._data = nullptr;
         other._length = 0;
     }
-    return *this;
+
+    // Move assignment operator.
+    MemoryBlock& operator=(MemoryBlock&& other) noexcept
+    {
+        std::cout << "In operator=(MemoryBlock&&). length = "
+                    << other._length << "." << std::endl;
+
+        if (this != &other)
+        {
+            // Free the existing resource.
+            delete[] _data;
+
+            // Copy the data pointer and its length from the
+            // source object.
+            _data = other._data;
+            _length = other._length;
+
+            // Release the data pointer from the source object so that
+            // the destructor does not free the memory multiple times.
+            other._data = nullptr;
+            other._length = 0;
+        }
+        return *this;
     }
    // Retrieves the length of the data resource.
    size_t Length() const
    {
-      return _length;
+        return _length;
    }
 
 private:
@@ -781,15 +776,15 @@ MemoryBlock(MemoryBlock&& other) noexcept
    : _data(nullptr)
    , _length(0)
 {
-   *this = std::move(other);
+    *this = std::move(other);
 }
 ```
 
-下面要介绍的是，如果一个类自定了析构函数，赋值构造函数，赋值运算符三者之一，则默认的移动构造和移动运算符就会被delete。如果使用一个右值来构造对象，那么编译器将会调用赋值构造函数。
+下面要介绍的是，如果一个类自定了析构函数，赋值构造函数，赋值运算符三者之一，则默认的移动构造和移动运算符就会被delete。如果使用一个右值来构造对象，那么编译器将会调用复制构造函数。
 
 例如，MemoryBlock自定了析构函数，赋值构造函数，赋值运算符，于是默认的移动构造和移动运算符就会被delete。
 
-即便你使用了```MemoryBlock m2(std::move(m1));```，其仍然调用的是赋值构造函数。
+即便你使用了```MemoryBlock m2(std::move(m1));```，其仍然调用的是复制构造函数。
 
 ```cpp
 #include <iostream>
@@ -875,7 +870,7 @@ int main()
 
 这里顺便再提到另一个**rule of zero**定理，
 
-1.类不应定义任何特殊函数（复制/移动构造函数/赋值和析构函数），除非它们是专用于资源管理的类。
+- 1.类不应定义任何特殊函数（复制/移动构造函数/赋值和析构函数），除非它们是专用于资源管理的类。
 
 此举为了满足设计上的单一责任原则，将数据模块与功能模块在代码层面分离，降低耦合度。
 
@@ -888,7 +883,7 @@ public:
 };
 ```
 
-2.基类作为管理资源的类在被继承时，析构函数可能必须要声明为public virtual，这样的行为会破坏移动复制构造，因此，如果基类在此时的默认函数应设置为default。
+- 2.基类作为管理资源的类在被继承时，析构函数可能必须要声明为public virtual，这样的行为会破坏移动复制构造，因此，如果基类在此时的默认函数应设置为default。
 
 此举为了满足多态类在C ++核心准则中禁止复制的编码原则。
 
@@ -904,7 +899,7 @@ public:
 };
 ```
 
-关于这个点，还是需要一个例子来加深印象，
+关于这个点，还是需要一个例子来加深印象：
 
 ```cpp
 #include <iostream>
@@ -966,7 +961,7 @@ int main()
 
 这里的运行结果如下所示：
 
-```
+```shell
 A()
 A()
 A(const A& other)
