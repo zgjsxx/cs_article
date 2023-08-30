@@ -6,18 +6,23 @@ tag:
 - C++面试题
 ---
 
-# new operator
+# C++中的new、operator new与placement new
+
+## new operator
 
 当我们使用了new关键字去创建一个对象时，你知道背后做了哪些事情吗？
+
 ```cpp
 A* a = new A;
 ```
+
 实际上这样简单的一行语句， 背后做了以下三件事情：
 1. 分配内存,如果类A重载了operator new，那么将调用A::operator new(size_t )来完成，如果没有重载，就调用::operator new(size_t )，即全局new操作符来完成。
 2. 调用构造函数生成类对象；
 3. 返回相应指针。
 
 下面我们通过一个例子来验证这个过程：
+
 ```cpp
 #include <iostream>
 #include <string>
@@ -58,15 +63,16 @@ int main()
 
 上述代码的执行结果如下所示：
 
-```text
+```shell
 call operator new
 call Stu class constructor
 ```
+
 可以看到重载的operator new被调用，类Stu的构造函数也被调用，验证了上述的描述。
 
 要注意到的是new是一个关键字，和sizeof一样，我们不能修改其具体功能。
 
-# operator new
+## operator new
 
 从new的调用过程中，我们知道会调用operator new操作符
 
@@ -86,6 +92,7 @@ void* operator new (std::size_t size, const std::nothrow_t& nothrow_constant) th
 ```
 
 在下面的例子中，我们使用重载了三个operator new方法， 并分别调用。
+
 ```cpp
 #include <iostream>
 #include <string>
@@ -143,7 +150,8 @@ int main()
 ```
 
 执行结果如下：
-```
+
+```shell
 call operator new
 call Stu class constructor
 call operator new with int
@@ -156,11 +164,13 @@ call destructor
 ```
 
 可以看到重载的三个operator new被成功调用。
-# placement new
+
+## placement new
 
 placement new是operator new的一种重载形式，其作用是可以**在指定的内存地址创建对象**。
 
 placement new返回值必须是void*。第一个参数必须是size_t， 第二个参数是void*
+
 ```cpp
 void* operator new (std::size_t size, void* ptr) throw();  
 ```
@@ -211,7 +221,8 @@ int main()
 ```
 
 执行结果如下：
-```text
+
+```shell
 placement new
 name = stu1
 age = 10
@@ -231,6 +242,7 @@ void construct(Ty* ptr, Args&&... args)
 ```
 
 需要注意的是， placement new只是在指定的内存地址上构建对象，在对象使用完毕之后，需要**手动调用析构函数**做资源的析构。
+
 ```cpp
 char* buff = (char*)malloc(4096);
 Stu *stu = new (buff) Stu("stu1", 10);
@@ -238,6 +250,7 @@ stu->print();
 stu->~Stu();
 free(buff);
 ```
+
 为什么需要这样呢？
 
 我们知道，使用delete关键字去释放一个对象时，首先会调用析构函数，然后再调用operator delete释放内存。
@@ -290,9 +303,11 @@ int main()
     stu->~Stu();
 }
 ```
+
 与在堆上调用placement new一样， 同样需要手动调用析构函数做资源的释放。但是由于内存是在栈上的， 因此不需要手动释放。
 
-# 结论
+## 结论
+
 对于new， operator new 和 placement new三者的区别， 我们总结如下：
 
 **new**：
