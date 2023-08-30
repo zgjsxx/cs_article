@@ -94,7 +94,7 @@ export const zhSidebar = sidebar({
       link: "",
       children: [
         "cpp11_thread",
-        "cpp11_special_function",
+        "cpp_special_function",
         "cpp11_condition_var_issue",
         "placement_operator_new",
         "cpp_realize_defer",
