@@ -93,10 +93,9 @@ export const zhSidebar = sidebar({
       prefix: "",
       link: "",
       children: [
-        "cpp_singleton_summarize",
-        "cpp_googlestyle_static_global_var",
-        "cpp_lambda",
         "cpp11_thread",
+        "cpp11_special_function",
+        "cpp11_condition_var_issue",
         "placement_operator_new",
         "cpp_realize_defer",
         "effective-cpp",
