@@ -5,7 +5,20 @@ category:
 
 # c++11中的多线程std::thread
 
-在c++11中提供了新的多线程的创建方式```std::thread```, 丰富了对于多线程的使用。 ```std::thread```类的原型如下所示：
+
+## 简介
+
+在c++11中提供了新的多线程的创建方式```std::thread```, 丰富了对于多线程的使用。本文将从下面几个角度对```std::thread```进行讲解。
+
+- std::thread的原型
+- std::thread创建线程的方式
+- std::thread的销毁
+- std::thread的传参
+- 如何获取线程的返回值
+
+## std::thread的原型
+
+```std::thread```类的原型如下所示：
 
 ```cpp
 namespace std {
@@ -368,6 +381,104 @@ int main()
 
 形参```T```、```const T&```或```T&&``` 可以接受右值， ```T &```不可以接受右值。 因此如果函数形参是```T &```， 则传参时必须要使用```std::ref```。
 
+
+## 如何获取线程的返回值
+
+- 通过promise-future获取线程函数返回值
+
+```cpp
+#include <iostream>
+#include <iomanip>
+#include <string>
+#include <random>
+#include <any>
+#include <functional>
+#include <future>
+#include <thread>
+#include <chrono>
+#include <cstdlib>
+
+void SetPromise(std::promise<int>& promiseObj) {
+    std::cout << "In a thread, making data...\n";
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    promiseObj.set_value(10);
+    std::cout << "Finished\n";
+}
+
+int main() {
+    std::promise<int> promiseObj;
+    std::future<int> futureObj = promiseObj.get_future();
+    std::thread t(&SetPromise, std::ref(promiseObj));
+    std::cout << futureObj.get() << std::endl;
+    t.join();
+
+    return 0;
+}
+```
+
+- 通过packaged_task获取函数返回值
+
+```cpp
+#include <iostream>     // std::cout
+#include <future>       // std::packaged_task, std::future
+#include <chrono>       // std::chrono::seconds
+#include <thread>       // std::thread, std::this_thread::sleep_for
+
+// count down taking a second for each value:
+int countdown (int from, int to) {
+    for (int i=from; i!=to; --i) {
+        std::cout << i << '\n';
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    std::cout << "Finished!\n";
+    return from - to;
+}
+
+int main ()
+{
+    std::packaged_task<int(int,int)> task(countdown); // 设置 packaged_task
+    std::future<int> ret = task.get_future(); // 获得与 packaged_task 共享状态相关联的 future 对象.
+
+    std::thread th(std::move(task), 10, 0);   //创建一个新线程完成计数任务.
+
+    int value = ret.get();                    // 等待任务完成并获取结果.
+
+    std::cout << "The countdown lasted for " << value << " seconds.\n";
+
+    th.join();
+    return 0;
+}
+```
+
+- 使用std::async结合std::launch::async策略启动线程
+
+```cpp
+#include <iostream>
+#include <future>
+#include <thread>
+#include <chrono>
+using namespace std::chrono_literals;
+ 
+int main()
+{
+    std::future<int> future = std::async(std::launch::async, [](){
+        std::this_thread::sleep_for(3s);
+        return 8;
+    });
+ 
+    std::cout << "waiting...\n";
+    std::future_status status;
+    do {
+        switch(status = future.wait_for(1s); status) {
+            case std::future_status::deferred: std::cout << "deferred\n"; break;
+            case std::future_status::timeout: std::cout << "timeout\n"; break;
+            case std::future_status::ready: std::cout << "ready!\n"; break;
+        }
+    } while (status != std::future_status::ready);
+ 
+    std::cout << "result is " << future.get() << '\n';
+}
+```
 
 ## std::thread的native handle
 
