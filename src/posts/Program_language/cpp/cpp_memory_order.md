@@ -65,6 +65,7 @@ i++的问题的原因在于岂不是一个原子操作：
 一个比较稳妥的办法就是对于共享变量的访问进行加锁，加锁可以保证对临界区的互斥访问，例如第一种场景如果加锁后再执行i++ 然后解锁，则同一时刻只会有一个线程在执行i++ 操作。另外，加锁的内存语义能保证一个线程在释放锁前的写入操作一定能被之后加锁的线程所见（即有happens before 语义），可以避免第二种场景中读取到错误的值。
 
 ## C++11的原子量
+
 C++11标准在标准库atomic头文件提供了模版atomic<>来定义原子量：
 ```cpp
 template< class T >
@@ -138,6 +139,7 @@ int main()
 ```
 
 在测试中，我们定义了一个原子量i，在main函数开始的时候初始化为0，然后启动10个线程，每个线程执行i++操作十万次，最终检查i的值是否正确。执行的最后结果如下：
+
 ```shell
 start 10 workers, every woker inc 100000 times
 workers end finally i is 1000000
@@ -160,6 +162,7 @@ i++ test failed!
 
 
 ## C++11的六种内存序
+
 前面我们解决i++问题的时候已经使用过原子量的写操作load将原子量赋值，实际上成员函数还有另一个参数：
 
 ```cpp
@@ -191,6 +194,7 @@ typedef enum memory_order {
 之前在场景2中，因为指令的重排导致了意料之外的错误，通过使用原子变量并选择合适内存序，可以解决这个问题。下面先来看看这几种内存序
 
 ### memory_order_release/memory_order_acquire
+
 内存序选项用来作为原子量成员函数的参数，memory_order_release用于store操作，memory_order_acquire用于load操作，这里我们把使用了memory_order_release的调用称之为release操作。从逻辑上可以这样理解：release操作可以阻止这个调用之前的读写操作被重排到后面去，而acquire操作则可以保证调用之后的读写操作不会重排到前面来。听起来有种很绕的感觉，还是以一个例子来解释：假设flag为一个 atomic特化的bool 原子量，a为一个int变量，并且有如下时序的操作：
 
 |step|	thread A	|thread B|
@@ -208,6 +212,7 @@ typedef enum memory_order {
 
 
 ### memory_order_release/memory_order_consume
+
 memory_order_release还可以和memory_order_consume搭配使用。memory_order_release操作的作用没有变化，而memory_order_consume用于load操作，我们简称为consume操作，comsume操作防止在其后对原子变量有依赖的操作被重排到前面去。这种情况下：
 
 对于同一个原子变量，release操作所依赖的写入，一定对随后consume操作后依赖于该原子变量的操作可见。
@@ -225,8 +230,38 @@ memory_order_release还可以和memory_order_consume搭配使用。memory_order_
 
 step4使得c依赖于flag，当step4线程B读取到flag的值为true的时候，由于flag依赖于b，b在之前的写入是可见的，此时b一定为true，所以step6、step7的断言一定会成功。而且这种依赖关系具有传递性，假如b又依赖与另一个变量d，则d在之前的写入同样对step4之后的操作可见。那么a呢？很遗憾在这种内存序下a并不能得到保证，step5的断言可能会失败。
 
+```cpp
+#include <thread>
+#include <atomic>
+#include <cassert>
+#include <string>
+
+std::atomic<std::string*> ptr;
+int data;
+
+void producer() {
+    std::string* p  = new std::string("Hello");
+    data = 42;
+    ptr.store(p, std::memory_order_release);
+}
+
+void consumer() {
+    std::string* p2;
+    while (nullptr == (p2 = ptr.load(std::memory_order_consume)));
+    assert(*p2 == "Hello"); // never fires: *p2 carries dependency from ptr
+    assert(data == 42); // may or may not fire: data does not carry dependency from ptr
+}
+
+int main() {
+    std::thread t1(producer);
+    std::thread t2(consumer);
+    t1.join(); t2.join();
+    return 0;
+}
+```
 
 
+不过，需要注意的是，c++标准化组织并不建议我们使用memory_order_consume语义，其建议任何使用到 memory_order_consume 的地方，都应用 memory_order_acquire 替代。
 ### memory_order_acq_rel
 
 这个选项看名字就很像release和acquire的结合体，实际上它的确兼具两者的特性。这个操作用于“读取-修改-写回”这一类既有读取又有修改的操作，例如CAS操作。可以将这个操作在内存序中的作用想象为将release操作和acquire操作捆在一起，因此任何读写操作的重拍都不能跨越这个调用。依然以一个例子来说明，flag为一个 atomic特化的bool 原子量，a、c各为一个int变量，b为一个bool变量,并且刚好按如下顺序执行：
@@ -252,7 +287,7 @@ step4使得c依赖于flag，当step4线程B读取到flag的值为true的时候�
 
 
 
-参考文章：
+## 参考文章：
 https://blog.csdn.net/chansoncc/article/details/88186350?share_token=4b2577c7-3323-4f4d-9e94-0240bf5b640c
 
 https://wudaijun.com/2019/04/cache-coherence-and-memory-consistency/
