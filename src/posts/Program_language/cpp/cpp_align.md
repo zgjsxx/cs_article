@@ -13,7 +13,6 @@ category:
 
 假如没有内存对齐机制，数据可以任意存放，现在一个int变量存放在从地址1开始的联系四个字节地址中，该处理器去取数据时，要先从0地址开始读取第一个4字节块,剔除不想要的字节（0地址）,然后从地址4开始读取下一个4字节块,同样剔除不要的数据（5，6，7地址）,最后留下的两块数据合并放入寄存器.这需要做很多工作.
 
-
 ![bg1](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/language/cpp/cpp_align/bg1.png)
 
 ## 对齐的规则
@@ -246,3 +245,7 @@ sizeof MyStruct = 24
 对于变量i，类型为__m128i，长度为16，__m128i和有效对齐值的最小值为8，因此i需要排布在2的整数倍上，因此第一个符合要求的偏移量就是8。
 
 ![MyStruct分布5](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/language/cpp/cpp_align/example5.png)
+
+## 总结
+- 为了高效的访问内存数据，通常需要对内存数据进行对齐。
+- ```#pragma pack(n)```用于设置的对齐有效值，如果设置比结构体的最长成员还大的对齐值将是无效的。
