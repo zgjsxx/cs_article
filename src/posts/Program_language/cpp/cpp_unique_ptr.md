@@ -13,6 +13,31 @@ std::unique_ptr是一种几乎和原始指针一样高效的智能指针，对�
 - 允许自定义删除器：由于std::unique_ptr将删除器作为自己的成员变量，所以传入自定义删除器之前需要在模板参数中指定删除器的类型std::unique_ptr<T, D> up(nullptr, deleter)。
 - 支持STL容器：在C++98中，容器要求元素必须是可以拷贝的，比如«effective STL»中提到的，对容器中的元素进行std::sort时，会从区间中选一个元素拷贝为主元素（pivot），然后再对所有元素进行分区操作。但是std::auto_ptr的拷贝操作执行的却是移动语义，这样就会造成bug。在C++11中，STL容器是支持移动语义的，std::unique_ptr只提供移动操作删除了拷贝操作，并且移动操作是noexcept的（这一点很重要，因为STL容器有些操作需要保证强异常安全会要求要么用拷贝操作要么用无异常的移动操作）。只要不涉及到拷贝的容器操作，比如fill函数，那么std::unique_ptr作为容器元素是正确的。
 
+其定义在memeoy这个头文件中，unique_ptr为非数组形式和数组形式的内存空间创建了两个模板
+
+```cpp
+template<
+    class T,
+    class Deleter = std::default_delete<T>
+> class unique_ptr;//(1)	(since C++11)
+
+template <
+    class T,
+    class Deleter
+> class unique_ptr<T[], Deleter>; //(2)	(since C++11)
+```
+
+在unique_ptr类的内部，提供了下列方法：
+- release 返回指向的指针，但不会释放内存， 返回后内部的指针指向空
+- reset 释放内部指针指向的地址，并释放内存，让内部指向重新指向新的地址
+- swap 交换内部指针
+- get 获取内部的指针
+- get_deleter 获取内部的删除器
+- operator bool 判断内部指针是否为空
+- operator* 实现和原始指针一样的解引用
+- operator-> 实现和原始指针一样的->
+
+
 ## unique添加自定义删除器
 
 - 添加函数指针作为删除器
@@ -278,6 +303,41 @@ int main() {
 这里唯一可以确定的就是步骤1发生在步骤2之前，但步骤3的次序是不一定的，如果步骤3在步骤1和步骤2中间执行那么就会造成内存泄漏。但是如果使用make_unique就不会出现这个问题。
 
 但是std::make_unique是C++14标准才引入的，所以使用C++11环境的话需要自己实现这个函数：
+
+## 将unique_ptr转为shared_ptr是容易的
+
+```cpp
+#include <iostream>
+#include <memory>
+
+class Foo {
+public:
+    void greeting() noexcept {
+        std::cout << "hi! i am foo" << std::endl;
+    }
+};
+
+class Factory {
+public:
+    std::unique_ptr<Foo> createFoo() {
+        return std::unique_ptr<Foo>(new Foo);
+    }
+};
+
+int main(int argc, const char* argv[]) {
+    std::shared_ptr<Foo> foo = Factory().createFoo();//way1
+
+    std::unique_ptr<Foo> uni_foo = Factory().createFoo();
+    std::shared_ptr<Foo> shared_foo = std::move(uni_foo);//way2
+    return 0;
+}
+```
+
+
+## 参考文章
+
+[unique的一种实现](https://blog.csdn.net/m0_57719144/article/details/131068172?share_token=495d0478-93fb-4069-bd0a-b06a2bd034c1)
+
 
 ## 总结
 - std::unique_ptr是轻量级、快速的、只可移动（move-only）的管理专有所有权语义资源的智能指针
