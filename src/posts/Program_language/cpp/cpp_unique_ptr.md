@@ -37,8 +37,19 @@ template <
 - operator* 实现和原始指针一样的解引用
 - operator-> 实现和原始指针一样的->
 
+## unique_ptr的基本使用
 
-## unique添加自定义删除器
+下面是几种容易写出的使用方式，其中(1)和(4)是正确的。因为unique_ptr不支持复制操作。
+
+```cpp
+    // 创建一个unique_ptr实例
+    unique_ptr<int> pInt(new int(5));//(1)正确
+    unique_ptr<int> pInt2(pInt);    // (2)报错
+    unique_ptr<int> pInt3 = pInt;   // (3)报错
+    unique_ptr<int> pInt2(std::move(pInt));//(4)正确
+```
+
+## unique_ptr添加自定义删除器
 
 - 添加函数指针作为删除器
 
@@ -338,6 +349,7 @@ int main(int argc, const char* argv[]) {
 
 [unique的一种实现](https://blog.csdn.net/m0_57719144/article/details/131068172?share_token=495d0478-93fb-4069-bd0a-b06a2bd034c1)
 
+[C++进阶：智能指针之unique_ptr](https://juejin.cn/post/7099967913594978341)
 
 ## 总结
 - std::unique_ptr是轻量级、快速的、只可移动（move-only）的管理专有所有权语义资源的智能指针
