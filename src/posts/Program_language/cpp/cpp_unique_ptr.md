@@ -277,7 +277,8 @@ const std::string& Foo::getName() const noexcept {
 
 使用std::make_unique来创建std::unique_ptr智能指针有以下优点：
 
-- 减少代码重复：从代码std::unique_ptr<Foo> upFoo(new Foo);和auto upFoo = std::make_unique<Foo>();可以得知使用make_unique只需要写一次Foo就可以，更加符合软件工程中的要求。
+- 减少代码重复：
+从代码```std::unique_ptr<Foo> upFoo(new Foo);```和```auto upFoo = std::make_unique<Foo>();```可以得知使用make_unique只需要写一次Foo就可以，更加符合软件工程中的要求。
 
 - 提高异常安全性：当在函数调用中构造智能指针时，由于执行顺序的不确定性，有可能会造成资源泄露，比如对于代码：
 
@@ -308,7 +309,7 @@ int main() {
 这里调用func函数时，会执行三个步骤
 
 - new int
-- std::unique_ptr<int>构造函数
+- ```std::unique_ptr<int>```构造函数
 - priority函数
 
 这里唯一可以确定的就是步骤1发生在步骤2之前，但步骤3的次序是不一定的，如果步骤3在步骤1和步骤2中间执行那么就会造成内存泄漏。但是如果使用make_unique就不会出现这个问题。
