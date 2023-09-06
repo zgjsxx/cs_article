@@ -132,6 +132,146 @@ int main(int argc, const char* argv[]) {
 
 >我之前说过，当使用默认删除器时（如delete），你可以合理假设std::unique_ptr对象和原始指针大小相同。当自定义删除器时，情况可能不再如此。函数指针形式的删除器，通常会使std::unique_ptr的从一个字（word）大小增加到两个。对于函数对象形式的删除器来说，变化的大小取决于函数对象中存储的状态多少，无状态函数（stateless function）对象（比如不捕获变量的lambda表达式）对大小没有影响，这意味当自定义删除器可以实现为函数或者lambda时，尽量使用lambda：
 
+## unique_ptr常用使用场景
+
+- 工厂方法
+  
+```cpp
+#include <iostream>
+#include <memory>
+
+class Foo {
+public:
+    void greeting() noexcept {
+        std::cout << "hi! i am foo" << std::endl;
+    }
+};
+
+class Factory {
+public:
+    std::unique_ptr<Foo> createFoo() {
+        return std::unique_ptr<Foo>(new Foo);
+    }
+};
+
+int main(int argc, const char* argv[]) {
+    auto foo = Factory().createFoo();
+
+    // 输出"hi! i am foo"
+    foo->greeting();
+
+    return 0;
+}
+
+```
+
+- pImpl模式
+
+```cpp
+// Foo.h
+#pragma once
+
+#include <memory>
+#include <string>
+
+class Foo {
+public:
+    Foo();
+
+    // 需要将~Foo的实现放入Foo.cpp中，避免出现delete imcomplete type错误
+    ~Foo();
+
+    // 1.定义了~Foo之后不会自动生成移动函数
+    // 2.移动构造函数中因为会生成处理异常的代码，所以需要析构成员变量，也会造成delete imcomplete type问题，所以将实现放入Foo.cpp
+    // 3.移动赋值函数中因为会先删除自己指向的Impl对象指针，也会造成delete imcomplete type问题，所以将实现放入Foo.cpp
+    Foo(Foo&& rhs) noexcept;
+    Foo& operator=(Foo&& rhs) noexcept;
+
+    // 由于unique_ptr不支持复制，所以无法生成默认拷贝函数
+    Foo(const Foo& rhs);
+    Foo& operator=(const Foo& rhs);
+
+    void setName(std::string name);
+    const std::string& getName() const noexcept;
+
+private:
+    struct Impl;
+    std::unique_ptr<Impl> m_upImpl;
+};
+```
+
+```cpp
+//Foo.cpp
+struct Foo::Impl {
+    std::string name;
+};
+
+Foo::Foo() : m_upImpl(new Impl) {}
+
+Foo::~Foo() = default;
+
+Foo::Foo(Foo&& rhs) noexcept = default;
+Foo& Foo::operator=(Foo&& rhs) noexcept = default;
+
+Foo::Foo(const Foo& rhs) : m_upImpl(new Impl) {
+    *m_upImpl = *rhs.m_upImpl;
+}
+
+Foo& Foo::operator=(const Foo& rhs) {
+    *m_upImpl = *rhs.m_upImpl;
+    return *this;
+}
+
+void Foo::setName(std::string name) {
+    m_upImpl->name = name;
+}
+
+const std::string& Foo::getName() const noexcept {
+    return m_upImpl->name;
+}
+```
+
+## 尽量使用std::make_unique
+
+使用std::make_unique来创建std::unique_ptr智能指针有以下优点：
+
+- 减少代码重复：从代码std::unique_ptr<Foo> upFoo(new Foo);和auto upFoo = std::make_unique<Foo>();可以得知使用make_unique只需要写一次Foo就可以，更加符合软件工程中的要求。
+
+- 提高异常安全性：当在函数调用中构造智能指针时，由于执行顺序的不确定性，有可能会造成资源泄露，比如对于代码：
+
+```cpp
+#include <iostream>
+#include <memory>
+#include <exception>
+
+bool priority() {
+    throw std::exception();
+
+    return true;
+}
+
+void func(std::unique_ptr<int> upNum, bool flag) {
+    if (flag) {
+        std::cout << *upNum << std::endl;
+    }
+}
+
+int main() {
+    func(std::unique_ptr<int>(new int), priority());
+
+    return 0;
+}
+```
+
+这里调用func函数时，会执行三个步骤
+
+- new int
+- std::unique_ptr<int>构造函数
+- priority函数
+
+这里唯一可以确定的就是步骤1发生在步骤2之前，但步骤3的次序是不一定的，如果步骤3在步骤1和步骤2中间执行那么就会造成内存泄漏。但是如果使用make_unique就不会出现这个问题。
+
+但是std::make_unique是C++14标准才引入的，所以使用C++11环境的话需要自己实现这个函数：
 
 ## 总结
 - std::unique_ptr是轻量级、快速的、只可移动（move-only）的管理专有所有权语义资源的智能指针
