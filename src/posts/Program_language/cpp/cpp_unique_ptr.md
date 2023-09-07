@@ -246,14 +246,14 @@ struct Foo::Impl {
     std::string name;
 };
 
-Foo::Foo() : m_upImpl(new Impl) {}
+Foo::Foo() : m_upImpl(std::make_unique<Impl>()) {}
 
 Foo::~Foo() = default;
 
 Foo::Foo(Foo&& rhs) noexcept = default;
 Foo& Foo::operator=(Foo&& rhs) noexcept = default;
 
-Foo::Foo(const Foo& rhs) : m_upImpl(new Impl) {
+Foo::Foo(const Foo& rhs) : m_upImpl(std::make_unique<Impl>(*rhs.m_upImpl)) {
     *m_upImpl = *rhs.m_upImpl;
 }
 
