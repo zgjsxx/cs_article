@@ -211,8 +211,6 @@ int main(int argc, const char* argv[]) {
 
 ```cpp
 // Foo.h
-#pragma once
-
 #include <memory>
 #include <string>
 

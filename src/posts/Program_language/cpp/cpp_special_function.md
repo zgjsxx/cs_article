@@ -353,6 +353,71 @@ int main()
     name_ = new_cstring;
 ```
 
+对于大三律(Rule of three)，这里想补充一下如果成员对象包含unique_ptr的情形，如下所示，析构函数可以使用default，但复制操作要自己定义。如不定义，则复制操作被delete。
+
+例如常用的pImpl方法：
+
+```cpp
+#include <memory>
+#include <string>
+
+class Foo {
+public:
+    Foo();
+
+    // 需要将~Foo的实现放入Foo.cpp中，避免出现delete imcomplete type错误
+    ~Foo();
+
+    // 1.定义了~Foo之后不会自动生成移动函数
+    // 2.移动构造函数中因为会生成处理异常的代码，所以需要析构成员变量，也会造成delete imcomplete type问题，所以将实现放入Foo.cpp
+    // 3.移动赋值函数中因为会先删除自己指向的Impl对象指针，也会造成delete imcomplete type问题，所以将实现放入Foo.cpp
+    Foo(Foo&& rhs) noexcept;
+    Foo& operator=(Foo&& rhs) noexcept;
+
+    // 由于unique_ptr不支持复制，所以无法生成默认拷贝函数
+    Foo(const Foo& rhs);
+    Foo& operator=(const Foo& rhs);
+
+    void setName(std::string name);
+    const std::string& getName() const noexcept;
+
+private:
+    struct Impl;
+    std::unique_ptr<Impl> m_upImpl;
+};
+```
+
+```cpp
+//Foo.cpp
+struct Foo::Impl {
+    std::string name;
+};
+
+Foo::Foo() : m_upImpl(new Impl) {}
+
+Foo::~Foo() = default;
+
+Foo::Foo(Foo&& rhs) noexcept = default;
+Foo& Foo::operator=(Foo&& rhs) noexcept = default;
+
+Foo::Foo(const Foo& rhs) : m_upImpl(new Impl) {
+    *m_upImpl = *rhs.m_upImpl;
+}
+
+Foo& Foo::operator=(const Foo& rhs) {
+    *m_upImpl = *rhs.m_upImpl;
+    return *this;
+}
+
+void Foo::setName(std::string name) {
+    m_upImpl->name = name;
+}
+
+const std::string& Foo::getName() const noexcept {
+    return m_upImpl->name;
+}
+```
+
 ## 复制构造函数和赋值运算符
 
 复制构造函数的作用是**使用一个已经存在的对象去创建一个新的对象**。
