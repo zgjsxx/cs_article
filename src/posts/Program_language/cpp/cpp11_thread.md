@@ -242,6 +242,82 @@ int main()
 
 因此如果一个线程是可以join的，那么在析构前一定要join掉。**effective modern c++**一书中的Item37也曾提到，使```std::thread```在所有路径最后都不可结合（unjoinable）。
 
+这里特别的提一下detach。detach函数将当前线程从主线程中分离出来，使其变成一个独立的线程，并在其执行完成后自动销毁，而不会阻塞主线程。
+
+一个有趣的问题的是，如果main函数退出了，[detach的线程会怎样？](
+https://stackoverflow.com/questions/19744250/what-happens-to-a-detached-thread-when-main-exits)
+
+例如下面的例子：
+
+```cpp
+#include <iostream>
+#include <string>
+#include <thread>
+#include <chrono>
+
+void thread_fn() {
+  std::this_thread::sleep_for (std::chrono::seconds(1)); 
+  std::cout << "Inside thread function\n";   
+}
+
+int main()
+{
+    std::thread t1(thread_fn);
+    t1.detach();
+
+    return 0; 
+}
+```
+
+在linux下，使用gcc编译，上面的程序没有任何输出。当主线程结束时，已经detach的线程会被**强行杀掉**。注意，这里使用了强行两个字，意味的杀掉的方式将是暴力的。
+
+看下面的例子：
+
+```cpp
+#include <iostream>
+#include <string>
+#include <thread>
+#include <chrono>
+
+class A
+{
+public:
+	A() 
+	{
+		std::cout << "A()" << std::endl;
+	}
+	~A()
+	{
+		std::cout << "~A()" << std::endl;
+	}
+};
+
+void thread_fn() {
+  A a;
+  std::this_thread::sleep_for (std::chrono::seconds(1)); 
+  std::cout << "Inside thread function\n";   
+}
+
+int main()
+{
+    std::thread t1(thread_fn);
+    t1.detach();
+
+    return 0; 
+}
+```
+
+执行结果：
+```shell
+A()
+```
+
+上面的程序在线程中创建了a对象，从执行结果可以看到a对象的构造函数已经打印。但是析构函数没有打印。
+
+这里我推测的原因是子线程被强行杀掉，因此没有必要调用~A()，直接由操作系统回收所有资源。
+
+从这个例子也看出，主线程退出，detach的子线程被强行杀掉将会造成一些奇怪的现象和问题，因此平常开发时要避免这一点，主线程退出前要让子线程安全的退出。
+
 ## std::thread的传参
 
 在上面的例子中，我们创建的函数都是没有入参的。下面我们讨论下如何传参并且需要注意的一些点。
