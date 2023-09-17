@@ -246,6 +246,47 @@ sizeof MyStruct = 24
 
 ![MyStruct分布5](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/language/cpp/cpp_align/example5.png)
 
+## alignof和std::alignment_of
+
+使用alignof和std::alignment_of可以获取结构体的有效对齐值。
+
+```cpp
+#include <iostream>
+#include <cstddef>
+
+struct MyStruct {
+    char c;
+    int i;
+    short s;
+};
+
+int main()
+{
+    std::cout << alignof(MyStruct) << std::endl;
+    //std::cout << std::alignment_of<MyStruct>::value << std::endl;
+}
+```
+
+使用```#pragma pack```可以设置结构体的有效对齐值，再使用alignof和std::alignment_of获取结构体的有效对齐值。
+
+```cpp
+#include <iostream>
+#include <cstddef>
+
+#pragma pack(1)
+struct MyStruct {
+    char c;
+    int i;
+    short s;
+};
+
+int main()
+{
+    std::cout << std::alignment_of<MyStruct>::value << std::endl;
+}
+```
+
+
 ## 总结
 - 为了高效的访问内存数据，通常需要对内存数据进行对齐。
 - ```#pragma pack(n)```用于设置的对齐有效值，如果设置比结构体的最长成员还大的对齐值将是无效的。
