@@ -1243,7 +1243,7 @@ func () at main.cpp:6
   w=4 bytes
   g=8 bytes.
 
-- <addr>:表示内存地址。
+- ```<addr>```:表示内存地址。
 
 ```cpp
 int main()
