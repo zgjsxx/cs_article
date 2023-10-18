@@ -30,6 +30,7 @@ gdb是c/c++程序的调试利器，在日常工作中，十分有利。
     - [display](#display)
     - [backtrace](#backtrace)
     - [info](#info)
+    - [x命令](#x命令)
   - [参考文献](#参考文献)
 
 ## gdb常用命令
@@ -1218,6 +1219,68 @@ func () at main.cpp:6
 6           for(int i = 0;i < 10; ++i){
 
 ```
+
+### x命令
+
+```x/<n/f/u> <addr>```
+
+- n:是正整数，表示需要显示的内存单元的个数，即从当前地址向后显示n个内存单元的内容，
+一个内存单元的大小由第三个参数u定义。
+
+- f:表示addr指向的内存内容的输出格式，s对应输出字符串，此处需特别注意输出整型数据的格式：
+  x 按十六进制格式显示变量.
+  d 按十进制格式显示变量。
+  u 按十进制格式显示无符号整型。
+  o 按八进制格式显示变量。
+  t 按二进制格式显示变量。
+  a 按十六进制格式显示变量。
+  c 按字符格式显示变量。
+  f 按浮点数格式显示变量。
+
+- u:就是指以多少个字节作为一个内存单元-unit,默认为4。u还可以用被一些字符表示:
+  b=1 byte
+  h=2 bytes
+  w=4 bytes
+  g=8 bytes.
+
+- ```<addr>```:表示内存地址。
+
+```cpp
+int main()
+{
+    char a = -1;
+    return 0;
+}
+```
+
+
+```shell
+[root@localhost test1]# gdb a.out -q
+Reading symbols from a.out...
+(gdb) b main.cpp:4
+Breakpoint 1 at 0x40110e: file main.cpp, line 4.
+(gdb) r
+Starting program: /home/work/cpp_proj/test1/a.out
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+
+Breakpoint 1, main () at main.cpp:4
+4           return 0;
+Missing separate debuginfos, use: dnf debuginfo-install libgcc-11.3.1-4.3.el9.x86_64 libstdc++-11.3.1-4.3.el9.x86_64
+(gdb) p &a
+$1 = 0x7fffffffde9f "\377\001"
+(gdb) x/tb 0x7fffffffde9f
+0x7fffffffde9f: 11111111
+(gdb) x/db 0x7fffffffde9f
+0x7fffffffde9f: -1
+(gdb) x/ub 0x7fffffffde9f
+0x7fffffffde9f: 255
+(gdb) x/xb 0x7fffffffde9f
+0x7fffffffde9f: 0xff
+(gdb) x/cb 0x7fffffffde9f
+0x7fffffffde9f: -1 '\377'
+```
+
 
 ## 参考文献
 
