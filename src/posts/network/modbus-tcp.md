@@ -160,15 +160,18 @@ MBAP header(7字节) + 功能码(1字节) + 线圈寄存器起始地址的高位
 MBAP 功能码 + 起始地址H 起始地址L + 输出数量H 输出数量L + 字节长度 + 输出值H 输出值L
 
 其总长度为 13 + (修改的线圈寄存器数量/8 + 1）。
+
 下面是一个实际的例子
 
 ![0xF-request](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/network/modbus-tcp/modbus-0xF-request.png)
+
+按照协议进行对应的结果如下：
 
 |MBAP header|功能码| 线圈寄存器起始位置| 线圈寄存器的数量 | 字节数| 第一个byte的值|第二个byte的值 | 
 |--|--|--|--|--|--|--|
 |01 71 00 00 00 09 01|0f |00 00 |00 0a |02 | 70 | 00|
 
-第一个byte的值是0x70， 转换为二进制是01110000，其中低位bit0代表00寄存器，bit7代表07寄存器。
+其中第一个byte的值是0x70， 转换为二进制是01110000，其中低位bit0代表00寄存器，bit7代表07寄存器。
 
 |0x7|0x6|0x5|0x4|0x3|0x2|0x1|0x0|
 |--|--|--|--|--|--|--|--|
@@ -186,7 +189,7 @@ MBAP 功能码 + 起始地址H 起始地址L + 输出数量H 输出数量L + 字
 
 返回的报文相对比较简单，由下面几个部分组成：
 
-MBAP header + 起始地址H 起始地址L + 输出数量H 输出数量L
+MBAP header + 功能码 + 起始地址H 起始地址L + 输出数量H 输出数量L
 
 下面是一个实际的例子：
 
@@ -270,6 +273,8 @@ MBAP header + 功能码 +  起始地址H 起始地址L + 寄存器数量H 寄存
 
 ![0x3-request](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/network/modbus-tcp/modbus-0x3-request.png)
 
+按照协议对照如下：
+
 |MBAP header|功能码|起始地址|寄存器数量|
 |--|--|--|--|
 |05 f1 00 00 00 06 01|03|00 00|00 0a|
@@ -300,7 +305,7 @@ MBAP header + 功能码 + 数据长度 + 寄存器数据
 
 ### 功能码0x04：读输入寄存器
 
-功能码0x4用于读取的输入寄存器的值，输入寄存器的值是只读的。
+功能码0x4用于读取输入寄存器的值，输入寄存器是只读的，因此没有功能码可以写输入寄存器。
 
 **发送报文**
 
@@ -403,12 +408,7 @@ MBAP header + 功能码 + 起始地址H 起始地址L + 寄存器数量H 寄存�
 
 ## 实用调试工具
 
-实现代码：
-
-https://github.com/fz-lyu/modbuspp
-
-
-调试工具：
+在研究modbus的过程中， 大量的使用了modbus poll和 modbus slave软件，这个软件可以很好的帮助理解modbus-tcp协议。
 
 modbus poll： modbus客户端工具(主站)
 
