@@ -6,7 +6,7 @@ category:
 
 # mysql MVCC机制详解
 
-MVCC, 是Multi Version Concurrency Control的缩写，其含义是**多版本并发控制**。这一概念的提出是为了解决MySQL的在RC级别下存在的**不可重复读**的问题。
+MVCC, 是Multi Version Concurrency Control的缩写，其含义是**多版本并发控制**。这一概念的提出是为了诗的MySQL可以实现RC隔离级别和RR隔离级别。
 
 这里回顾一下MySQL的隔离级别和各种隔离级别所存在的问题。
 
