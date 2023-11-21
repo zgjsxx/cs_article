@@ -1,3 +1,8 @@
+---
+category: 
+- electrical
+---
+
 # 触发器
 
 ## SR锁存器
