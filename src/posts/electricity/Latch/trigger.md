@@ -50,6 +50,10 @@ SR锁存器可以由或非门组成：
 
 ## 脉冲触发的触发器
 
+### 主从RS触发器
+
+### 主从JK触发器
+
 ![主从JK触发器](https://github.com/zgjsxx/static-img-repo/raw/main/blog/electricity/SR-latch/jk_pulse_trigger.png)
 
 第一个CLK高电平采样期间，J=1，K=0，因此主触发器的输出${Q}_{m}$=1，于是CLK下降沿到达后，从触发器输出1。
