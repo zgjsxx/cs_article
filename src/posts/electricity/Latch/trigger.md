@@ -50,7 +50,7 @@ SR锁存器可以由或非门组成：
 
 ## 脉冲触发的触发器
 
-![JK触发器](https://github.com/zgjsxx/static-img-repo/raw/main/blog/electricity/SR-latch/jk_pulse_trigger.png)
+![主从JK触发器](https://github.com/zgjsxx/static-img-repo/raw/main/blog/electricity/SR-latch/jk_pulse_trigger.png)
 
 第一个CLK高电平采样期间，J=1，K=0，因此主触发器的输出${Q}_{m}$=1，于是CLK下降沿到达后，从触发器输出1。
 
@@ -60,7 +60,7 @@ SR锁存器可以由或非门组成：
 
 下面这张图省去了J端， K端， ${Q}_{m}$'，Q'的波形图，会更加的清晰一些。根据CLK，J端和K端的输入，可以得到主触发器的输出端${Q}^{m}$的值。 在CLK的下降沿，获取${Q}^{m}$的值，就可以得到从触发器的输出Q的值。
 
-![JK触发器2](https://github.com/zgjsxx/static-img-repo/raw/main/blog/electricity/SR-latch/jk_pulse_trigger2.png)
+![主从JK触发器2](https://github.com/zgjsxx/static-img-repo/raw/main/blog/electricity/SR-latch/jk_pulse_trigger2.png)
 
 对于JK触发器的输出结果，总结起来，需要注意下面两点：
 - 当高电平采样结束时，J=0,K=0， 则需要检查在高电平采样期间，J和K是否有过变化
