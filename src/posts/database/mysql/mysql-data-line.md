@@ -33,7 +33,7 @@ mysql> show variables like "datadir";
 1 row in set (0.00 sec)
 ```
 
-进入该目录中，会看到一个一database命名的目录，进入该目录中，则会看到一个以表名+.ibd的文件，该文件即是存储mysql表数据的文件。
+进入该目录中，会看到一个以database命名的目录，进入该目录中，则会看到一个以表名+.ibd的文件，该文件即是存储mysql表数据的文件。
 
 ## COMPACT 行格式长什么样？
 
