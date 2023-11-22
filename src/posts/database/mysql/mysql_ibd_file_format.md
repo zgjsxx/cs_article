@@ -15,6 +15,8 @@ Free Space(不确定大小)
 Paga Directory(不确定大小)
 File Trailer(8字节)
 
+![mysql](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/database/mysql/mysql-data-page/page-format.png)
+
 
 https://link.zhihu.com/?target=https%3A//github.com/happieme/py_innodb_page_info
 
