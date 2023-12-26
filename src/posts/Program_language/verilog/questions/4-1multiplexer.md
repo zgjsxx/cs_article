@@ -26,7 +26,7 @@ endmodule
 
 2.使用if-else实现
 
-注意wire不能通过if-else的方式处理，因此首先需要赋给一个register, 再将该register连线至输出。
+注意, wire不能通过if-else的方式处理，因此首先需要赋给一个register, 再将该register连线至输出。
 
 ```verilog
 `timescale 1ns/1ns
