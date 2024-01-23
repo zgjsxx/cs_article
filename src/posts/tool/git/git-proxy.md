@@ -81,7 +81,7 @@ Host ssh.github.com
 
 #Windows用户，注意替换你的端口号和connect.exe的路径
 ProxyCommand "C:\APP\Git\mingw64\bin\connect" -S 127.0.0.1:51837 -a none %h %p
-
+  
 #MacOS用户用下方这条命令，注意替换你的端口号
 #ProxyCommand nc -v -x 127.0.0.1:51837 %h %p
 
