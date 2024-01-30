@@ -160,46 +160,51 @@ int main() {
 ==12751== Invalid read of size 4
 ==12751== at 0x4005C6: f2 (example_file.c:14)
 ==12751== by 0x4005FE: main (example_file.c:21)
-==12751== Address 0x5205048 is 4 bytes after a block of size 4 alloc’d
+==12751== Address 0x5205048 is 4 bytes after a block of size 4 alloc'd
 ==12751== at 0x4C29F73: malloc (vg_replace_malloc.c:309)
 ==12751== by 0x40058E: f1 (example_file.c:4)
 ==12751== by 0x4005B4: f2 (example_file.c:11)
 ==12751== by 0x4005FE: main (example_file.c:21)
 ```
 
-我们分部来看上面的输出信息。
+我们把错误信息划分为两部分，第一部分是前三行，第二部分是后面几行。
 
-首先看前三行。
+首先看前三行。错误的信息是"Invalid read of size 4"， 即我们正在读一个4个byte大小的内存。此外，它告诉了我们出错的位置在example_file.c的第14行。
+
+错误信息的后半部分提供了一些额外的有效信息。它告诉我们要读取的位置在我们申请的内存块的末尾处后面的4个字节。这意味着我们正在读取的位置超过了我们申请的内存的大小。
+
+回顾我们的代码，我们看的这些错误信息正确的指出了问题，我们非法的访问了```internal[2]```。我们只申请了一个int的大小的内存，并没有申请一个int数组。 因此```internal[2]```的方法是非法的。
 
 ## 6.非法free
+
 ```c
 #include <stdlib.h>
-2 3
+
 int *f1() {
-4 int *ip = malloc(sizeof(int));
-5 6
-*ip = 3;
-7 return ip;
-8 }
-9
-10 int f2() {
-11 int *internal = f1();
-12 void *other = (void*)internal;
-13
-14 int result = *internal;
-15 int *result2 = &result;
-16
-17 free(internal);
-18 free(other);
-19 free(result2);
-20
-21 return result;
-22 }
-23
-24 int main() {
-25 int i = f2();
-26 return i;
-27 }
+    int *ip = malloc(sizeof(int));
+
+    *ip = 3;
+    return ip;
+}
+
+int f2() {
+    int *internal = f1();
+    void *other = (void*)internal;
+
+    int result = *internal;
+    int *result2 = &result;
+
+    free(internal);
+    free(other);
+    free(result2);
+
+    return result;
+}
+
+int main() {
+    int i = f2();
+    return i;
+}
 ```
 
 ```shell
