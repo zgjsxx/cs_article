@@ -207,9 +207,11 @@ int main() {
 }
 ```
 
+编译运行上面的代码，使用Valgrind运行，将会得到下面的输出。
+
 ```shell
 ==31964== Invalid free() / delete / delete[] / realloc()
-5==31964== at 0x4C2B06D: free (vg_replace_malloc.c:540)
+==31964== at 0x4C2B06D: free (vg_replace_malloc.c:540)
 ==31964== by 0x4005E9: f2 (example_file.c:18)
 ==31964== by 0x40060C: main (example_file.c:25)
 ==31964== Address 0x5205040 is 0 bytes inside a block of size 4 free’d
@@ -228,6 +230,18 @@ int main() {
 ==31964== by 0x40060C: main (example_file.c:25)
 ==31964== Address 0x1ffefff474 is on thread 1’s stack
 ==31964== in frame #1, created by f2 (example_file.c:10)
+```
+
+上面的输出内容比较多，我们一部分一部分的来看。
+
+第一个error告诉我们第18行的调用是非法的。其详细的信息是"0 bytes inside a block of size 4 free’d"。说的直白一点，这句话的含义是我们尝试free同一个指针两次。
+
+什么时候进行的第一次free，在下面的输出中也可以轻易的找到。可以看到第一次free的位置在程序的第17行。
+
+```shell
+==31964== at 0x4C2B06D: free (vg_replace_malloc.c:540)
+==31964== by 0x4005DD: f2 (example_file.c:17)
+==31964== by 0x40060C: main (example_file.c:25)
 ```
 
 ## 7.未进行初始化
@@ -391,3 +405,4 @@ Inner function called with value -4
 ==4892== ERROR SUMMARY: 10 errors from 10 contexts (suppressed: 0 from 0)
 ```
 https://www.cs.cmu.edu/~15122/handouts/gts/valgrind.pdf
+https://www.cs.cmu.edu/~15122/handouts.shtml
