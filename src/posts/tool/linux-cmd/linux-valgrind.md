@@ -244,34 +244,65 @@ int main() {
 ==31964== by 0x40060C: main (example_file.c:25)
 ```
 
+与此同时，被free两次的内存所申请的位置也给了出来， 在第4行```int *ip = malloc(sizeof(int));```申请。
+
+```shell
+==31964== Block was alloc’d at
+==31964== at 0x4C29F73: malloc (vg_replace_malloc.c:309)
+==31964== by 0x40058E: f1 (example_file.c:4)
+==31964== by 0x4005B4: f2 (example_file.c:11)
+==31964== by 0x40060C: main (example_file.c:25)
+```
+
+上面的输出的第二部分还指出，程序还存在另一处free的错误，在程序的19行。我们尝试进行free的内存位于栈上。换句话说，我们尝试去free一个指向本地变量的指针。
+
+```shell
+==31964== Address 0x1ffefff474 is on thread 1’s stack
+==31964== in frame #1, created by f2 (example_file.c:10)
+```
+
+回顾上面的代码，result2指针指向的是栈上的变量result，因此free(result2)尝试去free的其实是本地变量result，因此是非法的。
+
+```c
+int result = *internal;
+int *result2 = &result;
+
+free(internal);
+free(other);
+free(result2);
+```
+
 ## 7.未进行初始化
+
 ```c
 #include <stdlib.h>
-2 3
+
 int *f1() {
-4 int *ip = malloc(sizeof(int));
-5 6
-return ip;
-67 }
-8 9
+    int *ip = malloc(sizeof(int));
+
+    return ip;
+}
+
 int f2() {
-10 int *internal = f1();
-11 int other = 3;
-12
-13 if(*internal < 5) {
-14 other = *internal;
-15 }
-16
-17 free(internal);
-18
-19 return other;
-20 }
-21
-22 int main() {
-23 int i = f2();
-24 return i;
-25 }
+    int *internal = f1();
+    int other = 3;
+
+    if(*internal < 5) {
+        other = *internal;
+    }
+
+    free(internal);
+
+    return other;
+}
+
+int main() {
+    int i = f2();
+    return i;
+}
 ```
+
+编译运行上面的代码，使用Valgrind运行，将会得到下面的输出。
 
 ```shell
 ==27751== Conditional jump or move depends on uninitialised value(s)
@@ -285,28 +316,106 @@ int f2() {
 ==27751== by 0x4E5955B: (below main) (in /usr/lib64/libc-2.17.so)
 ```
 
+上面的输出告诉我们的第一处错误是我们的代码根据一个没有被初始化的值进行条件跳转或转移，条件跳转或转移通常是值if语句或者while循环。该错误发生在第13行。我们看到使用了if语句进行判断```if(*internal < 5)```。
 
-## 8.错误的权限
-```c
-1 #include <stdlib.h>
-2 #include <stdio.h>
-3 #include <string.h>
-4 5
-char *f1() {
-6 char *sp = "Hello";
-7 return sp;
-8 }
-9
-10 int main() {
-11 char *s1 = f1();
-12 printf("Received String: %s\n", s1);
-13 s1[0] = ’C’;
-14 printf("Changed String: %s\n", s1);
-15 return 0;
-16 }
+不过默认的输出并没有给出这个没有初始化的内容的任何信息。 这需要我们在运行Valgrind是添加```--track-origins=yes```的选项去运行。这样我们就可以获取到下面的信息。
+
+```shell
+==19257== Uninitialised value was created by a heap allocation
+==19257== at 0x4C29F73: malloc (vg_replace_malloc.c:309)
+==19257== by 0x40058E: f1 (example_file.c:4)
+==19257== by 0x4005AA: f2 (example_file.c:10)
+==19257== by 0x4005EC: main (example_file.c:23)
 ```
 
+这告诉我们，没有被初始化的值创建在程序的第4行， 即ip指针指向的内存块。
+
+第二块的输出可能会令人疑惑。它的意思是说我们从main函数返回的值是没有进行初始化的。其实这个值也是来源于```*internal```。因此这里的问题其实和上面的问题是同一个问题。
+
+```shell
+==27751== Syscall param exit_group(status) contains uninitialised byte(s)
+==27751== at 0x4EFCC09: _Exit (in /usr/lib64/libc-2.17.so)
+==27751== by 0x4E70CAA: __run_exit_handlers (in /usr/lib64/libc-2.17.so)
+==27751== by 0x4E70D36: exit (in /usr/lib64/libc-2.17.so)
+==27751== by 0x4E5955B: (below main) (in /usr/lib64/libc-2.17.so)
+```
+
+## 8.错误的权限
+
+```c
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+char *f1() {
+    char *sp = "Hello";
+    return sp;
+}
+
+int main() {
+    char *s1 = f1();
+    printf("Received String: %s\n", s1);
+    s1[0] = 'C';
+    printf("Changed String: %s\n", s1);
+    return 0;
+}
+```
+
+当我们编译上面的代码执行时，我们会得到下面的输出：
+
+```shell
+Received String: Hello
+Segmentation fault (core dumped)
+```
+
+使用Valgrind执行，会得到下面的输出：
+
+```shell
+==11199== Process terminating with default action of signal 11 (SIGSEGV)
+==11199== Bad permissions for mapped region at address 0x400620
+==11199== at 0x40056F: main (example_file.c:13)
+```
+
+这里的输出并没有给出特别多的信息，但是它给出了错误发生的位置在第13行。第13行的代码是```s1[0] = 'C';```。这里我们尝试修改一个字符串，但是我们并没有权限进行处理。这是一个只读的字符串，这里的指向指向了内存的DATA区域。
+
+如果想修复这个问题，一个方法就是去在堆区创建一个字符串，并将指针指向该字符串。
+
+
 ## 9.处理很长的Valgrind输出
+
+由于Valgrind每遇到一个内存问题就会给出一个输出，因此Valgrind的输出可能会很长。 即便是一个中等长度的代码，它的输出也是很长的。例如下面这个例子：
+```c
+#include <stdlib.h>
+#include <stdio.h>
+
+int *f1() {
+    int *ip = malloc(sizeof(int));
+    return ip;
+}
+
+int inner_fn(int *p) {
+    printf("Inner function called with value %i\n", *p);
+    if(*p <= 3) {
+        return *p;
+    }
+    p[1] = p[0] / 2;
+    int *ip = f1();
+    *ip -= p[1] - 1;
+
+    return *p + inner_fn(ip);
+}
+
+int main() {
+    int *p = f1();
+    *p = 10;
+    int i = inner_fn(p);
+    return i;
+}
+```
+
+这里先简单阐明一下上面的代码的问题。1个问题是f1中的ip所指向的内存没有被初始化。另一个问题是在inner_fn函数中存在内存越界的情况。
+
+如果使用Valgrind执行程序，会得到下面的输出。
 
 ```shell
 ==4892== Memcheck, a memory error detector
@@ -404,5 +513,21 @@ Inner function called with value -4
 ==4892== For lists of detected and suppressed errors, rerun with: -s
 ==4892== ERROR SUMMARY: 10 errors from 10 contexts (suppressed: 0 from 0)
 ```
+
+处理这样长的错误信息的最佳办法就是先尝试处理第一个错误信息。例如这里的：
+
+```shell
+==4892== at 0x4005E7: inner_fn (example_file.c:14)
+==4892== by 0x40065E: main (example_file.c:24)
+==4892== Address 0x5205044 is 0 bytes after a block of size 4 alloc’d
+==4892== at 0x4C29F73: malloc (vg_replace_malloc.c:309)
+==4892== by 0x40058E: f1 (example_file.c:5)
+==4892== by 0x400644: main (example_file.c:22)
+```
+
+一旦你处理完这个问题之后，Valgrind的输出信息就会大大减小。这样就接着继续接触处理。
+
+## 参考文章
+
 https://www.cs.cmu.edu/~15122/handouts/gts/valgrind.pdf
 https://www.cs.cmu.edu/~15122/handouts.shtml
