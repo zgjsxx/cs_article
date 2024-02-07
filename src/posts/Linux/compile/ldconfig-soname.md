@@ -34,7 +34,7 @@ category:
 
 对于c++而言， ABI的兼容性问题更为严重一些。C++在语法上支持一些高级特性，例如模板、多重继承等。这些特性对于ABI的兼容性而言简直是一种灾难。
 
-# 共享库的版本
+# 动态库的版本
 
 因为动态库存在着兼容性问题，一种解决版本就是引入版本号以对动态库进行管理。
 
@@ -49,5 +49,338 @@ libname.so.x.y.z
 **次版本号**表示库的增量升级，即增加一些新的接口符号，且保持原来的符号不变。
 
 **发布版本号**表示库的一些错误、性能的改进等，并不添加任何新的接口，也不对接口进行修改。
+
+# SO_NAME
+
+从动态库版本的定义可以得知，不同的主版本号之间的动态库是完全不兼容的，而主版本号相同的动态库之间是可以做到兼容的。
+
+那么对于一个应用程序来讲，只要不被连接到其他主版本号的动态库，就是没有问题的。例如Hello_World程序记录了libhello.so.2的版本信息，那么其运行时就不会被链接到libhello.so.1或者libhello.so.3。
+
+SO_NAME便是这样的一个机制。SO_NAME就是去掉次版本号和发布版本号，只保留主版本号的一个版本信息。例如libhello.so.3.81.1，其SO_NAME就是libhello.so.3。并且Linux会为每个动态库所在的目录创建一个跟"SO-NAME"相同名字并指向动态库的软链接。这个软连接会指向目录中主版本号相同， 次版本号和发布版本号最新的动态库。
+
+例如目录中有libhello.so.2.56.1 和libhello.so.2.61.1, 两个动态库， 那么libhello.so.2将会指向libhello.so.2.61.1。
+
+
+# SO_NAME的实践
+
+创建一个目录，构建如下的一些文件：
+
+```shell
+[root@localhost test1]# tree
+.
+├── hello.c
+├── hello.h
+├── main.c
+```
+
+hello.h内容如下所示：
+
+```h
+#ifndef _TEST_H_
+#define _TEST_H_
+void hello();
+#endif
+```
+
+hello.c内容如下所示：
+
+```c
+#include <stdio.h>
+#include "hello.h"
+void hello()
+{
+    printf("this is a lib for HelloWorld\n");
+}
+```
+
+main.c的内容如下所示：
+
+```c
+#include <stdio.h>
+#include "hello.h"
+int main()
+{
+	hello();	
+	return 0;
+}
+```
+
+编译上述模块，生成动态库。
+
+```shell
+gcc -fPIC -o hello.o -c hello.c
+gcc -shared -Wl,-soname,libhello.so.0 -o libhello.so.0.0.0 hello.o
+```
+
+使用readelf命令查看出此时libhello.so.0.0.0已经被打上了SONANE。
+
+```shell
+[root@localhost test1]# readelf -d libhello.so.0.0.0 |grep SONAME
+ 0x000000000000000e (SONAME)             Library soname: [libhello.so.0]
+```
+
+链接时，使用使用-l去加载一个动态库，例如-lxxx 将会去寻找名叫libxxx.so的动态库。
+
+于是我们创建一个链接，使得libhello.so指向libhello.so.0。
+
+```shell
+ln -s libhello.so.0.0.0  libhello.so.0
+ln -s libhello.so.0 libhello.so
+```
+
+接下来，编译和链接main方法。
+
+```shell
+gcc -c -o main.o main.c
+gcc -L. -o main main.o -lhello
+```
+
+这样之后，main程序中的NEEDED中就包含了动态库libhello.so的SO-NAME libhello.so.0。
+
+```shell
+[root@localhost test1]# readelf -d main |grep NEEDED
+ 0x0000000000000001 (NEEDED)             Shared library: [libhello.so.0]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+```
+
+这就保证了main在运行会会去加载soname是libhello.so.0的动态库。
+
+不过这个时候， main是无法被执行的。因为运行时，系统不知道要去哪里寻找libhello.so.0。
+
+```shell
+[root@localhost test1]# ./main
+./main: error while loading shared libraries: libhello.so.0: cannot open shared object file: No such file or directory
+[root@localhost test1]# ldd main
+        linux-vdso.so.1 (0x00007ffff5764000)
+        libhello.so.0 => not found
+        libc.so.6 => /lib64/libc.so.6 (0x00007fd00fa00000)
+        /lib64/ld-linux-x86-64.so.2 (0x00007fd00fcb3000)
+```
+
+如果想要系统可以找到libhello.so.0， 有下面几个方法。
+
+- LD_LIBRARY_PATH
+```shell
+export LD_LIBRARY_PATH=/home/xx/hellopath:$LD_LIBRARY_PATH
+```
+这里/home/xx/hellopath是共享库的路径。虽然改变LD_LIBRARY_PATH能达到目的，但是不推荐使用，因为这是一个全局的变量，其他应用程序可能受此影响，导致各种库的覆盖问题。如果要清楚这个全局变量，使用命令unset LD_LIBRARY_PATH。
+
+- rpath
+
+在编译应用程序时，利用rpath指定加载路径。 gcc -L. -Wl,-rpath=/home/xx/hellopath -o main main.o -lhello 这样，虽然避免了各种路径找不到的问题，但是也失去了灵活性。因为库的路径被定死了。
+
+- 改变ld.so.conf
+
+将路径添加到此文件，然后使用ldconfig更新加载程序的cache。 可以使用命令ldconfig -p查看当前所有库的soname->real name的对应关系信息
+
+最后说一下，应用程序在编译链接和运行加载时，库的搜索路径的先后顺序。
+
+**编译链接时，查找顺序**
+- /usr/local/lib
+- /usr/lib
+- 用-L指定的路径，按命令行里面的顺序依次查找
+
+**运行加载时的顺序**：
+- 可执行程序指定的的DT_RPATH
+- LD_LIBRARY_PATH. 但是如果使用了setuid/setgid，由于安全因素，此路径将被忽略.
+- 可执行程序指定的的DT_RUNPATH. 但是如果使用了setuid/setgid，由于安全因素，此路径将被忽略
+- /etc/ld/so/cache. 如果链接时指定了'-z nodeflib'，此路径将被忽略.
+- /lib. 如果链接时指定了'-z nodeflib'，此路径将被忽略
+- /usr/lib. 如果链接时指定了'-z nodeflib'，此路径将被忽略
+
+
+修改接口内部的内容，不增加接口
+
+```shell
+[root@localhost test1]# tree
+.
+├── hello.c
+├── hello.h
+├── main.c
+```
+
+hello.h内容如下所示：
+
+```h
+#ifndef _TEST_H_
+#define _TEST_H_
+void hello();
+#endif
+```
+
+hello.c内容如下所示：
+
+```c
+#include <stdio.h>
+#include "hello.h"
+void hello()
+{
+    printf("this is a lib for HelloWorld\n");
+    printf("this is a lib for HelloWorld\n");
+}
+```
+
+main.c的内容如下所示：
+
+```c
+#include <stdio.h>
+#include "hello.h"
+int main()
+{
+	hello();	
+	return 0;
+}
+```
+
+```shell
+gcc -fPIC -o hello.o -c hello.c
+gcc -shared -Wl,-soname,libhello.so.0 -o libhello.so.0.0.1 hello.o
+ldconfig
+```
+
+这个时候看到此时，在执行完ldconfig之后，libhello.so.0 自动指向了 libhello.so.0.0.1。
+
+```shell
+total 80
+-rw-r--r-- 1 root root   147 Feb  7 15:44 hello.c
+-rw-r--r-- 1 root root    55 Feb  7 14:52 hello.h
+-rw-r--r-- 1 root root  1632 Feb  7 15:45 hello.o
+lrwxrwxrwx 1 root root    13 Feb  7 15:29 libhello.so -> libhello.so.0
+lrwxrwxrwx 1 root root    17 Feb  7 15:45 libhello.so.0 -> libhello.so.0.0.1
+-rwxr-xr-x 1 root root 16304 Feb  7 15:28 libhello.so.0.0.0
+-rwxr-xr-x 1 root root 16304 Feb  7 15:45 libhello.so.0.0.1
+-rwxr-xr-x 1 root root 25840 Feb  7 15:33 main
+-rw-r--r-- 1 root root    75 Feb  7 14:56 main.c
+-rw-r--r-- 1 root root  1368 Feb  7 15:33 main.o
+```
+
+
+新增接口
+
+```shell
+[root@localhost test1]# tree
+.
+├── hello.c
+├── hello.h
+├── main.c
+```
+
+hello.h内容如下所示：
+
+```h
+#ifndef _TEST_H_
+#define _TEST_H_
+void hello();
+void hello2();
+#endif
+```
+
+hello.c内容如下所示：
+
+```c
+#include <stdio.h>
+#include "hello.h"
+void hello()
+{
+    printf("this is a lib for HelloWorld\n");
+    printf("this is a lib for HelloWorld\n");
+}
+void hello2()
+{
+    printf("this is a lib for HelloWorld\n");
+    printf("this is a lib for HelloWorld\n");
+}
+```
+
+main.c的内容如下所示：
+
+```c
+#include <stdio.h>
+#include "hello.h"
+int main()
+{
+	hello();	
+	return 0;
+}
+```
+
+```shell
+gcc -fPIC -o hello.o -c hello.c
+gcc -shared -Wl,-soname,libhello.so.0 -o libhello.so.0.1.0 hello.o
+ldconfig
+```
+
+这个时候看到此时，在执行完ldconfig之后，libhello.so.0 自动指向了 libhello.so.0.0.1。
+
+```shell
+[root@localhost test1]# ll
+total 96
+-rw-r--r-- 1 root root   257 Feb  7 15:54 hello.c
+-rw-r--r-- 1 root root    70 Feb  7 15:54 hello.h
+-rw-r--r-- 1 root root  1848 Feb  7 15:55 hello.o
+lrwxrwxrwx 1 root root    13 Feb  7 15:29 libhello.so -> libhello.so.0
+lrwxrwxrwx 1 root root    17 Feb  7 15:55 libhello.so.0 -> libhello.so.0.1.0
+-rwxr-xr-x 1 root root 16304 Feb  7 15:28 libhello.so.0.0.0
+-rwxr-xr-x 1 root root 16304 Feb  7 15:45 libhello.so.0.0.1
+-rwxr-xr-x 1 root root 16336 Feb  7 15:55 libhello.so.0.1.0
+-rwxr-xr-x 1 root root 25840 Feb  7 15:33 main
+-rw-r--r-- 1 root root    75 Feb  7 14:56 main.c
+-rw-r--r-- 1 root root  1368 Feb  7 15:33 main.o
+```
+
+修改原有接口的形参， ABI不兼容
+```shell
+[root@localhost test1]# tree
+.
+├── hello.c
+├── hello.h
+├── main.c
+```
+
+hello.h内容如下所示：
+
+```h
+#ifndef _TEST_H_
+#define _TEST_H_
+void hello(int i);
+void hello2();
+#endif
+```
+
+hello.c内容如下所示：
+
+```c
+#include <stdio.h>
+#include "hello.h"
+void hello(int i)
+{
+    printf("this is a lib for HelloWorld\n");
+    printf("this is a lib for HelloWorld\n");
+}
+void hello2()
+{
+    printf("this is a lib for HelloWorld\n");
+    printf("this is a lib for HelloWorld\n");
+}
+```
+
+main.c的内容如下所示：
+
+```c
+#include <stdio.h>
+#include "hello.h"
+int main()
+{
+	hello();	
+	return 0;
+}
+```
+
+```shell
+gcc -fPIC -o hello.o -c hello.c
+gcc -shared -Wl,-soname,libhello.so.1 -o libhello.so.1.0.0 hello.o
+ldconfig
+```
+
 
 https://lovewubo.github.io/shared_library
