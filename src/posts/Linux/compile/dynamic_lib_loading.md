@@ -474,10 +474,10 @@ $ ./main
 - 找出 ```ldd <executable>``` 缺少哪些依赖项。
 - 如果您无法识别它们，可以通过运行 ```readelf -d <executable> |grep NEEDED``` 检查它们是否是直接依赖项。
 - 确保依赖项确实存在。也许您忘记编译它们或将它们移动到 libs 目录？
-- 用 LD_DEBUG=libs ldd <executable> 找出在何处搜索依赖项。
+- 用 ```LD_DEBUG=libs ldd <executable>``` 找出在何处搜索依赖项。
 - 如果需要将目录添加到搜索中：
   - Ad-hoc：将目录添加到 LD_LIBRARY_PATH 环境变量中。
-- 烘焙到文件中：通过传递 -Wl,-rpath,<dir> （对于 rpath）或 -Wl,--enable-new-dtags,-rpath,<dir> 将目录添加到可执行文件或共享库的 rpath 或 runpath （对于运行路径）。使用 $ORIGIN 作为相对于可执行文件的路径。
+- 烘焙到文件中：通过传递 ```-Wl,-rpath,<dir>```（对于 rpath）或 ```-Wl,--enable-new-dtags,-rpath,<dir>``` 将目录添加到可执行文件或共享库的 rpath 或 runpath （对于运行路径）。使用 $ORIGIN 作为相对于可执行文件的路径。
 - 如果 ldd 显示没有缺少任何依赖项，请查看您的应用程序是否具有提升的权限。如果是这样，ldd可能会撒谎。请参阅上面的安全问题。
 
 如果您仍然无法弄清楚 - 您需要再次阅读整篇文章:
