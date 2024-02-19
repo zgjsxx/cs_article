@@ -189,6 +189,25 @@ export LD_LIBRARY_PATH=/home/xx/hellopath:$LD_LIBRARY_PATH
 - /usr/lib. 如果链接时指定了'-z nodeflib'，此路径将被忽略
 
 
+LD_DEBUG这个环境通常用来调试。例如，查看整个装载过程：
+
+```shell
+$ LD_DEBUG=files ./main
+```
+或者查看依赖的库的查找过程：
+```shell
+$ LD_DEBUG=libs ./main
+      3557:	find library=libtest.so [0]; searching
+      3557:	 search cache=/etc/ld.so.cache
+      3557:	  trying file=/usr/local/lib/libtest.so
+```
+另外还可以显示符号的查找过程：
+
+```shell
+$ LD_DEBUG=symbols ./main
+```
+
+
 修改接口内部的内容，不增加接口
 
 ```shell
@@ -375,6 +394,12 @@ int main()
 	return 0;
 }
 ```
+
+```shell
+gcc -c -o main.o main.c
+gcc -L. -o main main.o -ltest
+```
+
 
 ```shell
 gcc -fPIC -o hello.o -c hello.c
