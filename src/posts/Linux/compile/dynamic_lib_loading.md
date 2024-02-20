@@ -133,6 +133,10 @@ ELF头中指出了程序头表中段的大小和数量，也指出了节头表�
 
 ![段表和节表](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/compile/dynamic_lib_loading/elf.gif)
 
+段(segment)和节(section)的关联如下图所示：
+
+![段表和节表的区别](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/compile/dynamic_lib_loading/section_segment.png)
+
 我们可以使用readelf工具去查看elf文件的内容，例如main的内容如下所示：
 
 ```shell
@@ -206,7 +210,7 @@ Program Headers:
    08     .init_array .fini_array .jcr .dynamic .got 
 ```
 
-同样，我们看到我们有9个段。它们的类型是LOAD,DYNAMIC，NOTE等。我们还可以看到每个节属于哪个段。
+同样，我们看到我们有9个段。它们的类型是LOAD, DYNAMIC，NOTE等。我们还可以看到每个节属于哪个段。 操作系统加载elf文件时，只会加载类型时LOAD的段。
 
 最后我们看下节表：
 
