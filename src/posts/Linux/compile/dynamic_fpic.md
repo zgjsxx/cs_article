@@ -132,3 +132,7 @@ g++ -c -fPIC rand.cpp
 https://blog.werner.wiki/elf-plt-got-static-analysis/
 
 https://segmentfault.com/a/1190000022859599
+
+https://www.cnblogs.com/shuqin/p/12012906.html#pic(好文)
+
+https://stackoverflow.com/questions/64424692/how-does-the-address-of-r-x86-64-plt32-computed(好问题)
