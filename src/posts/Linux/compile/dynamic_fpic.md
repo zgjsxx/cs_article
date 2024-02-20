@@ -81,6 +81,20 @@ foo中对bar的调用实际上是一条相对地址的调用指令， ```e8 e8 f
 ```
 
 
+## .interp段
+
+```shell
+objdump -s a.out |grep -C 5 .interp
+```
+
+这个就是可执行文件所需要的动态链接器的路径。
+
+```shell
+readelf -l a.out |grep  interpretrer
+```
+
+
+R_X86_64_PLT32
 
 # 参考文章
 
