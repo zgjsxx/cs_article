@@ -58,3 +58,30 @@ foo中对bar的调用实际上是一条相对地址的调用指令， ```e8 e8 f
 当前指令的下一条指令是```b8 00 00 00 00```，其地址是0x804835c, ```e8 ff ff ff```是-24的补码形式， 因此bar的位置在```0x804835c-24 = 0x8048344```。那么只要bar和foo的相对位置不变。这条指令是地址无关的。
 
 
+## 类型二 模块内部的数据访问
+
+指令中不能包含数据的绝对位置， 唯一的方法就是使用相对寻址。任何一条指令与它需要访问的模块内部的数据之间的相对位置是固定的。
+
+```c
+44c <bar>:
+44c: 55                     push  %ebp
+44d: 89 e5                  mov  %esp, %ebp
+44f: e8 40 00 00 00            call 494 <__i686.get_pc_thunk.cx>
+454: 81 c1 8c 11 00 00      add $0x118c, %ecx
+45a: c7 81 28 00 00 00 01   movl $0x1, 0x28(%ecx)      // a = 1
+461: 00 00 00
+464: 8b 81 f8 ff ff ff      mov 0xfffffff8(%ecx), %eax
+46a: c7 00 02 00 00 00      movl  $0x2, (%eax)         // b = 2
+470: 5d                     pop  %ebp
+471: c3                     ret
+
+000000494 <__i686.get_pc_thunk.cx>:
+494: 8b 0c 24               mov  (%esp), %ecx
+497: c3                     ret
+```
+
+
+
+# 参考文章
+
+https://blog.werner.wiki/elf-plt-got-static-analysis/
