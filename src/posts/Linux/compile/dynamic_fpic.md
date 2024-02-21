@@ -135,27 +135,83 @@ g++ -c -fPIC rand.cpp
 1.查看elf文件中的section表(节表，一些文章也称为段表)。
 
 ```shell
-readelf -S <elf>
+readelf -S <ELF>
+readelf --sections <ELF>
+readelf --section-headers <ELF>
 ```
 
 2.查看elf文件的符号
 
 ```shell
-readelf -s <elf>
+readelf -s <ELF>
+readelf --symbols <ELF>
+readelf --syms  <ELF>
 ```
 
 3.查看elf文件的依赖(查看.dynamic段的内容)
 
 ```shell
 readelf -d <ELF>
+readelf --dynamic <ELF>
 ```
+
+4.查看ELF文件中relocation section的内容
+```shell
+readelf -r  <ELF>
+readelf --relocs <ELF>
+```
+
+5.查看ELF文件文件头
+
+```shell
+readelf -h <ELF>
+readelf --file-header <ELF>
+```
+
+6.查看ELF文件的segment表
+
+```shell
+readelf -l <ELF> 
+readelf --program-headers <ELF> 
+readelf --segments <ELF> 
+```
+
 
 **objdump**
 
 
-1. 查看ELF文件的汇编代码
+1.查看ELF文件的汇编代码。 本选项只对那些包含指令的section进行反汇编。
+
 ```shell
 objdump -d <ELF>
+objdump --disassemble <ELF>
+```
+
+2.objdump显示全部的Header信息
+
+```shell
+objdump -x <ELF>
+```
+
+3.显示obj文件各个sections的头部摘要信息。
+
+```shell
+objdump -h <ELF>
+objdump --section-headers <ELF>
+objdump --headers <ELF>
+```
+
+4.显示文件的重定位入口。
+
+```shell
+objdump -r <ELF>
+objdump --reloc <ELF>
+```
+
+5.显示文件的符号表入口
+```shell
+objdump -t <ELF>
+objdump --syms <ELF>
 ```
 
 # 参考文章
