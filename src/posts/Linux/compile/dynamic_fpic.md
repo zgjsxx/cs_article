@@ -208,7 +208,7 @@ objdump -r <ELF>
 objdump --reloc <ELF>
 ```
 
-5.显示文件的符号表入口
+5.显示文件的符号表
 ```shell
 objdump -t <ELF>
 objdump --syms <ELF>
