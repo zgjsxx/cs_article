@@ -172,3 +172,6 @@ https://staffwww.fullcoll.edu/aclifton/courses/cs241/syllabus-21842-mw-sp23.html
 
 # 参考文献
 - RIP相对寻址 https://www.zhihu.com/question/270485830
+
+
+https://staffwww.fullcoll.edu/aclifton/courses 课程
