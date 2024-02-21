@@ -104,7 +104,8 @@ A:加数，也称修正值。
 P:需要被重定位处在链接后最终的虚拟地址。
 R_X86_64_PLT32：重定位公式为L+A-P。
 
-L:符号的实际虚拟地址或在PLT表中的地址。当函数符号定义在目标文件中时，L则为符号的实际虚拟地址；当函数符号定义动态库中时，L则为PLT表中的地址。很明显，swap属于前者。在后续章节中，我们再深入讨论第二种情况。
+L:符号的实际虚拟地址或在PLT表中的地址。当函数符号定义在目标文件中时，L则为符号的实际虚拟地址；
+当函数符号定义动态库中时，L则为PLT表中的地址。很明显，swap属于前者。在后续章节中，我们再深入讨论第二种情况。
 
 VALUE列：表示符号与修正值。比如shared-0x0000000000000004,表示对应符号表中shared符号，修正值为-0x0000000000000004。
 
@@ -127,6 +128,36 @@ int rand2(){
 g++ -c -fPIC rand.cpp
 
 
+## objdump 和 readelf 的常用命令
+
+**readelf**
+
+1.查看elf文件中的section表(节表，一些文章也称为段表)。
+
+```shell
+readelf -S <elf>
+```
+
+2.查看elf文件的符号
+
+```shell
+readelf -s <elf>
+```
+
+3.查看elf文件的依赖(查看.dynamic段的内容)
+
+```shell
+readelf -d <ELF>
+```
+
+**objdump**
+
+
+1. 查看ELF文件的汇编代码
+```shell
+objdump -d <ELF>
+```
+
 # 参考文章
 
 https://blog.werner.wiki/elf-plt-got-static-analysis/
@@ -136,3 +167,5 @@ https://segmentfault.com/a/1190000022859599
 https://www.cnblogs.com/shuqin/p/12012906.html#pic(好文)
 
 https://stackoverflow.com/questions/64424692/how-does-the-address-of-r-x86-64-plt32-computed(好问题)
+
+https://hansimov.gitbook.io/csapp/part2/ch07-linking/7.7-relocation
