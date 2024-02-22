@@ -133,3 +133,38 @@ CPU 由一组复杂的数字电路实现。数字电路是由逻辑门构建的�
   如果我们使用系统调用风格，我们的程序将是完全独立的：除了我们编写的内容之外，生成的可执行文件中不会有任何内容。
 
 - 我们可以使用标准c库中的方法例如printf和exit。这称之为"C库风格"。这就需要我们自己去链接c语言库。这个方法显然要强大得多，因为它将c标准库中的所有资源都给了我们的程序。
+
+```x86asm
+;;; 
+;;; hello.s
+;;; Prints "Hello, world!"
+;;;
+
+section .data
+
+msg:            db      "Hello, world!", 10
+MSGLEN:         equ     $-msg
+
+section .text
+
+;; Program code goes here
+
+global _start
+_start:
+
+    mov     rax,    1               ; Syscall code in rax
+    mov     rdi,    1               ; 1st arg, file desc. to write to
+    mov     rsi,    msg             ; 2nd arg, addr. of message
+    mov     rdx,    MSGLEN          ; 3rd arg, num. of chars to print
+    syscall
+
+    ;; Terminate process
+    mov     rax,    60              ; Syscall code in rax
+    mov     rdi,    0               ; First parameter in rdi
+    syscall                         ; End process
+```
+
+```x86asm
+yasm -g dwarf2 -f elf64 hello.s -l hello.lst
+ld -g -o hello hello.o
+```
