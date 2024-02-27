@@ -636,3 +636,4 @@ gcc -o hello hello.o
 ## 附录
 
 - 课程原文： https://staffwww.fullcoll.edu/aclifton/cs241/lecture-introduction.html
+- https://www.cs.uaf.edu/2017/fall/cs301/lecture/09_13_memory.html

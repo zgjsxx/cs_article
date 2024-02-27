@@ -544,3 +544,16 @@ xor 的操作码比带有立即数的 mov 更小，因此可以更快地加载�
 - 还有一些额外的寄存器与内存管理、调试断点、内部性能参数等有关。其中大多数对我们来说没有用，而且许多用户代码无论如何都无法访问。
 
 普通的 mov 指令通常不能用来操作这些寄存器。相反，存在专门的指令来获取/设置它们的值。
+
+
+
+## ps
+
+
+caller saved vs callee saved
+Caller Saved寄存器在函数调用的时候不会保存
+Callee Saved寄存器在函数调用的时候会保存
+
+这里的意思是，一个Caller Saved寄存器可能被其他函数重写。假设我们在函数a中调用函数b，任何被函数a使用的并且是Caller Saved寄存器，调用函数b可能重写这些寄存器。我认为一个比较好的例子就是Return address寄存器（注，保存的是函数返回的地址），你可以看到ra寄存器是Caller Saved，这一点很重要，它导致了当函数a调用函数b的时侯，b会重写Return address。所以基本上来说，任何一个Caller Saved寄存器，作为调用方的函数要小心可能的数据可能的变化；任何一个Callee Saved寄存器，作为被调用方的函数要小心寄存器的值不会相应的变化。我经常会弄混这两者的区别，然后会到这张表来回顾它们。
+
+https://mit-public-courses-cn-translatio.gitbook.io/mit6-s081/lec05-calling-conventions-and-stack-frames-risc-v/5.4-risc-v-ji-cun-qi
