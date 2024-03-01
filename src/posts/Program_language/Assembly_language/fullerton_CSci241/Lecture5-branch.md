@@ -360,3 +360,149 @@ jnz	Jump if ZF == 0
 jp	Jump if PF == 1
 jpo	Jump if PF == 1 (jump if parity odd)
 jpe	Jump if PF == 0 (jump if parity even)
+
+
+## 转换 C/C++ 结构
+
+### if-else 链
+
+经典的 C/C++ if-else 结构如下所示：
+
+```c
+if(condition1) {
+  ... // body1
+}
+else if(condition2) {
+  ... // body2
+}
+...
+else {
+  ... // else body
+}
+```
+
+在汇编中没有直接的语句。我们需要使用比较，条件跳转和无条件跳转来重建其行为。
+
+- 每一个if语句都需要```cmp```或者```test```指令（如果if表达式比较复杂，不是简单的数值比较，那么可能需要多个```cmp```或者```test```）。如果条件为假则进行条件跳转。跳转目标是链中的下一个 if。
+- 每个 if 的主体在最后的 else 结束后以无条件跳转到标签结束。
+- else 的主体不需要跳转，因为它直接“跳转”到下面的代码。
+
+```x86asm
+cmp ...
+jncc .elseif1 
+  ; body 1
+
+  jmp end_else
+
+.elseif1:
+cmp ...
+jncc .elseif2
+  ; body2
+
+  jmp end_else
+
+... ; other else-if comparisons and bodies
+
+.else: 
+
+  ; else body
+
+.end_else:
+
+...
+```
+
+（当然，您应该尝试使用更具描述性的标签名称！）
+
+
+## 嵌套的 if-else
+
+嵌套的 if-else，例如:
+
+```cpp
+if(rax == rbx) {
+  if(rbx < rcx) {
+    ...
+  }
+}
+```
+
+正如我们所见，可以翻译成:
+
+```x86asm
+cmp rax, rbx      ; Or whatever you need for the outer condition
+jne .end          ; Note: jump if NOT equal
+cmp rbx, rcx      
+jge .end
+
+...               ; Actual body 
+
+.end
+...               ; Rest of program
+```
+
+我们依次测试每个条件，如果不满足条件，则跳转到嵌套 if 主体之后的标签。因此，j**指令中的所有条件都被否定。
+
+## do-while循环
+
+我们已经看到，循环指令用于实现一种 do-while 循环，只要您想使用递减的 rcx 作为循环变量，当 rcx == 0 时循环结束。通过条件跳转，我们可以构建一个更通用的 do-while 循环：
+
+```x86asm
+.do                 ; do {
+
+  ...               ;   Loop body
+
+  cmp rax, rbx      
+  je .do            ; } while(rax == rbx);
+```
+
+
+## while 循环
+
+实现 while 循环需要在循环开始时测试循环条件，如果失败则可能跳到循环末尾。
+因此，我们需要在循环的开头（以便我们可以执行循环）和循环的结尾都有一个标签：
+
+```x86asm
+.while:         ; while(rax != rbx) {
+  cmp rax, rbx
+  je .end_whle
+
+  ...           ;   Loop body
+
+  jmp .while
+.end_while:     ; }
+```
+
+for 循环只是一种特殊的 while 循环，例如
+
+```
+for(rax = 0; rax < 100; ++rax) {
+  ...
+}
+```
+
+将会编译为：
+
+```
+  xor rax, rax      ; rax = 0
+.for:     
+  cmp rax, 100
+  jge .end_for
+
+  ...               ; Loop body
+
+  inc rax
+  jmp .for
+.end_for:
+```
+
+## break和continue
+
+break 相当于跳转到循环结束后的位置。 continue 相当于跳转到循环开头的位置。常见的模式是
+
+```x86asm
+if(condition)
+  break; // Or continue
+```
+
+可以通过条件跳转到结尾/开头来完成；无需模拟整个 if 结构。
