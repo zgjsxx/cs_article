@@ -21,7 +21,7 @@ jmp target
 
 通常，我会使用本地标签（以 . 开头的标签）作为函数内部的标签。
 
-在CPU内部，jmp指令只是修改rip寄存器，其中包含下一条要执行的指令的地址。通常，rip由CPU自动更新，以指向下面的指令。
+在CPU内部，```jmp```指令只是修改```rip```寄存器，其中包含下一条要执行的指令的地址。通常，rip由CPU自动更新，以指向下面的指令。
 
 
 ## 计算跳转
@@ -33,3 +33,20 @@ mov rax, target
 ...
 jmp rax
 ```
+
+您甚至可以在 .data 部分构建一组目标，然后跳转到其中一个：
+
+```x86asm
+section .data
+
+jmp_tbl:    qword   _start.label0, _start.label1, ...
+
+section .text
+_start:
+
+    ...
+    mov rax, qword [jmp_tbl + 1]
+    jmp rax
+```
+
+稍后我们将使用“跳转表”技术来实现一种 switch-case。

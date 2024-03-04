@@ -346,27 +346,182 @@ test 的操作数受到一些限制：
 
 最后，有一组直接引用标志名称的半冗余条件
 
-Operation	Description
-jc	Jump if CF == 1
-jnc	Jump if CF == 0
-jz	Jump if ZF == 1
-jnz	Jump if ZF == 0
-jo	Jump if OF == 1
-jno	Jump if OF == 0
-js	Jump if SF == 1
-jns	Jump if SF == 0
-jz	Jump if ZF == 1
-jnz	Jump if ZF == 0
-jp	Jump if PF == 1
-jpo	Jump if PF == 1 (jump if parity odd)
-jpe	Jump if PF == 0 (jump if parity even)
+|Operation	|Description|
+|--|--|
+|jc	|Jump if CF == 1|
+|jnc|	Jump if CF == 0|
+|jz |	Jump if ZF == 1|
+|jnz|	Jump if ZF == 0|
+|jo|	Jump if OF == 1|
+|jno|	Jump if OF == 0|
+|js|	Jump if SF == 1|
+|jns	|Jump if SF == 0|
+|jz|	Jump if ZF == 1|
+|jnz	|Jump if ZF == 0|
+|jp|	Jump if PF == 1|
+|jpo	|Jump if PF == 1 (jump if parity odd)|
+|jpe	|Jump if PF == 0 (jump if parity even)|
+
+
+## 跳转目标
+
+普通的```jmp```指令可以跳转到任意地址。条件跳转存储的是跳转目标距离当前指令的偏移量。偏移量是有符号 8 位或 32 位数值。在汇编语言中，我们编写一个标签，汇编器会计算相应的偏移量，写入指令中。
+
+## 条件跳转到计算目标
+
+通过无条件跳转，可以很容易地跳转到寄存器定义的目标：
+
+```x86asm
+target:
+...
+mov rax, target
+jmp rax
+```
+
+因为rax寄存器的值就是要跳转到的地址。由于条件跳转不使用绝对地址，而是使用当前地址的偏移量，因此计算条件跳转需要更多技巧。
+
+最简单的方法是使条件跳转到固定目标，其中目标是到计算地址的普通跳转:
+
+```x86asm
+jcc my_jmp_target
+
+  ⋮
+
+my_jmp_target:  jmp rax
+```
+
+此方法比理想慢一些，因为它涉及两次跳跃。更快的方法是计算最终的 jcc 指令和各个跳转目标之间的距离，然后将这些距离存储到某个寄存器中。由于这些距离在组装时是固定的，因此在运行时计算它们的效率很低。一般的策略是给条件跳转指令本身加上标签，这样我们就可以访问它的地址：
+
+```x86asm
+target1:
+
+  ⋮
+                mov rax, computed_jump - target1  ; Pick target to jump to
+computed_jump:  jcc rax                           ; Jump 
+
+  ⋮
+
+target2:
+```
+
+```mov``` 当然是条件结构的一部分，它要么：
+
+```x86asm
+mov rax, computed_jump - target1
+```
+
+或者
+
+```x86asm
+mov rax, computed_jump - target2
+```
+
+取决于某些条件。我们还可以存储一个compated_jump - target1、compated_jump - target2等偏移量的数组，然后对其进行索引.
+
+## 复合条件
+
+我们如何检查复合条件，例如 ```rbx >= 10 和 rbx < 100```，并在复合条件为真时执行跳转？
+
+- 一种方法是执行多步跳转
+  ```x86asm
+  cmp rbx, 10
+  jge .step1
+  jmp .else
+
+  .rax_ge_0:
+  cmp rbx, 100
+  jnge .else
+
+      ; rbx >= 0 and rbx < 100
+
+  .else:
+
+      ; condition failed.
+  ```
+除最后一个条件外，每个条件都需要自己的 cmp 和条件跳转。 （因为 cmp 在进行比较之前重置标志，所以您无法“组合”多个比较。）
+
+这实际上相当于转换
+```cpp
+ if(rbx >= 10 and rbx <= 100) {
+  ...
+ }
+```
+
+into
+
+```cpp
+ if(rbx >= 10) {
+     if(rbx <= 100) {
+      ...
+     }
+ }
+```
+
+- set** 检查特定条件标志（或标志组合）并将（字节）寄存器/内存设置为 1 或 0。然后可以使用正常和/或/非按位操作以及 z、nz 条件将它们组合起来可用于检查假/真。例如。，
+
+
+```x86asm
+ cmp rbx, 10
+ setge al
+ cmp rbx, 100
+ setl  ah
+ and al, ah      ; Sets the zero flag if al && ah == 0
+ jz .outside
+
+    ; Inside
+
+ .outside:
+```
+set** 支持与条件跳转相同的一组条件代码
+
+A range check like the above example actually has a simple version using subtraction:
+
+ sub rbx, 10
+ cmp rbx, 100 - 10
+ jae .outside
+    ; Inside the range
+
+ .outside:
+    ; Outside the range 
+This works because if rbx < 10 the subtraction will wrap around to a value, so values < 10 and values >= 100 will jump to .outside. This works assuming that rbx is unsigned.
+
+Optimizing jumps
+Conditional jumps are expensive! (Unconditional jumps are more expensive than normal sequential control flow, but not as expensive as conditional jumps.) The processor does not know what instruction will be taken until it has examined the flags register, which means many of the optimizations it performs have to be delayed. The best way to optimize jumps is to minimize their usage: try to keep as much of your control flow sequential as possible. Beyond that, try to
+
+Keep conditional jumps short, within +-127 bytes
+
+Try to arrange conditional jumps so that the condition is usually false or usually true, not frequently alternating. The processor will try to do branch prediction, storing the choices made by a small number of jumps, but this functions best if conditional jumps are mostly consistent in their choices (i.e., if the “prediction” is correct most of the time).
+
+For example, in a loop, the loop condition is true most of the time, and false only at the very end. The processor will learn this behavior and “guess” that the loop will repeat, so that most loop jumps will be fast. Only the final jump, out of the loop, will be slow, as that’s where the prediction fails.
+
+Avoid conditional branches completely by using conditional moves (see below) or the setcc instruction.
+
+SETcc and bool → int conversion
+Sometimes, in C/C++ we rely on the implicit conversion from bool → int to avoid writing an if/else. E.g., to count the number of negative values in an array we could do:
+
+int c = 0;
+for(int* p = arr; p < arr + size)
+   c += (*p < 0);
+This works because bool true converts to 1 (thus becoming c += 1) and false converts to 0 (becoming c += 0). This code is actually faster than the equivalent code:
+
+int c = 0;
+for(int* p = arr; p < arr + size)
+   if(*p > 0)
+      ++c;
+because evaluating a conditional branch is slower for the CPU. To implement the above version, we can use the SETcc instruction, which sets a given (byte) register to 1 if the condition code cc is satisfied, or 0 if it is not. E.g., to increment rax only when rbx > 0 we could do
+
+mov rcx, 0
+
+cmp rbx, 0
+seta cl      ; Set cl = 1 if rbx > 0
+add rax, rcx
 
 
 ## 转换 C/C++ 结构
 
 ### if-else 链
 
-经典的 C/C++ if-else 结构如下所示：
+经典的 C/C++ ```if-else``` 结构如下所示：
 
 ```c
 if(condition1) {
@@ -381,11 +536,11 @@ else {
 }
 ```
 
-在汇编中没有直接的语句。我们需要使用比较，条件跳转和无条件跳转来重建其行为。
+在汇编中没有直接```if-else```的语句。我们需要使用**比较**，**条件跳转**和**无条件跳转**来构建。
 
-- 每一个if语句都需要```cmp```或者```test```指令（如果if表达式比较复杂，不是简单的数值比较，那么可能需要多个```cmp```或者```test```）。如果条件为假则进行条件跳转。跳转目标是链中的下一个 if。
+- 每一个```if```语句都需要```cmp```或者```test```指令（如果if表达式比较复杂，不是简单的数值比较，那么可能需要多个```cmp```或者```test```）。如果条件为假则进行条件跳转。跳转目标是链中的下一个 if。
 - 每个 if 的主体在最后的 else 结束后以无条件跳转到标签结束。
-- else 的主体不需要跳转，因为它直接“跳转”到下面的代码。
+- else 的主体不需要跳转，因为它直接跳转到下面的代码。
 
 ```x86asm
 cmp ...
@@ -412,10 +567,10 @@ jncc .elseif2
 ...
 ```
 
-（当然，您应该尝试使用更具描述性的标签名称！）
+当然，您应该尝试使用更具描述性的标签名称！
 
 
-## 嵌套的 if-else
+## 嵌套的 ```if-else```
 
 嵌套的 if-else，例如:
 
@@ -427,7 +582,7 @@ if(rax == rbx) {
 }
 ```
 
-正如我们所见，可以翻译成:
+上述的代码可以翻译成下面的汇编代码:
 
 ```x86asm
 cmp rax, rbx      ; Or whatever you need for the outer condition
@@ -441,13 +596,13 @@ jge .end
 ...               ; Rest of program
 ```
 
-我们依次测试每个条件，如果不满足条件，则跳转到嵌套 if 主体之后的标签。因此，j**指令中的所有条件都被否定。
+我们依次测试每个条件，如果不满足条件，则跳转到嵌套 ```if``` 主体之后的标签。
 
-## do-while循环
+## ```do-while```循环
 
 在之前，我们已经学习过使用```loop```指令实现 ```do-while``` 循环的方式，只要您使用 ```rcx``` 作为循环变量，在循环中进行递减，当 ```rcx == 0``` 时循环结束。
 
-通过条件跳转，我们可以构建一个更通用的 ```do-while``` 循环：
+通过条件跳转，我们可以构建一个更通用的 ```do-while``` 循环,在循坏开始时需要设置一个标签， 在循环结束时测试循环条件。
 
 ```x86asm
 .do                 ; do {
