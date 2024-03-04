@@ -346,23 +346,48 @@ test 的操作数受到一些限制：
 
 最后，有一组直接引用标志名称的半冗余条件
 
-|Operation	|Description|
+|操作|描述|
 |--|--|
-|jc	|Jump if CF == 1|
-|jnc|	Jump if CF == 0|
-|jz |	Jump if ZF == 1|
-|jnz|	Jump if ZF == 0|
-|jo|	Jump if OF == 1|
-|jno|	Jump if OF == 0|
-|js|	Jump if SF == 1|
-|jns	|Jump if SF == 0|
-|jz|	Jump if ZF == 1|
-|jnz	|Jump if ZF == 0|
-|jp|	Jump if PF == 1|
-|jpo	|Jump if PF == 1 (jump if parity odd)|
-|jpe	|Jump if PF == 0 (jump if parity even)|
+|```jc```	| 当 ```CF == 1```时跳转|
+|```jnc```|	当 ```CF == 0```时跳转|
+|```jz``` |	当 ```ZF == 1```时跳转|
+|```jnz```|	当 ```ZF == 0```时跳转|
+|```jo``` |	当 ```OF == 1```时跳转|
+|```jno```|	当 ```OF == 0```时跳转|
+|```js``` |	当 ```SF == 1```时跳转|
+|```jns```| 当 ```SF == 0```时跳转|
+|```jz``` |	当 ```ZF == 1```时跳转|
+|```jnz```| 当 ```ZF == 0```时跳转|
+|```jp``` |	当 ```PF == 1```时跳转|
+|```jpo```| 当 ```PF == 0```时跳转 |
+|```jpe```| 当 ```PF == 1```时跳转|
+|```jnp```| 当 ```PF == 0```时跳转|
 
 
+
+|机器码|指令|描述|
+|--|--|--|
+|7B cb| JNP| Jump short if not parity (PF=0).|
+|7A cb|	JP | Jump short if parity (PF=1).|
+|7A cb|	JPE| Jump short if parity even (PF=1).|
+|7B cb|	JPO| Jump short if parity odd (PF=0).|
+
+
+例如，假设我们要实现以下代码:
+
+```cpp
+if(rcx == 0)
+    rax = rbx;
+```
+
+使用条件和条件分支，我们可以这样做:
+
+```x86asm
+cmp rcx, 0
+jne NotZero
+mov rax, rbx
+NotZero:
+```
 ## 跳转目标
 
 普通的```jmp```指令可以跳转到任意地址。条件跳转存储的是跳转目标距离当前指令的偏移量。偏移量是有符号 8 位或 32 位数值。在汇编语言中，我们编写一个标签，汇编器会计算相应的偏移量，写入指令中。
@@ -485,23 +510,26 @@ A range check like the above example actually has a simple version using subtrac
     ; Outside the range 
 This works because if rbx < 10 the subtraction will wrap around to a value, so values < 10 and values >= 100 will jump to .outside. This works assuming that rbx is unsigned.
 
-Optimizing jumps
-Conditional jumps are expensive! (Unconditional jumps are more expensive than normal sequential control flow, but not as expensive as conditional jumps.) The processor does not know what instruction will be taken until it has examined the flags register, which means many of the optimizations it performs have to be delayed. The best way to optimize jumps is to minimize their usage: try to keep as much of your control flow sequential as possible. Beyond that, try to
+## 跳转优化
 
-Keep conditional jumps short, within +-127 bytes
+条件跳转很昂贵！ （无条件跳转比正常的顺序控制流更昂贵，但不如条件跳转那么昂贵。）处理器在检查标志寄存器之前不知道将采用什么指令，这意味着它执行的许多优化必须被延迟。
+优化跳转的最佳方法是尽量减少它们的使用：尝试尽可能保持控制流的顺序。除此之外，尝试
 
-Try to arrange conditional jumps so that the condition is usually false or usually true, not frequently alternating. The processor will try to do branch prediction, storing the choices made by a small number of jumps, but this functions best if conditional jumps are mostly consistent in their choices (i.e., if the “prediction” is correct most of the time).
+- 保持条件跳转较短，在 +-127 字节内
 
-For example, in a loop, the loop condition is true most of the time, and false only at the very end. The processor will learn this behavior and “guess” that the loop will repeat, so that most loop jumps will be fast. Only the final jump, out of the loop, will be slow, as that’s where the prediction fails.
+- 尝试安排条件跳转，使条件通常为假或通常为真，而不是频繁交替。处理器将尝试进行分支预测，存储少量跳转所做的选择，但如果条件跳转的选择基本一致（即，如果“预测”在大多数情况下是正确的），则此功能效果最佳。
+  例如，在循环中，循环条件大多数时候为 true，只有在最后才为 false。处理器将学习这种行为并“猜测”循环将重复，因此大多数循环跳转都会很快。只有最后的跳转（跳出循环）才会很慢，因为这就是预测失败的地方。
+- 通过使用条件移动（见下文）或 setcc 指令完全避免条件分支
 
-Avoid conditional branches completely by using conditional moves (see below) or the setcc instruction.
 
-SETcc and bool → int conversion
-Sometimes, in C/C++ we rely on the implicit conversion from bool → int to avoid writing an if/else. E.g., to count the number of negative values in an array we could do:
 
+有时，在 C/C++ 中，我们依赖 bool → int 的隐式转换来避免编写 if/else。例如，要计算数组中负值的数量，我们可以这样做：
+
+```cpp
 int c = 0;
 for(int* p = arr; p < arr + size)
    c += (*p < 0);
+``` 
 This works because bool true converts to 1 (thus becoming c += 1) and false converts to 0 (becoming c += 0). This code is actually faster than the equivalent code:
 
 int c = 0;
@@ -670,3 +698,13 @@ if(condition)
 ### 课程资源
 
 原文链接：https://staffwww.fullcoll.edu/aclifton/cs241/lecture-branching-comparisons.html
+
+
+
+http://ics.p.lodz.pl/~dpuchala/LowLevelProgr/
+
+https://www.felixcloutier.com/x86/
+
+https://www.felixcloutier.com/x86/jcc
+
+https://www.felixcloutier.com/x86/jmp
