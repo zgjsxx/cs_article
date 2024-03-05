@@ -443,6 +443,8 @@ mov rax, computed_jump - target2
 
 取决于某些条件。我们还可以存储一个compated_jump - target1、compated_jump - target2等偏移量的数组，然后对其进行索引.
 
+查询了[intel指令集](https://www.intel.cn/content/www/cn/zh/content-details/782158/intel-64-and-ia-32-architectures-software-developer-s-manual-combined-volumes-1-2a-2b-2c-2d-3a-3b-3c-3d-and-4.html) volume 2中关于jcc的部分，jcc后面不可以带register，因此课程中这里讲解的似乎不太正确。
+
 ## 复合条件
 
 我们如何检查复合条件，例如 ```rbx >= 10 和 rbx < 100```，并在复合条件为真时执行跳转？
