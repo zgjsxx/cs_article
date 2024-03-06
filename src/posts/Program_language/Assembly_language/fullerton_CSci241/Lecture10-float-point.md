@@ -197,12 +197,12 @@ vdivsd dest, src1, src2  ; dest = src1 + src2
 
 |指令|描述|
 |--|--|
-|```sqrtss dest, src```</br> ```sqrtsd dest, src```|```dest = sqrt(src)``` 开根号|
+|```sqrtss dest, src```<br /> ```sqrtsd dest, src```|```dest = sqrt(src)``` 开根号|
 |```rcpss dest, src```|```dest = 1/src```|
 |```rsqrtss dest, src```|```dest = 1/sqrt(src)```|
-|```maxss dest, src```</br>```maxsd dest, src```|dest =maximum of dest, src|
-|```minss dest, src```</br>```minsd dest, src```|dest =minimum of dest, src|
-|```roundss dest, src, mode```|Round src into dest using mode </br>mode = 0 ties go to even</br>mode = 1 round down</br>mode = 2 round up</br>mode = 3 round toward 0|
+|```maxss dest, src```<br /> ```maxsd dest, src```|dest =maximum of dest, src|
+|```minss dest, src```<br /> ```minsd dest, src```|dest =minimum of dest, src|
+|```roundss dest, src, mode```|Round src into dest using mode <br />mode = 0 ties go to even<br />mode = 1 round down<br />mode = 2 round up<br />mode = 3 round toward 0|
 
 ## 附录
 
