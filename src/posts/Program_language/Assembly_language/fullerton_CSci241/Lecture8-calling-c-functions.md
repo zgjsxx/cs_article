@@ -233,6 +233,55 @@ insertion_sort:
 .done
     ret
 ```
+
+## C 兼容函数
+
+## 函数模板
+
+以下是一个函数模板，该函数保留被调用者保存的寄存器并使用 rbp 指向其堆栈帧的开头：
+
+```x86asm
+;; func_name(arguments...)
+;; What the function does
+;; 
+;; Arguments:
+;;   arg1 -- rdi
+;;   arg2 -- si
+;;   ... etc
+;;   arg7 -- qword, stack [rbp + 16]
+;; 
+;; Return value: eax
+;;
+global func_name
+func_name:
+
+    ;; Preamble
+    push rbp     ; Save calling function's rbp
+    mov rbp, rsp ; rbp points to our stack frame
+
+    push r12     ; Push any callee-saved registers you use
+
+    ; If you need space for stack-based local variables, you can reserve it with
+    ;   sub rsp, amount
+
+    ; Realign rsp to 16*rsp + 8
+
+    ;; Function body
+    ...          
+
+    ;; Epilogue
+
+    ; Remove any alignment added
+
+    ; If you reserved any space for stack-based local variables, you should 
+    ; restore it with
+    ;   add rsp, amount    
+
+    pop r12      ; Restore callee-saved registers
+    pop rbp      ; Restore caller's rbp
+    ret
+```
+
 ## 附录
 
 ### 课程资源
