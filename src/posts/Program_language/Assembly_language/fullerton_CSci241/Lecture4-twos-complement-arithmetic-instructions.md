@@ -184,8 +184,8 @@ mov rax, [my_text] ; Read one *qword* from my_text
 mov rax, byte [my_text] ; Read one byte from my_text
 ```
 
+(```mov```要求源操作数和目的操作数大小相等，```movzx```可以实现高位补0操作)
 
-（当然，如果您需要的不仅仅是第一个字节，您可能希望将它们分成八个块，以提高速度......）
 
 实际上，如果我们正在处理一个字符串，我们会想要迭代它，而不仅仅是访问第一个字节。将地址 ```my_text``` 放入寄存器然后"解引用"会更有用：
 
