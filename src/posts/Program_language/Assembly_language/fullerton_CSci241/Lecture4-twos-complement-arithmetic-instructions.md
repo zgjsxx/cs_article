@@ -169,7 +169,7 @@ mov al, byte [my_text]
 
 这里并不严格要求带上字节限定符，但带上它是一个很好的做法。
 
-下面是一个容易犯错误的例子:
+下面展示一个容易犯错误的例子:
 
 ```x86asm
 mov rax, [my_text] ; Read one *qword* from my_text
@@ -177,17 +177,46 @@ mov rax, [my_text] ; Read one *qword* from my_text
 
 它读取的不是一个字节而是八个字节（qword）。
 
-
-在上面的例子中当你增加字节限定符时进行汇编将会报错。因为限定符和寄存器的大小不匹配。
+当你增加字节限定符,而不修改寄存器时进行汇编将会报错。因为**限定符**和**寄存器的大小**不匹配。
 
 ```x86asm
 mov rax, byte [my_text] ; Read one byte from my_text
 ```
 
-(```mov```要求源操作数和目的操作数大小相等，```movzx```可以实现高位补0操作)
+下面是一个完整的例子：
 
+```x86asm
+section .data
 
-实际上，如果我们正在处理一个字符串，我们会想要迭代它，而不仅仅是访问第一个字节。将地址 ```my_text``` 放入寄存器然后"解引用"会更有用：
+msg:    db      "Hello, world!"
+MSGLEN: equ     $-msg
+
+section .text
+
+global _start
+_start:
+    mov rax, byte [newline]
+    mov     rax,    60              ; Syscall code in rax
+    mov     rdi,    0               ; First parameter in rdi
+    syscall                         ; End process
+    ; Normal exit syscall...
+```
+
+进行编译：
+
+```shell
+yasm -g dwarf2 -f elf64 hello.s -l hello.lst
+```
+
+报错内容如下所示：
+
+```shell
+error: invalid size for operand 2
+```
+
+这里特别要注意```mov```要求源操作数和目的操作数大小相等。如果操作数的大小不相等，就需要使用```movzx```。
+
+实际上，当我们正在处理一个字符串时，大概率我们会想要迭代它，而不仅仅是访问第一个字节。将地址 ```my_text``` 放入寄存器然后"解引用"会更有用：
 
 ```x86asm
 mov rsi, my_text
@@ -196,11 +225,15 @@ mov al, byte [rsi]
 
 然后我们可以通过 ```inc rsi``` 来增加 ```rsi```的值从而访问字符串中的下一个字节。因为 ```my_text``` 是立即数，所以我们不能递增它。 （同样，```[rsi]``` 上的字节限定符不是必需的，因为它可以从 ```al``` 的大小推断出来。）
 
-
-
 ## 简单的循环
 
-因为做任何有趣的事情都需要循环，所以我们将介绍```loop```指令。循环采用单个操作数，一个要跳转到的标签（在内部，循环存储标签地址相对于当前指令地址的偏移量）。循环的操作是执行以下步骤：
+因为做任何有趣的事情都需要循环，所以我们将介绍```loop```指令。```loop```采用单个操作数，一个要跳转到的标签（在内部，循环存储标签地址相对于当前指令地址的偏移量）。```loop```的操作是执行以下步骤：
+
+- 对```rcx```进行递减
+- 如果```rcx != 0```,跳转到标签处。
+- 如果```rcx == 0```，则往下继续执行。
+
+因此，基本循环的结构如下所示：
 
 ```x86asm
     mov rcx, init       ; Initialize rcx > 0
@@ -214,7 +247,7 @@ mov al, byte [rsi]
     ; ... Continue after end of loop
 ```
 
-这大致相当于 C/C++ 风格的 do-while 循环：
+这大致相当于 C/C++ 风格的 ```do-while``` 循环：
 
 ```cpp
 rcx = init;
@@ -226,7 +259,44 @@ do {
 } while(rcx != 0);
 ```
 
-请注意，因为 ```rcx``` 是允许系统调用破坏的寄存器之一，所以如果您在循环内执行任何系统调用，则需要在调用之前保存 rcx，然后在循环之后恢复它。
+请注意，因为 ```rcx``` 是允许系统调用会修改的寄存器之一，所以如果您在循环内执行任何系统调用，则需要在调用之前保存 ```rcx````，然后在调用之后恢复它。
+
+作为一个演示，我们可以修改"Hello, world"程序来反向打印"Hello, world!"，从末尾到开头一次打印一个字符。（我们仍然会使用 ```write``` 系统调用，我们只是告诉它打印单个字符而不是整个字符串。）
+
+首先我们先考虑如何在C/C++语言中实现。下面时最基本的"Hello, world!"程序。
+
+```cpp
+int main()
+{
+    char* msg = "Hello, world!";
+    const int MSGLEN = 13; 
+
+    cout.write(msg,MSGLEN); // equiv. to write syscall
+}
+```
+
+要一次写入一个字符，我们需要一个从字符串末尾开始的循环，一次向后写入一个字符，如下所示：
+
+```cpp
+int main()
+{
+    char* msg = "Hello, world!";
+    const int MSGLEN = 13;
+
+    int c = MSGLEN;
+    do {
+
+        char* addr = msg + c - 1;
+        cout.write(addr,1);
+
+        --c;
+    } while(c != 0);
+}
+```
+
+我特意以镜像循环指令执行的方式编写 do-while 循环，以便更容易转换为汇编。
+
+我们原始的HelloWorld程序是这样的：
 
 ```x86asm
 section .data
@@ -240,14 +310,95 @@ section .text
 
 global _start
 _start:
+    mov     rax,    1               ; Syscall code in rax
+    mov     rdi,    1               ; 1st arg, file desc. to write to
+    mov     rsi,    msg             ; 2nd arg, addr. of message
+    mov     rdx,    MSGLEN          ; 3rd arg, num. of chars to print
+    syscall
 
+    ;; Terminate process
+    mov     rax,    60              ; Syscall code in rax
+    mov     rdi,    0               ; First parameter in rdi
+    syscall                         ; End process
+```
+
+我已从文本中删除了尾随的 10 (\n)，并将其移至开头，因此它仍会在“末尾”打印。
+
+第一个系统调用将在循环内，因此我们可以添加：
+
+```x86asm
+section .data
+
+msg:            db      10, "Hello, world!"
+MSGLEN:          equ     $-msg
+
+section .text
+
+;; Program code goes here
+
+global _start
+_start:
     mov     rdi,    1               ; 1st arg, file desc. to write to
     mov     rdx,    1               ; 3rd arg, num. of chars to print
-
 .begin_loop
     mov     rax,    1               ; Syscall code in rax
     mov     rsi,    msg             ; 2nd arg, addr. of message
+
+    ；other code
+    
     syscall
+    loop .begin_loop
+
+    ;; Terminate process
+    mov     rax,    60              ; Syscall code in rax
+    mov     rdi,    0               ; First parameter in rdi
+    syscall                         ; End process
+```
+
+请注意，系统调用保留了 ```rdi``` 和 ```rdx```，因此我们可以在循环外设置它们。然而，```rax```用于返回值，因此我们应该每次循环时都设置它，而```rsi```是字符串开头的地址，它会随着我们在字符串中移动而改变。
+
+我们需要将 ```rcx``` 初始化为字符串的长度：
+
+然后我们将 ```rsi```（要写入的地址）设置为 ```rcx + msg - 1```
+
+```x86asm
+mov rsi, rcx
+add rsi, msg-1
+```
+
+（```add a、b``` 执行加法，```a += b``` 和 ```dec a``` 减量 ```--a```。两者都受到通常的限制：没有内存到内存的操作、两个操作数大小相同等。因为 ```msg``` 是常量，```msg-1``` 在汇编时执行。）
+
+最后，请注意，```rcx``` 是允许系统调用会修改的寄存器之一（```r11``` 是另一个），因此我们必须在系统调用之前将其保存到另一个安全的寄存器中，然后在系统调用之后恢复它：
+
+```x86asm
+mov r15, rcx
+syscall
+mov rcx, r15
+```
+
+最终形成的代码如下：
+
+```x86asm
+section .data
+msg:            db      10, "Hello, world!"
+MSGLEN:          equ     $-msg
+
+section .text
+global _start
+_start:
+    mov     rdi,    1               ; 1st arg, file desc. to write to
+    mov     rdx,    1               ; 3rd arg, num. of chars to print
+    mov rcx, MSGLEN                 ; loop counter = MSGLEN
+.begin_loop
+    ; Print 1 char at [msg + rcx - 1]
+    mov     rax,    1               ; Syscall code in rax
+    mov rsi, rcx                    ; rsi = addr to print
+    add rsi, msg
+    dec rsi                         ;[msg + rcx - 1]
+
+    mov r15, rcx                    ; Save rcx before syscall
+    syscall
+    mov rcx, r15                    ; Restore rcx
 
     loop .begin_loop
 
@@ -256,6 +407,44 @@ _start:
     mov     rdi,    0               ; First parameter in rdi
     syscall                         ; End process
 ```
+
+```shell
+yasm -g dwarf2 -f elf64 hello2.s -l hello2.lst
+ld -g -o hello2 hello2.o
+```
+
+执行结果如下：
+
+```
+./hello
+!dlrow ,olleH
+```
+
+## 本地标签
+
+当编写函数内部存在的循环或其他标签时，通过以句号开头将它们编写为本地标签非常有用。本地标签实际上是以最近的非本地标签命名的，因此 ```.begin_loop``` 的全名实际上是 ```_start.begin_loop```。标签通常每个文件只能定义一次，因此如果没有本地标签，我们编写的其他函数就无法使用标签 ```begin_loop```。
+
+
+## 负的```rcx```
+
+如果您好奇，让我们考虑一下如果 ```rcx``` 为负并且我们将其递减会发生什么。例如，如果 ```rcx = 11111111 (= -1)```，并且我们递减：
+
+```shell
+   11111111
+ - 00000001
+────────────
+   11111110  = -2
+```
+
+换句话说，结果正是您所期望的（但与循环一起使用时不是特别有用）。
+
+## ```loop```的变化
+
+循环指令有两种变体，用于测试零标志 (ZF) 以及 rcx 的值：
+
+- ```loope```
+
+- ```loopne```
 
 ## 包含文件
 
