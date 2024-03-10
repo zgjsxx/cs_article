@@ -3,6 +3,19 @@ category:
 - 汇编语言
 ---
 
+- [第八讲 ： 栈的结构 c函数调用规约](#第八讲--栈的结构-c函数调用规约)
+  - [函数调用规约](#函数调用规约)
+  - [栈操作](#栈操作)
+  - [汇编中的排序](#汇编中的排序)
+  - [检查排序情况](#检查排序情况)
+  - [插入排序](#插入排序)
+  - [二分查找](#二分查找)
+  - [C 兼容函数](#c-兼容函数)
+  - [函数模板](#函数模板)
+  - [附录](#附录)
+    - [课程资源](#课程资源)
+
+
 # 第八讲 ： 栈的结构 c函数调用规约
 
 ## 函数调用规约
@@ -36,7 +49,7 @@ category:
     pop r10         ; Restore after return
 ```
 
-类似地，在函数中，我们有一个保存所有被调用者保存的寄存器的序言，以及一个恢复它们的序言
+类似地，在函数中，我们会有保存所有call-preserved的寄存器，等函数执行完后再恢复它们。
 
 ```x86asm
 func:
@@ -46,11 +59,11 @@ func:
     ret
 ```
 
-正如我们将看到的，使我们的函数与 C 兼容将需要对函数前导码/序言进行一些更改才能正确设置堆栈。
+正如我们将看到的，使我们的函数与 C 兼容将需要对函数前导码/序言进行一些更改才能正确设置栈。
 
 ## 栈操作
 
-要手动向栈添加和删除元素，我们使用```push```和```pop```操作：
+要手动向栈添加和删除元素，我们使用```push```和```pop```指令：
 
 - ```push op```：将操作数 ```op``` 压入堆栈。这个操作将```rsp```减少```op```的大小， 然后执行 ```mov [rsp] op```。```op``` 不能是 64 位立即数，但可以是更小的立即数（8、16 或 32 位）。请注意，您不能推送字节大小的寄存器或内存操作数，但可以推送字节大小的立即数。
 
@@ -234,6 +247,280 @@ insertion_sort:
     ret
 ```
 
+## 二分查找
+
+实现二分搜索允许我们使用另一种条件操作：条件移动。条件跳转有点昂贵，因为 CPU 无法在跳转后预加载指令，直到它本身处理了条件跳转。条件移动是附加了条件代码的移动；仅当条件为真时才会发生移动。条件移动指令为 cmov**，其中 ** 是条件代码之一。
+
+作为参考，C++ 中二分查找的实现是:
+
+```cpp
+unsigned long binary_search(long* arr, unsigned long len, long target) {
+    unsigned long low = 0, high = len-1, mid;
+
+    while(low < high) {
+        mid = (high - low) / 2 + low;
+
+        if(target < arr[mid])
+            high = mid-1;
+        else if(target == arr[mid])
+            return mid;
+        else
+            low = mid+1;
+    }
+
+    if(arr[low] == target)
+        return low;
+    else
+        return -1; // 0xffffffff... 
+}
+```
+
+（通常我们会将条件写为 low <= high 并跳过最后的 if，但是，如果 low 和 high 都是无符号的，那么如果 high == 0 并且我们执行 high - 1，我们会得到 high = 0xfffff...，并且所以条件永远不会是假的。）
+
+```x86asm
+binary_search:
+
+    ; rdi = address of array
+    ; rsi = length of array
+    ; dl = target to search for
+
+    mov rax, 0          ; rax = low = 0
+    mov rbx, rsi        ; rbx = high = len-1
+    dec rbx;
+
+.while:
+    cmp rax, rbx
+    jae .not_found      ; Stop if rax > rbx
+
+    ; rcx = mid = (high - low)/2 + low
+    mov rcx, rbx        ; rcx = high
+    sub rcx, rax        ; rcx -= low
+    shr rcx, 1          ; rcx /= 2
+    add rcx, rax        ; rcx += low                        
+
+    mov r14, rcx        ; r14 = mid+1
+    inc r14
+    mov r15, rcx        ; r15 = mid-1
+    dec r15
+
+    cmp rdx, qword [rdi + 8*rcx] ; compare target, arr[mid]
+    cmovg rax, r14               ; target > arr [mid] ===> low = mid+1
+    cmovl rbx, r15               ; target < arr [mid] ===> high = mid-1
+    cmove rax, rcx               ; target == arr[mid] ===> rax = mid (index)
+    je .return                   ; target == arr[mid] ===> return
+
+    jmp .while
+.not_found:
+    cmp qword [rdi + 8*rax], rdx
+    je .return
+
+    mov rax, -1
+.return:
+    ret
+```
+
+
+代码部分
+
+```x86asm
+    mov r14, rcx        ; r14 = mid+1
+    inc r14
+    mov r15, rcx        ; r15 = mid-1
+    dec r15
+```
+
+```x86asm
+;;;;
+;;;; sort_search.s
+;;;; Sorting and searching in assembly.
+;;;;
+section .data
+
+data:           incbin                  "random.dat"
+DATLEN:         equ                     ($-data) / 8
+
+sorted:         dq      1,9,2,8,3,7,4,6,5
+SORTLEN:        equ     ($-sorted)/8
+
+section .text
+
+;;; _start
+;;; Program entry point
+global _start
+_start:
+
+    mov rdi, data
+    mov rsi, DATLEN
+    call insertion_sort
+
+    mov rdi, data
+    mov rsi, DATLEN
+    mov rdx, 10000
+    call linear_search
+    mov r10, rax ; Save index
+
+    mov rdi, data
+    mov rsi, DATLEN
+    mov rdx, 10000
+    call binary_search
+
+    mov r8, 0
+    mov r9, 1
+    cmp rax, r10
+    cmove rdi, r8
+    cmovne rdi, r9  
+
+    ; Exit with sorted-ness in exit code    
+    mov rax, 60
+    syscall 
+
+;;; is_sorted
+;;; Returns true if an array is sorted.
+;;;
+;;; rdi = address
+;;; rsi = length
+;;; Returns: rax = 1 if sorted, 0 otherwise.
+is_sorted:
+
+    ; rdi = address of array
+    ; rsi = length
+    ; Returns: rax = 1 if sorted
+
+    dec rsi
+    mov rax, 0
+.while:
+        cmp rax, rsi
+        je .done
+
+        mov r8, qword [8*rax + rdi]
+        mov r9, qword [8*rax + rdi + 8]
+        cmp r8, r9
+        jle .continue
+        mov rax, 0        
+        ret
+
+    .continue:
+        inc rax
+        jmp .while
+
+.done:
+    mov rax, 1
+    ret
+
+;;; insertion_sort
+;;; Sorts and array of qwords
+;;; rdi = address
+;;; rsi = length
+;;; Returns nothing
+insertion_sort:
+    ; rdi = addr of array
+    ; rsi = length of array
+
+    mov rax, 1          ; rax = outer loop index, unsigned
+
+    .while_i:
+        cmp rax, rsi
+        je .done
+        mov rbx, rax    ; rbx = inner loop index
+
+        .while_j:
+            cmp rbx, 0
+            je .done_i
+
+            mov r8, qword [rdi + 8*rbx]
+            mov r9, qword [rdi + 8*rbx - 8]
+            cmp r8,r9
+            jge .done_i ; break
+
+            ; swap
+            mov qword [rdi + 8*rbx],     r9
+            mov qword [rdi + 8*rbx - 8], r8
+
+            dec rbx
+            jmp .while_j
+
+    .done_i:
+        inc rax
+        jmp .while_i
+
+.done
+    ret
+
+;;; binary_search
+;;; Does a binary search over an array for a target value
+;;; rdi = address
+;;; rsi = length
+;;; rdx = target
+;;; Returns: index of target or -1 (0xfffff...) if not found
+binary_search:
+
+    ; rdi = address of array
+    ; rsi = length of array
+    ; dl = target to search for
+
+    mov rax, 0          ; rax = low = 0
+    mov rbx, rsi        ; rbx = high = len-1
+    dec rbx;
+
+.while:
+    cmp rax, rbx
+    jae .not_found      ; Stop if rax > rbx
+
+    ; rcx = mid = (high - low)/2 + low
+    mov rcx, rbx        ; rcx = high
+    sub rcx, rax        ; rcx -= low
+    shr rcx, 1          ; rcx /= 2
+    add rcx, rax        ; rcx += low                        
+
+    mov r14, rcx        ; r14 = mid+1
+    inc r14
+    mov r15, rcx        ; r15 = mid-1
+    dec r15
+
+    cmp rdx, qword [rdi + 8*rcx] ; compare target, arr[mid]
+    cmovg rax, r14               ; target > arr [mid] ===> low = mid+1
+    cmovl rbx, r15               ; target < arr [mid] ===> high = mid-1
+    cmove rax, rcx               ; target == arr[mid] ===> rax = mid (index)
+    je .return                   ; target == arr[mid] ===> return
+
+    jmp .while
+.not_found:
+    cmp qword [rdi + 8*rax], rdx
+    je .return
+
+    mov rax, -1
+.return:
+    ret
+
+;;; linear_search
+;;; Does a linear search in an array.
+;;; rdi = address
+;;; rsi = length
+;;; rdx = target
+;;; Returns rax = index of target or -1 (0xffff...) if not found
+linear_search:
+    ; rdi = address of array
+    ; rsi = length of array
+    ; dl = target to search for
+    ; Returns: rax = index of target, or -1 (0xffff...) if not found
+
+    mov rax, 0  ; Index
+
+    .while:
+        cmp rax, rsi
+        je .not_found
+
+        cmp rdx, qword [rdi + 8*rax]
+        jne .continue       ; Not equal: next iteration
+        ret                 ; Equal, return current rax
+
+    .continue:
+        inc rax        
+        jmp .while
+    .not_found:
+    mov rax, -1
+    ret
+```
 ## C 兼容函数
 
 ## 函数模板

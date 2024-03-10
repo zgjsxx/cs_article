@@ -20,6 +20,8 @@ category:
     - [```do-while```循环](#do-while循环)
     - [```while``` 循环](#while-循环)
     - [```break```和```continue```](#break和continue)
+    - [```switch-case```语句](#switch-case语句)
+    - [小写转换为大写的函数](#小写转换为大写的函数)
   - [附录](#附录)
     - [课程资源](#课程资源)
 
@@ -645,12 +647,120 @@ if(condition)
 ```
 
 
+### ```switch-case```语句
+
+与 ```if-else``` 不同，```switch-case``` 没有对汇编的单一转换。根据 case 标签的数量及其值，编译器可能会将 ```switch-case``` 转换为如上所述的 if-else 链，或转换为基于表的跳转， 甚至是类似哈希表的结构。我们将研究第二种选择，构建一个跳转目标表，然后使用它来实现 ```switch-case```：
+
+```x86asm
+;;;; 
+;;;; switch_case.s
+;;;; Implementing a switch-case statement as a jump table.
+;;;;
+
+section .data
+
+jump_table: dq  _start.case0, _start.case1, _start.case2, _start.case3
+
+section .text
+
+global _start
+_start:
+
+  ; Switch on rcx = 0, 1, 2, 3, default
+  mov rbx, qword [jump_table + 8*rcx]
+  cmp rcx, 4
+  jae .default
+  jmp rbx
+
+.case0:
+
+  ...
+  jmp .end_switch
+
+.case1:
+
+  ...
+  jmp .end_switch 
+
+.case2:
+
+  ...
+  jmp .end_switch
+
+.case3:
+
+  ...
+  jmp .end_switch
+
+.default:
+  ...
+
+.end_switch
+  ...
+```
+
+注意：
+
+- 在跳转表的定义中，我们必须使用.case标签的全名。如果我们只写.case0，它将引用（不存在的）标签jump_table.case0。
+- 每个case都必须以跳转到switch末尾来结束。这就是为什么每一个案件都必须以break结束！ （如果省略跳跃，会发生什么？）
+- 内存操作数 qword [jump_table + 8*rcx] 使用内存查找的扩展形式，我们稍后会介绍它：可以说内存操作数比 [addr] 更通用。在这种情况下，我们使用jump_table作为查找的位移，然后将rcx乘以8，因为每个表条目都是64位（8字节）。
+
+case 标签表的索引始终为 0, 1, 2, 3, ... 如果实际的 case 标签值与此不对应，那么我们必须以某种方式对其进行转换（编译器通常会这样做以供使用）。例如，如果我们的标签是 10、11、12、13，我们可以简单地减去 10 并将其用作我们的索引。如果标签是 10、20、30、40，我们可以除以 10 并减 1。如果标签是 3、1、2、0，我们可以对案例重新编号。
+
+如果案例标签不适合任何模式，我们可能必须简单地循环遍历值数组才能找到正确的标签，甚至可能进行二分搜索（如果标签值集足够大）。在本例中，我们有两个数组，一个是标签值，另一个是标签目标。
+
+### 小写转换为大写的函数
+
+```x86asm
+;;; uppercase
+;;; Converts byte [rdi] from uppercase to lowercase.
+;;;
+uppercase:
+  ; rdi = addr. of byte to convert
+
+  cmp byte [rdi], 'a'
+  jb .done
+  cmp byte [rdi], 'z'
+  ja .done
+
+  sub byte [rdi], 32 
+
+  .done
+  ret
+```
+
+这相当于:
+
+```cpp
+if(*rdi >= a)
+  if(*rdi <= z)
+      *rdi -= 32;
+```
+
+这也可以通过使用基于减法的范围测试技巧来完成，前提是我们首先将值移入寄存器
+
+```x86asm
+uppercase:
+
+  mov al, byte [rdi]
+  sub al, 'a'         ; Values below 'a' will overflow
+  cmp al, 'z' - 'a'
+  ja .done
+
+  sub byte [rdi], 32
+
+  .done:
+  ret
+```
 ## 附录
 
 ### 课程资源
 
-原文链接：https://staffwww.fullcoll.edu/aclifton/cs241/lecture-branching-comparisons.html
+原文链接：
 
+第五讲： https://staffwww.fullcoll.edu/aclifton/cs241/lecture-branching-comparisons.html
+
+第六讲： https://staffwww.fullcoll.edu/aclifton/cs241/branching-conditions-applications.html
 
 
 http://ics.p.lodz.pl/~dpuchala/LowLevelProgr/

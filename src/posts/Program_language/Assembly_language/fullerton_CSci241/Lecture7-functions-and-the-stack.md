@@ -3,7 +3,6 @@ category:
 - 汇编语言
 ---
 
-
 # 第七讲  函数和栈
 
 ## 条件和循环的示例
@@ -414,3 +413,6 @@ linear_search:
     mov rax, -1
     ret
 ```
+
+
+https://staffwww.fullcoll.edu/aclifton/cs241/lecture-stack-c-functions.html
