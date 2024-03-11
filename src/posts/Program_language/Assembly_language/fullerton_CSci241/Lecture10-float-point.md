@@ -138,17 +138,139 @@ IEEE-754 标准也定义了 128 位和 256 位浮点表示形式，但我们不�
 
 ### 初始化
 
-emms 用于通过重置其状态来初始化浮点“协处理器”。调用约定要求处理器在进入任何函数时处于 XMM 模式，因此为了安全起见，我们将始终在使用 x87 系统的任何函数的开头调用 emms。
+```emms``` 用于通过重置其状态来初始化浮点协处理器。调用约定要求处理器在进入任何函数时处于 XMM 模式，因此为了安全起见，我们将始终在使用 x87 系统的任何函数的开头调用 ```emms```。
 
-### 浮点寄存器堆栈
+### 浮点寄存器栈
 
-8 个寄存器（编号为 st0 到 st7）被隐式视为堆栈，其中 st0 位于堆栈顶部。大多数 x87 指令隐式使用 st0 作为其操作的目标（例如，fsub 将其结果写入 st0。）所有 ST 寄存器均由调用者保存。虽然这些寄存器被称为“堆栈”，但您也可以旋转它们，将 st0 中的值移入 st1，将 st1 移入 st2，依此类推，最后将 st7 移入 st0。 x87 浮点代码基本上可以归结为有效管理这些寄存器。
+x87系统有 8 个独立的、可寻址的 80 位数据寄存器 R0~R7，如下图所示，这些寄存器合称为浮点寄存器栈。
 
-st0 始终隐式位于堆栈顶部，较低的元素按升序排列。
+我们使用```st0``` ~ ```st7```去使用浮点寄存器栈。```st```后方的数字代表的是到栈顶的距离，```st0```代表的是栈顶。大多数 x87 指令隐式使用 ```st0``` 作为其操作的目标（例如，```fsub``` 将其结果写入 ```st0```。）所有 ST 寄存器均由调用者保存。 x87 浮点代码基本上可以归结为有效管理这些寄存器。
+
 
 FP 堆栈中的各个条目可以是“正在使用的”或“空闲的”。因为总是有 8 个条目可用，所以从堆栈中“弹出”实际上并不会删除任何内容，它只是将相关条目标记为“空闲”，然后进行轮换。
 
-在 x87 术语中，将值压入栈称为加载；从内存加载有不同格式：
+浮点栈的pop操作会执行下面的两步：
+
+- 翻转所有的浮点寄存器。 ```st0```指向```st1```，```st1```指向```st2```， 以此类推。
+- 将```st0```标记为空闲。
+
+浮点栈的push操作会执行下面的两步：
+
+- 反向翻转所有的浮点寄存器。
+- 将```st0```标记为使用中。
+
+
+![push](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/language/assembly/fullerton_CSci241/lecture10/push.png)
+
+![pop](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/language/assembly/fullerton_CSci241/lecture10/pop.png)
+
+
+```x86asm
+section .data
+
+v1: dd 1.0
+v2: dd 2.0
+
+section .text
+global _start
+_start:
+  fld dword [v1]
+  fld dword [v2]
+  mov     rax,    60              ; Syscall code in rax
+  mov     rdi,    0               ; First parameter in rdi
+  syscall                         ; End process
+```
+
+yasm -g dwarf2 -f elf64 hello.s -l hello.lst
+ld -g -o hello hello.o
+gdb hello
+
+[root@localhost lecture10]# gdb hello -q
+(gdb) list
+1       section .data
+2
+3       v1: dd 1.0
+4       v2: dd 2.0
+5
+6       section .text
+7       global _start
+8       _start:
+9         fld dword [v1]
+10        fld dword [v2]
+(gdb)
+11        mov     rax,    60              ; Syscall code in rax
+12        mov     rdi,    0               ; First parameter in rdi
+13        syscall                         ; End process
+(gdb) b 9
+Breakpoint 1 at 0x401000: file hello.s, line 9.
+(gdb) r
+Starting program: /home/work/assembly/lecture10/hello
+
+Breakpoint 1, _start () at hello.s:9
+9         fld dword [v1]
+(gdb) info loat
+Undefined info command: "loat".  Try "help info".
+(gdb) info loat
+Undefined info command: "loat".  Try "help info".
+(gdb) info float
+  R7: Empty   0x00000000000000000000
+  R6: Empty   0x00000000000000000000
+  R5: Empty   0x00000000000000000000
+  R4: Empty   0x00000000000000000000
+  R3: Empty   0x00000000000000000000
+  R2: Empty   0x00000000000000000000
+  R1: Empty   0x00000000000000000000
+=>R0: Empty   0x00000000000000000000
+
+Status Word:         0x0000
+                       TOP: 0
+Control Word:        0x037f   IM DM ZM OM UM PM
+                       PC: Extended Precision (64-bits)
+                       RC: Round to nearest
+Tag Word:            0xffff
+Instruction Pointer: 0x00:0x00000000
+Operand Pointer:     0x00:0x00000000
+Opcode:              0x0000
+(gdb) r
+The program being debugged has been started already.
+Start it from the beginning? (y or n) n
+Program not restarted.
+(gdb) si
+10        fld dword [v2]
+(gdb) info float
+=>R7: Valid   0x3fff8000000000000000 +1
+  R6: Empty   0x00000000000000000000
+  R5: Empty   0x00000000000000000000
+  R4: Empty   0x00000000000000000000
+  R3: Empty   0x00000000000000000000
+  R2: Empty   0x00000000000000000000
+  R1: Empty   0x00000000000000000000
+  R0: Empty   0x00000000000000000000
+
+Status Word:         0x3800
+                       TOP: 7
+Control Word:        0x037f   IM DM ZM OM UM PM
+                       PC: Extended Precision (64-bits)
+                       RC: Round to nearest
+Tag Word:            0x3fff
+Instruction Pointer: 0x00:0x00401002
+Operand Pointer:     0x00:0x00000000
+Opcode:              0x0000
+(gdb) n
+11        mov     rax,    60              ; Syscall code in rax
+(gdb) info float
+  R7: Valid   0x3fff8000000000000000 +1
+=>R6: Valid   0x40008000000000000000 +2
+  R5: Empty   0x00000000000000000000
+  R4: Empty   0x00000000000000000000
+  R3: Empty   0x00000000000000000000
+  R2: Empty   0x00000000000000000000
+  R1: Empty   0x00000000000000000000
+  R0: Empty   0x00000000000000000000
+
+
+
+在 x87 术语中，将值压入栈称为加载(loading)。从内存加载有不同格式：
 
 ```x86asm
 fld  dword [addr]   ; Push float from memory
@@ -163,6 +285,50 @@ fldz        ; Push +0.0
 fldpi       ; Push π 
 ```
 
+请注意，所有这些压栈操作不仅将 st0 设置为期望的值，还将旧的 ```st0``` 及其下面的所有内容向下移动。无法将值从寄存器中复制到 ```st0```（下面的 ```fst``` 可以将 ```st0``` 复制到其他寄存器)。
+
+还有一些其他可以推送的常量；请参阅了解[完整列表](https://www.felixcloutier.com/x86/fld1:fldl2t:fldl2e:fldpi:fldlg2:fldln2:fldz)。
+
+请注意，没有加载浮点立即数的指令。要加载浮点常量，除了专用指令之外的浮点常量，您必须将其存储在内存中（通常在 ```.data``` 或 ```.rodata``` 中），然后从那里加载它。一些简单的常量可以从 fld1 和 fldz 指令支持的 1,0 中合成出来。
+
+许多指令都有 -p 形式，它也会在执行操作后弹出栈。例如:
+
+```fst st3``` 将 ```ST(0)``` 复制到 ```ST(3)```，而 ```fstp st3``` 执行相同的操作，但随后弹出。
+
+为了更方便地操作堆栈较低的值，fxch 指令将另一个 st 寄存器中的值与 st0 交换。例如:
+
+```x86asm
+fxch st3    ; Swap st0 with st3
+```
+
+### 写入memory
+
+将 FP 堆栈的结果写回内存称为存储。
+
+```fst```/```fstp```用于将浮点值从```st0```移动到栈中的其他位置，或从```st0```移动到内存中。
+
+```x86asm
+fst  dword [addr]  ; Copy float st0 to [addr]
+fst  st1           ; Copy st0 to st1
+fstp st1           ; Copy st0 to st1 and then pop
+```
+
+请注意，对于存储到内存，需要大小限定符（dword 或 qword），以便汇编器知道是复制为 float 还是 double。
+
+我们还可以通过四舍五入或截断来存储整数：
+
+```x86asm
+fist   dword [addr]     ; Write float ST(0) as integer to addr
+fistp  dword [addr]     ; Write float ST(0) as integer and then pop
+fisttp qword [addr]     ; Write double as trunc. integer and then pop
+```
+
+（64 位存储只能在 -p popping 变体中完成。）
+
+舍入使用当前舍入模式，而截断只是丢弃任何小数部分，有效地向 0 舍入。
+
+
+### 算术运算
 
 
 ## XMM 浮点指令
@@ -251,3 +417,6 @@ vdivsd dest, src1, src2  ; dest = src1 + src2
 浮点数工具： https://baseconvert.com/ieee-754-floating-point
 
 浮点数： https://polarisxu.studygolang.com/posts/basic/diagram-float-point/
+
+
+x87编程： http://www.infophysics.net/x87.pdf
