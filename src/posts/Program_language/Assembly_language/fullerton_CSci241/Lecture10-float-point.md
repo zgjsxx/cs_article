@@ -142,28 +142,27 @@ IEEE-754 标准也定义了 128 位和 256 位浮点表示形式，但我们不�
 
 ### 浮点寄存器栈
 
-x87系统有 8 个独立的、可寻址的 80 位数据寄存器 R0~R7，如下图所示，这些寄存器合称为浮点寄存器栈。
+x87系统有 8 个独立的、可寻址的 80 位数据寄存器 ```R0```~```R7```，这些寄存器合称为浮点寄存器栈。
 
-我们使用```st0``` ~ ```st7```去使用浮点寄存器栈。```st```后方的数字代表的是到栈顶的距离，```st0```代表的是栈顶。大多数 x87 指令隐式使用 ```st0``` 作为其操作的目标（例如，```fsub``` 将其结果写入 ```st0```。）所有 ST 寄存器均由调用者保存。 x87 浮点代码基本上可以归结为有效管理这些寄存器。
+我们使用```st0``` ~ ```st7```去使用浮点寄存器栈。```st```后方的数字代表的是到栈顶的距离，```st0```代表的是栈顶。大多数 x87 指令隐式使用 ```st0``` 作为其操作的目标（例如，```fsub``` 将其结果写入 ```st0```。）所有 ST 寄存器均由调用者保存(caller-preserved)。 x87 浮点代码基本上可以归结为管理这些寄存器。
 
-
-FP 堆栈中的各个条目可以是“正在使用的”或“空闲的”。因为总是有 8 个条目可用，所以从堆栈中“弹出”实际上并不会删除任何内容，它只是将相关条目标记为“空闲”，然后进行轮换。
+浮点栈也有类似的```push```和```pop```操作：
 
 浮点栈的pop操作会执行下面的两步：
 
-- 翻转所有的浮点寄存器。 ```st0```指向```st1```，```st1```指向```st2```， 以此类推。
+- 翻转所有的浮点寄存器。 让```st0```指向```st1```，让```st1```指向```st2```， 以此类推。
 - 将```st0```标记为空闲。
+  ![pop](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/language/assembly/fullerton_CSci241/lecture10/pop.png)
 
 浮点栈的push操作会执行下面的两步：
 
 - 反向翻转所有的浮点寄存器。
 - 将```st0```标记为使用中。
+  ![push](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/language/assembly/fullerton_CSci241/lecture10/push.png)
 
+上述过程，相对比较抽象，我们通过一个实际的例子来感受一下浮点寄存器栈```push```和```pop```的过程。
 
-![push](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/language/assembly/fullerton_CSci241/lecture10/push.png)
-
-![pop](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/language/assembly/fullerton_CSci241/lecture10/pop.png)
-
+这里会使用```fld```指令和```fstp```指令， 可以将其暂时理解为```push```和```pop```。
 
 ```x86asm
 section .data
@@ -176,16 +175,28 @@ global _start
 _start:
   fld dword [v1]
   fld dword [v2]
+
+  fstp    dword [v1]
+  fstp    dword [v2]
+
   mov     rax,    60              ; Syscall code in rax
   mov     rdi,    0               ; First parameter in rdi
   syscall                         ; End process
+
 ```
 
+进行编译：
+
+```shell
 yasm -g dwarf2 -f elf64 hello.s -l hello.lst
 ld -g -o hello hello.o
-gdb hello
+```
 
+使用gdb进行调试， 使用```info float```显示寄存器栈的使用情况。
+
+```shell
 [root@localhost lecture10]# gdb hello -q
+Reading symbols from hello...
 (gdb) list
 1       section .data
 2
@@ -198,9 +209,15 @@ gdb hello
 9         fld dword [v1]
 10        fld dword [v2]
 (gdb)
-11        mov     rax,    60              ; Syscall code in rax
-12        mov     rdi,    0               ; First parameter in rdi
-13        syscall                         ; End process
+11
+12        fstp    dword [v1]
+13        fstp    dword [v2]
+14
+15        mov     rax,    60              ; Syscall code in rax
+16        mov     rdi,    0               ; First parameter in rdi
+17        syscall                         ; End process
+(gdb)
+Line number 18 out of range; hello.s has 17 lines.
 (gdb) b 9
 Breakpoint 1 at 0x401000: file hello.s, line 9.
 (gdb) r
@@ -208,10 +225,6 @@ Starting program: /home/work/assembly/lecture10/hello
 
 Breakpoint 1, _start () at hello.s:9
 9         fld dword [v1]
-(gdb) info loat
-Undefined info command: "loat".  Try "help info".
-(gdb) info loat
-Undefined info command: "loat".  Try "help info".
 (gdb) info float
   R7: Empty   0x00000000000000000000
   R6: Empty   0x00000000000000000000
@@ -231,10 +244,6 @@ Tag Word:            0xffff
 Instruction Pointer: 0x00:0x00000000
 Operand Pointer:     0x00:0x00000000
 Opcode:              0x0000
-(gdb) r
-The program being debugged has been started already.
-Start it from the beginning? (y or n) n
-Program not restarted.
 (gdb) si
 10        fld dword [v2]
 (gdb) info float
@@ -256,8 +265,8 @@ Tag Word:            0x3fff
 Instruction Pointer: 0x00:0x00401002
 Operand Pointer:     0x00:0x00000000
 Opcode:              0x0000
-(gdb) n
-11        mov     rax,    60              ; Syscall code in rax
+(gdb) si
+12        fstp    dword [v1]
 (gdb) info float
   R7: Valid   0x3fff8000000000000000 +1
 =>R6: Valid   0x40008000000000000000 +2
@@ -268,9 +277,62 @@ Opcode:              0x0000
   R1: Empty   0x00000000000000000000
   R0: Empty   0x00000000000000000000
 
+Status Word:         0x3000
+                       TOP: 6
+Control Word:        0x037f   IM DM ZM OM UM PM
+                       PC: Extended Precision (64-bits)
+                       RC: Round to nearest
+Tag Word:            0x0fff
+Instruction Pointer: 0x00:0x00401007
+Operand Pointer:     0x00:0x00000000
+Opcode:              0x0000
+(gdb) si
+13        fstp    dword [v2]
+(gdb) info float
+=>R7: Valid   0x3fff8000000000000000 +1
+  R6: Empty   0x40008000000000000000
+  R5: Empty   0x00000000000000000000
+  R4: Empty   0x00000000000000000000
+  R3: Empty   0x00000000000000000000
+  R2: Empty   0x00000000000000000000
+  R1: Empty   0x00000000000000000000
+  R0: Empty   0x00000000000000000000
 
+Status Word:         0x3800
+                       TOP: 7
+Control Word:        0x037f   IM DM ZM OM UM PM
+                       PC: Extended Precision (64-bits)
+                       RC: Round to nearest
+Tag Word:            0x3fff
+Instruction Pointer: 0x00:0x0040100e
+Operand Pointer:     0x00:0x00000000
+Opcode:              0x0000
+(gdb) si
+15        mov     rax,    60              ; Syscall code in rax
+(gdb) info float
+  R7: Empty   0x3fff8000000000000000
+  R6: Empty   0x40008000000000000000
+  R5: Empty   0x00000000000000000000
+  R4: Empty   0x00000000000000000000
+  R3: Empty   0x00000000000000000000
+  R2: Empty   0x00000000000000000000
+  R1: Empty   0x00000000000000000000
+=>R0: Empty   0x00000000000000000000
 
-在 x87 术语中，将值压入栈称为加载(loading)。从内存加载有不同格式：
+Status Word:         0x0000
+                       TOP: 0
+Control Word:        0x037f   IM DM ZM OM UM PM
+                       PC: Extended Precision (64-bits)
+                       RC: Round to nearest
+Tag Word:            0xffff
+Instruction Pointer: 0x00:0x00401015
+Operand Pointer:     0x00:0x00000000
+Opcode:              0x0000
+```
+
+```info float```命令非常形象的显示了压栈和出栈操作的过程。
+
+在 x87 术语中，将值压入栈称为加载(loading)。从内存加载浮点数到浮点栈中有不同方法：
 
 ```x86asm
 fld  dword [addr]   ; Push float from memory
@@ -285,7 +347,7 @@ fldz        ; Push +0.0
 fldpi       ; Push π 
 ```
 
-请注意，所有这些压栈操作不仅将 st0 设置为期望的值，还将旧的 ```st0``` 及其下面的所有内容向下移动。无法将值从寄存器中复制到 ```st0```（下面的 ```fst``` 可以将 ```st0``` 复制到其他寄存器)。
+请注意，所有这些压栈操作不仅将 ```st0``` 设置为期望的值，还将旧的 ```st0``` 及其下面的所有内容向下移动。无法将值从寄存器中复制到 ```st0```（下面的 ```fst``` 可以将 ```st0``` 复制到其他寄存器)。
 
 还有一些其他可以推送的常量；请参阅了解[完整列表](https://www.felixcloutier.com/x86/fld1:fldl2t:fldl2e:fldpi:fldlg2:fldln2:fldz)。
 
