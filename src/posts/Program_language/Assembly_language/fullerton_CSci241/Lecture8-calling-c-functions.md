@@ -19,6 +19,7 @@ category:
     - [返回值](#返回值)
     - [栈帧](#栈帧)
   - [函数模板](#函数模板)
+    - [与 C 函数互操作](#与-c-函数互操作)
   - [附录](#附录)
     - [课程资源](#课程资源)
 
@@ -692,6 +693,77 @@ func_name:
     pop rbp      ; Restore caller's rbp
     ret
 ```
+
+### 与 C 函数互操作
+
+上面给出的规则描述了 C 函数使用的"调​​用约定"。 （C++ 函数使用相同的调用约定，但 C++ 函数的名称经过修改以包含其参数和返回类型。）
+
+这意味着通过使用上述规则，我们可以
+- 调用用 C 编写的函数，包括 C 标准库函数
+- 从 C/C++ 代码调用汇编函数
+
+为了调用 C 函数，我们必须做三件事：
+
+- 将我们程序的入口写为 main 而不是 _start，声明为全局。在函数入口处正确设置堆栈，在退出时将其拆除，并通过 rax 返回程序的退出代码（即无需使用 SYS_EXIT 系统调用）。
+
+
+```x86asm
+section .data
+
+msg:    db      "Hello, world!", 0
+
+; Note: no length, no 10 (newline) byte
+
+section .text
+
+extern puts
+global main
+
+main:
+
+    ; Setup stack
+    push rbp
+    mov rbp, rsp
+
+    ; Set registers to arguments. 
+    mov rdi, msg
+    call puts
+
+    ; Cleanup stack, return 0
+    pop rbp
+    mov rax, 0
+    ret
+```
+
+
+|占位符|描述|参数类型|
+|--|--|--|
+|%c|单个字符|int|
+|%s|以null结尾的字符串|char*|
+|%d|有符号整型变量|int|
+|%ld|有符号整型变量|long|
+|%hd|有符号整型变量|short|
+|%hhd|有符号整型变量|char|
+|%u|无符号整型变量|unsigned int|
+|%lu|||
+|%f|浮点数|double|
+
+由于 ```printf``` 接受任意数量的参数，因此它是一个**可变参数函数**，它为其参数的传递方式添加了一条额外的规则：
+
+- 如果 ```xmm``` 寄存器中传递了任何浮点参数，则将 ```al``` 设置为这些参数的数量。
+
+printf 的对应项是 scanf，它采用类似的格式化字符串，只不过它根据给定的格式从 stdin 读取输入。其余参数必须是指向将写入输入的变量的指针。例如，如果我们这样做:
+
+```C
+int x, y, z;
+scanf("%d %d %d", &x, &y, &z);
+```
+
+输入 1 2 3，则变量 x 将包含 1，y 将包含 2，z 将包含 3。
+
+对于 scanf，使用正确的格式说明符至关重要！例如，当您打算读入 qword 时使用 %d (dword) 会导致问题，通常是因为 scanf 只会写入低位 dword，而高 4 个字节保持不变。
+
+
 
 ## 附录
 
