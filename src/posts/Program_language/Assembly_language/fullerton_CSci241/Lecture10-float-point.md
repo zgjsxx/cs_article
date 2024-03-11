@@ -152,12 +152,14 @@ x87系统有 8 个独立的、可寻址的 80 位数据寄存器 ```R0```~```R7`
 
 - 翻转所有的浮点寄存器。 让```st0```指向```st1```，让```st1```指向```st2```， 以此类推。
 - 将```st0```标记为空闲。
+  
   ![pop](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/language/assembly/fullerton_CSci241/lecture10/pop.png)
 
 浮点栈的push操作会执行下面的两步：
 
 - 反向翻转所有的浮点寄存器。
 - 将```st0```标记为使用中。
+
   ![push](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/language/assembly/fullerton_CSci241/lecture10/push.png)
 
 上述过程，相对比较抽象，我们通过一个实际的例子来感受一下浮点寄存器栈```push```和```pop```的过程。
@@ -332,7 +334,9 @@ Opcode:              0x0000
 
 ```info float```命令非常形象的显示了压栈和出栈操作的过程。
 
-在 x87 术语中，将值压入栈称为加载(loading)。从内存加载浮点数到浮点栈中有不同方法：
+### 加载
+
+在 x87 术语中，将值压入栈称为加载(loading)。从内存加载浮点数到浮点栈中有下面这些方法：
 
 ```x86asm
 fld  dword [addr]   ; Push float from memory
@@ -347,15 +351,15 @@ fldz        ; Push +0.0
 fldpi       ; Push π 
 ```
 
-请注意，所有这些压栈操作不仅将 ```st0``` 设置为期望的值，还将旧的 ```st0``` 及其下面的所有内容向下移动。无法将值从寄存器中复制到 ```st0```（下面的 ```fst``` 可以将 ```st0``` 复制到其他寄存器)。
+请注意，所有这些压栈操作不仅将 ```st0``` 设置为期望的值，还将旧的 ```st0``` 及其下面的所有内容向下移动。
 
 还有一些其他可以推送的常量；请参阅了解[完整列表](https://www.felixcloutier.com/x86/fld1:fldl2t:fldl2e:fldpi:fldlg2:fldln2:fldz)。
 
-请注意，没有加载浮点立即数的指令。要加载浮点常量，除了专用指令之外的浮点常量，您必须将其存储在内存中（通常在 ```.data``` 或 ```.rodata``` 中），然后从那里加载它。一些简单的常量可以从 fld1 和 fldz 指令支持的 1,0 中合成出来。
+没有加载浮点立即数的指令。要加载浮点常量，除了专用指令之外的浮点常量，您必须将其存储在内存中（通常在 ```.data``` 或 ```.rodata``` 中），然后从那里加载它。一些简单的常量可以从 ```fld1``` 和 ```fldz``` 指令支持的 1,0 中合成出来。
 
 许多指令都有 -p 形式，它也会在执行操作后弹出栈。例如:
 
-```fst st3``` 将 ```ST(0)``` 复制到 ```ST(3)```，而 ```fstp st3``` 执行相同的操作，但随后弹出。
+```fst st3``` 将 ```ST(0)``` 复制到 ```ST(3)```，而 ```fstp st3``` 执行相同的操作，但随后执行pop操作。
 
 为了更方便地操作堆栈较低的值，fxch 指令将另一个 st 寄存器中的值与 st0 交换。例如:
 
@@ -365,7 +369,7 @@ fxch st3    ; Swap st0 with st3
 
 ### 写入memory
 
-将 FP 堆栈的结果写回内存称为存储。
+将 FP 栈的结果写回内存称为存储(store)。
 
 ```fst```/```fstp```用于将浮点值从```st0```移动到栈中的其他位置，或从```st0```移动到内存中。
 
@@ -391,6 +395,218 @@ fisttp qword [addr]     ; Write double as trunc. integer and then pop
 
 
 ### 算术运算
+
+大多数算术运算有几种形式：
+
+- 单个参数（```st``` 寄存器或内存操作数），```st0``` 作为隐式目标。例如:
+
+```x86asm
+fmul st2       ; st0 = st0 * st2
+```
+
+- 两个参数， 两者都是 ST 寄存器，其中之一是 st0。例如：
+  
+```x86asm
+fmul st2, st0  ; st2 = st2 * st0
+```
+
+两个寄存器之一必须是 ```st0```。您不能（例如）将 ```st2``` 乘以 ```st3```。
+
+没有三个参数的形式，因此不能直接执行 ```st0 = st1 + st2```。
+
+主要的算术运算有:
+
+```x86asm
+fadd      ; Addition
+fsub      ; Subtraction
+fmul      ; Multiplication
+fdiv      ; Division
+```
+
+所有这些指令都有下面三种形式： 
+- op stx（st0 = st0 op stx，例如fadd st3, st0 = st0 + st3 ）、
+- op st0, stx（st0 = st0 op stx, 同上）
+- op stx, st0（stx = stx op st0， 例如fadd st3,st0  st3 = st3 + st0）
+
+除法和减法也有反向（```fsubr```，```fdivr```）形式可用，其计算的是```st0 = st(x) - st(0)```，而不是```st0 = st0 - st(x)）```。还有一些整数变体，它们将第二操作数读为内存的整数。
+
+### 浮点函数参数
+
+因为 ABI 要求在 xmm 寄存器中传递普通浮点参数，所以需要一些工作才能将它们放入 FP 栈。我们必须将它们移动到内存中（通常是在堆栈上分配的本地空间），然后从那里加载到 FP 堆栈中。例如，在带有两个浮点参数的函数中：
+
+```x86asm
+func:
+  ; xmm0 = argument 1
+  ; xmm1 = argument 2
+
+  push rbp
+  mov rbp, rsp  
+
+  movsd qword [rsp-8],  xmm0
+  movsd qword [rsp-16], xmm1
+
+  ; Switch to x87 mode
+  emms
+
+  fld qword [rsp-8]   ; Push xmm0 
+  fld qword [rsp-16]  ; Push xmm1
+
+  ; Now arg 1 is in st1, arg 2 is in st0
+
+  ...
+
+  add rsp, 16
+  pop rbp
+  ret
+```
+
+请注意，我们使用红色区域（rsp 上方的 128 个字节）来进行传输，以避免必须在栈上显式分配空间。这种"临时内存"的使用正是红色区域存在的原因。）
+
+返回一个浮点值，当该值存在于 FP 堆栈中时，同样涉及到内存的往返，以便将其放入 xmm0 中。例如，返回 st0：
+
+```x86asm
+fstp    qword [rsp-8]   ; pop from st0 onto the top of the stack
+movsd   xmm0, [rsp-8]   ; load top of stack into xmm0
+```
+
+这里再次使用红色区域作为临时存储。
+
+当从使用 x87 浮点的函数返回时，您需要释放（即标记为空）所有 FP 寄存器，通常通过执行
+
+```x86asm
+fstp st0
+fstp st1
+```
+
+### 浮点数的比较
+
+```fcomi``` 指令比较两个 FP 堆栈元素（其中第一个必须是 ```st0```）并像无符号比较一样更新标志寄存器。x87 系统有自己的内部标志寄存器，原始 fcom 指令将更新该寄存器；然后将 x87 标志放入普通标志寄存器中， 然后就可以使用普通的条件跳转指令了。例如，将 ```st0``` 和 ```st1``` 中较大的一个复制到 ```st0``` 中：
+
+```x86asm
+  fcomi st0, st1   ; Compare st0, st1
+  jge  .done       ; Jump to .done if st0 >= st1
+  fld  st1         ; Otherwise push st0 = st1
+
+.done:
+```
+
+```fcmov__``` 系列执行条件（浮点）移动，类似于 ```cmov__``` 系列。
+
+例如，将 st0 和 st1 中较大的一个复制到 st1 
+
+```x86asm
+fcomi   st0, st1     ; Compare st0 with st1
+fcmovl  st1          ; Set st0 = st1 if st0 < st1
+```
+
+讽刺的是，没有无条件 FP 移动指令可以执行相同的操作（将 st0 设置为另一个 st 寄存器的值）！我们能做的就是push.（XMM 浮点系统有一条指令可以查找两个值中的最大值。）
+
+
+fcomip 进行比较然后弹出。
+fucomi 进行“无序”比较；当操作数之一为非数字时，无序比较的结果会有所不同：
+
+操作数不是数字:
+
+- 在有序比较中，NaN 与其他数字之间的比较会导致浮点异常。
+
+- 在无序比较中，NaN 与其他数字之间的比较始终给出真实结果。即，NaN 算作小于、大于、等于和不等于所有其他数字！
+
+通常我们更喜欢无序比较，因为它稍微快一些，并且意味着我们不必处理浮点异常。
+
+要与常量 0.0 进行比较，请使用 ```ftst```，它将 st0 与 0 进行比较。这样您就不必将常量 0 加载到其他寄存器之一进行比较。
+
+### 数学运算
+
+```x86asm
+; Trig functions
+fsin         ; st0 = sin(st0)
+fcos         ; st0 = cos(st0)
+fsincos      ; st0 = sin(st0), push cos(st0)
+fptan        ; st0 = tan(st0), push 1.0
+fpatan       ; st1 = atan(st1 / st0) and then pop
+
+fsqrt        ; st0 = sqrt(st0)
+
+fprem1       ; st0 = fmod(st0, st1) (fractional remainder)
+
+fabs         ; st0 = |st0| (absolute value)
+
+fyl2x        ; st1 = st1 × log₂(st0)
+f2xm1        ; st0 = 2^st0 - 1
+```
+
+```x86asm
+section .data
+
+ZERO:       dq      0.0
+ONE:        dq      1.0
+TWO:        dq      2.0
+EPSILON:    dq      0.000001
+
+section .text
+
+pi:
+    push    rbp
+    mov     rbp, rsp
+
+    ; In the red zone
+    ; [rsp - 8]  = p = 0.0
+    ; [rsp - 16] = s = 1
+    ; [rsp - 24] = d = 1
+    ; [rsp - 32] = s / d
+
+    mov     rax, qword [ZERO]
+    mov     qword [rsp - 8], rax
+
+    mov     rax, qword [ONE]
+    mov     qword [rsp - 16], rax
+    mov     qword [rsp - 24], rax
+
+.begin_loop:
+    ; Update p += s / d
+    fld     qword [rsp - 16]       ; = s
+    fdiv    qword [rsp - 24]       ; = s / d
+    fst     qword [rsp - 32]       ; Save s / d for later
+    fadd    qword [rsp - 8]        ; = s / d + p
+    fstp    qword [rsp - 8]        ; Write back 
+    ffree   st0
+
+    ; Update s = -s
+    fld     qword [rsp - 16]        ; st0 = s
+    fchs                            ; st0 = -st0
+    fst     qword [rsp - 16]        ; Write back
+    ffree st0
+
+    ; Update d += 2
+    fld     qword [TWO]
+    fld     qword [rsp - 24]
+    fadd    st0, st1                ; st0 += 2
+    fstp    qword [rsp - 24]        ; Write back
+    ffree   st0
+
+    fld     qword [rsp - 32]
+    fabs
+    fld     qword [EPSILON]         ; st0 = 0.000001, st1 = |s / d|
+    fucomi  st1                     ; Compare st0, st1
+    ffree   st0                     ; Remove st0, st1 from the stack
+    ffree   st1
+
+    jb .begin_loop                  ; loop if 0.0000001 > |s / d|
+
+    ; Multiply result by 4
+    fld qword [TWO]
+    fld qword [rsp - 8]
+    fmul st0, st1
+    fmul st0, st1
+    fstp qword [rsp - 8]
+    ffree st0    
+
+    ; Copy last p into xmm0
+    movsd xmm0, qword [rsp - 8]
+
+    pop rbp
+    ret
+```
 
 
 ## XMM 浮点指令
@@ -475,6 +691,8 @@ vdivsd dest, src1, src2  ; dest = src1 + src2
 |```roundss dest, src, mode```|Round src into dest using mode <br />mode = 0 ties go to even<br />mode = 1 round down<br />mode = 2 round up<br />mode = 3 round toward 0|
 
 ## 附录
+
+课程原文：https://staffwww.fullcoll.edu/aclifton/cs241/lecture-floating-point-simd.html
 
 浮点数工具： https://baseconvert.com/ieee-754-floating-point
 
