@@ -501,9 +501,8 @@ fcmovl  st1          ; Set st0 = st1 if st0 < st1
 
 讽刺的是，没有无条件 FP 移动指令可以执行相同的操作（将 st0 设置为另一个 st 寄存器的值）！我们能做的就是push.（XMM 浮点系统有一条指令可以查找两个值中的最大值。）
 
-
-fcomip 进行比较然后弹出。
-fucomi 进行“无序”比较；当操作数之一为非数字时，无序比较的结果会有所不同：
+```fcomip``` 进行比较然后弹出。
+```fucomi``` 进行“无序”比较；当操作数之一为非数字时，无序比较的结果会有所不同：
 
 操作数不是数字:
 
@@ -516,6 +515,8 @@ fucomi 进行“无序”比较；当操作数之一为非数字时，无序比�
 要与常量 0.0 进行比较，请使用 ```ftst```，它将 st0 与 0 进行比较。这样您就不必将常量 0 加载到其他寄存器之一进行比较。
 
 ### 数学运算
+
+x87 子系统具有许多常见数学函数的单指令。大部分这些功能在XMM 系统中是没有的，这也是去使用 x87 系统的原因之一。
 
 ```x86asm
 ; Trig functions
@@ -534,6 +535,46 @@ fabs         ; st0 = |st0| (absolute value)
 fyl2x        ; st1 = st1 × log₂(st0)
 f2xm1        ; st0 = 2^st0 - 1
 ```
+
+使用以 2 为底的对数/指数是因为考虑到浮点数使用的二进制格式，这些相对容易计算。可以通过使用熟悉的对数恒等式来使用其他底数。
+
+### 在 x87 和 XMM 模式之间切换
+
+当使用x87系统时，我们必须发出```emms```指令来清除XMM状态。然而当使用 XMM 系统时，则不需要特定的初始化指令。
+
+**浮点数的例子： 计算π**
+
+这里我们将使用著名的 π 级数近似:
+
+$$=4\sum _{i=0} {\frac {-{1}^{i}} {2i+1}}=1-\frac {1} {3}+\frac {1} {5}-...$$
+
+我们将继续这个系列，直到连续值之间的差异小于 0.000001（即 5 位精度），然后使用 C 标准库中的 ```printf``` 打印结果。
+
+在本例中，我们将使用 x87 浮点系统，尽管因为 ```printf``` 期望其浮点参数位于 ```xmm``` 寄存器中，所以我们必须将正在计算的值从 x87 堆栈移动到内存中，然后从那里移动到```xmm0```。
+
+在 C 语言中，我们要编写的函数如下所示:
+
+```c
+double pi() {
+    double p = 0.0;   // Current pi approximation
+    double pp = 0.0;  // Previous pi approximation
+    double s = 1;     // Sign: +1 or -1
+    double d = 1;     // Denominator: 1,3,5,...
+
+    do {
+        pp = p;        
+        p += s / d;
+        s *= -1;
+        d += 2;        
+    } while(abs(p - pp) > 0.000001);
+
+    return 4 * p;
+}
+```
+
+请注意，```p - pp == s / d```。
+
+虽然可以通过一些技巧来编写此过程，使其完全在 x87 堆栈上运行，但为了获得最大速度，最简单的编写方法是将变量存储在堆栈上（在红色区域中），然后加载/根据需要存储它们。当然，我们必须将浮点常量 2 和 0.000001 保存在 ```.data``` 部分中：
 
 ```x86asm
 section .data
@@ -608,6 +649,7 @@ pi:
     ret
 ```
 
+关于清除（```ffree```）堆栈元素的注意事项：确保 x87 堆栈上的元素不超过 8 个非常重要。如果你压入超过 8 个东西而不弹出，ST(8) 最终将回绕到 ST(0) 并且堆栈将被损坏。这通常会表现为值“神奇地”变成 NaN。例如，如果我们在循环结束时没有执行 ffree 指令，堆栈的大小将无限增长，直到最终覆盖自身。
 
 ## XMM 浮点指令
 
@@ -619,7 +661,6 @@ CPU 上的现代浮点单元及其专用寄存器与向量 (SIMD) 单元（以�
 
 ```xmm0``` 到 ```xmm7``` 用于传递浮点参数。 ```xmm8-15``` 是临时（调用者保存的）寄存器。
 
-
 ### 移动浮点值
 
 ```x86asm
@@ -627,7 +668,7 @@ movss dest, src         ; Move floats
 movsd dest, src         ; Move doubles
 ```
 
-两个专用的 mov 指令用于移动浮点值。像往常一样，两个操作数必须具有相同的大小，并且大小必须与指令匹配。目标和源可以是内存或（xmm）寄存器，但不能同时是内存。与普通的 ```mov``` 指令不同，源不能是立即数。要将常量浮点值加载到寄存器中，它必须已经存在于内存中。请注意，寄存器操作数必须是浮点寄存器。
+两个专用的 ```mov``` 指令用于移动浮点值。像往常一样，两个操作数必须具有相同的大小，并且大小必须与指令匹配。目标和源可以是内存或（xmm）寄存器，但不能同时是内存。与普通的 ```mov``` 指令不同，源不能是立即数。要将常量浮点值加载到寄存器中，它必须已经存在于内存中。请注意，寄存器操作数必须是浮点寄存器。
 
 ### 在 ```.data``` 中存储浮点值
 
@@ -651,7 +692,8 @@ pi:     dq      3.14159
 |```cvtsi2ss dest, src```|将 32 位有符号整数转换为 32 位浮点数|
 |```cvtsi2ss dest, src```|将 32 位有符号整数转换为 64 位浮点数|
 
-**算术**
+
+### 算术
 
 ```x86asm
 addss dest, src         ; dest += src (float)
@@ -664,7 +706,7 @@ divss dest, src         ; dest /= src (float)
 divsd dest, src         ; dest /= src (double)
 ```
 
-所有这些的三操作数版本都带有 v 前缀：
+所有这些的三操作数版本都带有 ```v``` 前缀：
 
 ```x86asm
 vaddss dest, src1, src2  ; dest = src1 + src2
@@ -689,6 +731,210 @@ vdivsd dest, src1, src2  ; dest = src1 + src2
 |```maxss dest, src```<br /> ```maxsd dest, src```|dest =maximum of dest, src|
 |```minss dest, src```<br /> ```minsd dest, src```|dest =minimum of dest, src|
 |```roundss dest, src, mode```|Round src into dest using mode <br />mode = 0 ties go to even<br />mode = 1 round down<br />mode = 2 round up<br />mode = 3 round toward 0|
+
+（但请注意，使用 x87 可用的三角函数此处不可用。）
+
+### 浮点比较
+
+特殊的浮点比较指令用于比较两个浮点操作数，但是结果被写入普通标志寄存器，就像无符号比较一样。因此，条件跳转指令 ```je```、```jne```、```ja```、```jae```、```jb``` 和 ```jb``` 可用于在等于、不等于、大于、大于或等于、小于和小于时跳转。
+
+```x86asm
+ucomiss dest, src           ; Compare dest and src (dest must be float reg.),
+ucomisd dest, src           ; setting rif as for an unsigned comparison
+```
+
+浮点系统拥有自己的标志/状态寄存器，称为 ```mxcsr```。这里的标志不是由浮点指令设置，而是由我们在浮点指令之前设置并控制全局行为，例如舍入模式、除以零是否应产生异常或仅产生无穷大等。
+
+与 x87 一样，我们在这里执行无序比较，这意味着操作数之一为非数字的任何比较都会给出真实结果。
+
+### 函数的浮点参数
+
+System-V 调用约定指定函数的前 8 个浮点参数在寄存器 ```xmm0``` 到 ```xmm7``` 中传递。结果（如果有）在 ```xmm0``` 中返回。所有浮点寄存器都是调用者保留的(caller-saved)，这意味着在调用任何函数之前必须将它们压入栈。
+
+需要注意的重要一点是：如果您使用 ```printf```，```%f``` 格式说明符实际上需要一个双精度（64 位）参数，而不是浮点数。当我们在示例中使用 ```printf``` 时，我们必须使用 ```cvtss2sd``` 将浮点值转换为双精度值以进行打印。
+
+像 ```printf``` 这样采用可变数量参数的函数需要进行额外的更改：```xmm``` 寄存器中的参数数量必须在 ```al``` 中设置。
+
+**浮点数的例子： 计算π**
+
+这里我们将使用著名的 π 级数近似:
+
+$$=4\sum _{i=0} {\frac {-{1}^{i}} {2i+1}}=1-\frac {1} {3}+\frac {1} {5}-...$$
+
+我们将继续这个系列，直到连续值之间的差异小于 0.000001（即 5 位精度），然后使用 C 标准库中的 ```printf``` 打印结果。
+
+在 C 语言中，我们要编写的函数如下所示:
+
+```c
+float pi() {
+    float p = 0.0;   // Current pi approximation    
+    float s = 1;     // Sign: +1 or -1
+    float d = 1;     // Denominator: 1,3,5,...
+    float rd;        // 1 / d
+
+    do {
+        rd = 1 / d;
+        p += s * rd;
+        s *= -1;
+        d += 2;        
+    } while(abs(sd) > 0.000001);
+
+    return 4 * p;
+}
+```
+
+与 x87 版本不同，没有指令翻转 ```xmm``` 寄存器的符号，或获取 ```xmm``` 寄存器的绝对值。因此，我们要克服一些困难：
+
+- 翻转符号对应于乘以-1。
+- 我们不取绝对值，而是计算 1/d 并保存其值以供比较，然后再乘以交替符号。
+
+由于 xmm 寄存器同时用于整数和浮点数学，因此可以通过直接修改寄存器中的位来伪造绝对值和符号翻转：
+
+```x86asm
+SIGN_BIT:   equ         (1 << 63)
+
+    pxor    xmm0, qword [SIGN_BIT]      ; Flip sign bit
+    pandn   xmm0, qword [SIGN_BIT]      ; Clear sign bit
+```
+
+将其转换为汇编为我们提供了一个简单的循环：
+
+```x86asm
+section .data
+
+zero:   dd      0.0
+one:    dd      1.0
+two:    dd      2.0
+four:   dd      4.0
+negone: dd      -1.0
+limit:  dd      0.000001
+
+
+format: db      "%f", 10, 0
+
+section .text
+
+extern printf
+
+global main
+main:
+
+    push rbp
+    mov rbp, rsp
+
+    ;; Compute pi    
+    call compute_pi
+    ; Return value in xmm0  
+
+    ;; Print result
+    mov rdi, format
+    mov al, 1
+    cvtss2sd xmm0, xmm0 ; Convert to double for printf
+    call printf
+
+    mov rax, 0
+    pop rbp
+    ret
+
+compute_pi:
+    push rbp
+    mov rbp, rsp
+
+    movss xmm7, dword [one]  ; 1.0
+    movss xmm0, dword [zero] ; p = 0
+    movss xmm1, xmm7   ; s = 1
+    movss xmm2, xmm7   ; d = 1
+    ; xmm3 = t
+
+.loop:
+    movss xmm3, xmm7                ; t = 1
+    divss xmm3, xmm2                ; t /= d
+    vmulss xmm4, xmm1, xmm3         ; xmm4 = s * t
+    addss xmm0, xmm4                ; p += s * t
+    mulss xmm1, dword [negone]      ; s *= -1
+    addss xmm2, dword [two]         ; d += 2
+
+    ucomiss xmm3, dword [limit]     ; while(t > limit)
+    ja .loop
+
+    ; Result is in xmm0
+    mulss xmm0, dword [four]
+
+    pop rbp
+    ret
+```
+
+当我们调用 printf 时，我们必须做一个小的调整：采用可变数量参数的函数（如 printf）要求我们将 al 设置为 xmm 寄存器中传递的参数数量。它不必精确，但 al 应该 ≥ 用于参数的 xmm 寄存器的数量。到目前为止，我们从未在 xmm 中传递过任何内容，所以这并不重要。然而现在，我们必须在调用 printf 之前设置 al = 1，以便 printf 知道要使用多少个。
+
+
+## 浮点数的其他知识点
+
+我们重点关注两种浮点格式，分别对应于 float（32 位）和 double（64 位）
+
+```x86asm
+section .data
+
+zero:   dd      0.0
+one:    dd      1.0
+two:    dd      2.0
+four:   dd      4.0
+negone: dd      -1.0
+limit:  dd      0.000001
+
+
+format: db      "%f", 10, 0
+
+section .text
+
+extern printf
+
+global main
+main:
+
+    push rbp
+    mov rbp, rsp
+
+    ;; Compute pi    
+    call compute_pi
+    ; Return value in xmm0  
+
+    ;; Print result
+    mov rdi, format
+    mov al, 1
+    cvtss2sd xmm0, xmm0 ; Convert to double for printf
+    call printf
+
+    mov rax, 0
+    pop rbp
+    ret
+
+compute_pi:
+    push rbp
+    mov rbp, rsp
+
+    movss xmm7, dword [one]  ; 1.0
+    movss xmm0, dword [zero] ; p = 0
+    movss xmm1, xmm7   ; s = 1
+    movss xmm2, xmm7   ; d = 1
+    ; xmm3 = t
+
+.loop:
+    movss xmm3, xmm7          ; t = 1
+    divss xmm3, xmm2          ; t /= d
+    vmulss xmm4, xmm1, xmm3   ; xmm4 = s * t
+    addss xmm0, xmm4          ; p += s * t
+    mulss xmm1, dword [negone]      ; s *= -1
+    addss xmm2, dword [two]         ; d += 2
+
+    ucomiss xmm3, dword [limit]     ; while(t > limit)
+    ja .loop
+
+    ; Result is in xmm0
+    mulss xmm0, dword [four]
+
+    pop rbp
+    ret
+```
 
 ## 附录
 
