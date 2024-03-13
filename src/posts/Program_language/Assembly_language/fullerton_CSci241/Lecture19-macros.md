@@ -237,5 +237,366 @@ push rax, rbx       ; Expands to the above
 
 汇编器会发出警告，但上面的代码工作得很好
 
+## 其余参数
+
+您可以创建一个多行宏，它接受任意数量的参数。例如，
+
+```x86asm
+%macro print 1+
+  section .data
+    %%string:   db      %1
+    %%strlen:   equ     $-%%string
+
+  section .text
+    mov rax, 1
+    mov rdi, 1
+    mov rsi, %%string
+    mov rdx, %%strlen
+    syscall
+%endmacro
+```
+
+在这里，我们暂时切换到 ```.data``` 部分以添加新的字符串常量，然后切换回 ```.text``` 并展开到打印它的系统调用。我们可以像这样使用它:
+
+```x86asm
+print "Hello world!", 10
+```
+
+并且无论给出多少个参数，它们都会被放在```%1```中。
+
+请注意，我们不能再使用 2、3 等参数来重载 ```print```。这给定的定义有效地定义了从 1 到无穷大的所有参数计数的 ```print``` 的不同版本。
+
+## 默认参数
+
+我们可以支持一个范围，并为任何省略的参数提供默认值：
+
+```x86asm
+%macro swap 2-3 r11
+    mov %3, %1
+    mov %1, %2
+    mov %2, %3
+%endmacro
+```
+
+这里的```2-3```表示swap接受2-3个参数。如果提供两个参数，则r11则默认作为第三个参数。
+
+如果我们将其用作交换 ```rax```、```rbx```，则 ```%3``` 会扩展为默认值 ```r11```。另一方面，如果我们提供第三个参数，例如 ```swap rax、rbx、r15```，则提供的第三个参数```r15```将用于 ```%3```。
+
+如果我们创建一个具有 3-5 个参数的宏，那么我们必须提供 5-3 = 2 个默认值，这些默认值将成为参数 ```%4``` 和 ```%5``` 的默认值。如果省略默认值，则默认值将不扩展为任何内容。
+
+默认参数可以与其余参数组合；你可以写 3-5+，这意味着 3 或更多，但任何超过 5 的都进入 ```%5```。
+
+您可以通过写入 ```3-*```（三到无穷大）来指定无限的最大参数数量。当然，您无法为所有这些编写默认值。它和 + 之间的区别在于 + 将所有剩余参数分组为一个参数，同时这使得它们都可以单独访问。 ```%0```表示的是提供的实际参数的数量。
+
+## 旋转参数列表
+
+假设宏采用三个参数：```%1```、```%2```、```%3```。我们可以通过发出宏``` %rotate 1``` 来旋转列表。旋转后，原来的第二个参数会在第一个位置，第三个参数会在第二个位置，而第一个参数会一直旋转到3。这在重复宏中最有用，因为它允许我们访问所有参数而无需数字索引。例如，以下是推送的一个版本，它接受任意数量的参数并推送所有参数：例如，以下是推送的一个版本，它接受任意数量的参数并推送所有参数：
+
+```x86asm
+%macro push 2-*
+  %rep %0
+    push %1
+    %rotate 1
+  %endrep
+%endmacro
+
+push rax, rbx, rcx, qword [var]
+```
+这里```%0```的值为4。
+
+如果 n 为正数，```%rotate n``` 将参数列表向左旋转 n 个空格（朝向参数 %1）。如果n为负数，则向右旋转。
+
+```%rep ... %endrep``` 稍后在[重复宏](https://staffwww.fullcoll.edu/aclifton/cs241/lecture-macros.html#repeating-macros)下讨论。
+
+## 宏局部名称
+
+如果多行宏可以扩展为代码，我们可能希望扩展为包含标签的代码（例如，扩展为循环）。然而，如果宏被多次扩展，这将会导致问题；那么我们就会对同一个标签有多个定义。为了解决这个问题，我们可以使用宏局部标签。宏局部标签是名称以 ```%%``` 开头的普通标签。例如，
+
+```x86asm
+%macro retz 0
+    jnz     %%skip
+    ret
+
+  %%skip:
+%endmacro
+```
+
+每次扩展宏时，都会为标签 ```%%skip``` 生成一个新的唯一名称，因此所有扩展都不会相互干扰。
+
+宏本地名称实际上不必用作标签。例如，我们可以使用它作为单行宏名称来创建一种"局部变量"：
+
+```x86asm
+%macro testmacro 0
+    %assign %%v 0
+    mov rax, %%v
+%endmacro
+```
+
+在这里，变量```%%v```每次宏展开时都会获得不同的名称。
+
+## 串联多行参数
+
+与需要特殊 ```%+``` 运算符来连接的单行参数不同，多行参数不需要这样的表示法：
+
+```x86asm
+%macro string_n 2
+    string%1:   db  %2
+%endmacro
+
+string_n 7 "Hello"          ; Expands into string7: db "Hello"
+```
+
+如果我们想在参数后面连接一些文本，我们可以写 ```%{1}text```;这将扩展 ```%1```，然后在扩展后立即添加文本，中间没有空格。
+
+## 条件码参数
+
+YASM 对包含条件代码（```z```、```ge``` 等）的参数有特殊支持。如果 ```%1``` 扩展为条件代码，则 ```%-1``` 扩展为该代码的否定。例如，z 变为 nz，ge 变为 l，等等。类似地，```%+1``` 扩展为原始的、未更改的条件代码，只不过它强制参数实际上是条件代码，如果不是，则给出错误。
+
+例如，上面的 ```retz``` 宏可以推广为允许任何条件代码（默认为 ```z```）的宏，方法是：
+
+```x86asm
+%macro retcc 0-1 z
+    j%-1    %%skip
+    ret
+
+  %%skip:
+%endmacro
+```
+
+## 条件宏
+
+通常，我们希望根据某些（汇编时）参数包含源文本的某些部分，并在其余时间排除它或用其他文本替换它。这可以通过条件宏来完成。最基本的条件宏反映了熟悉的 if-else if-else 语句：
+
+```x86asm
+%if<condition>
+    ...
+%elif<condition>
+    ...
+%else
+    ...
+%endif
+```
+
+正如我们所期望的，0 个或超过 1 个 %elif-s 是允许的，最后的 %else 是可选的。请注意，条件立即出现在 %if/%elif 之后，中间没有空格。
+
+## def – 检查单行宏的定义
+
+我们可以使用 %ifdef 来检查给定的（单行）宏是否已经被定义。例如，
+
+```x86asm
+%ifdef DEBUG
+    ... ; Debug build code
+%else
+    ... ; Production code
+%endif
+```
+
+未定义可以使用条件 ```ndef``` 进行测试。
+
+## 检查多行定义的宏
+
+宏检查是否定义了多行宏：
+
+```x86asm
+%ifmacro push 2+
+
+    ; Multi-arg push is defined
+
+%endif
+```
+
+## 数值表达式
+
+```%if expr``` 将检查数值表达式 expr，如果其值非零则继续。您可以在表达式中使用普通的比较运算符。请注意，相等是=（单个等于），不等是<>。
+
+## ```idn``` – 文本比较
+
+如果 t1 和 t2 扩展为相同的文本序列，则 ```%ifidn t1, t2```返回真。
+
+```num、id、str``` – 检查令牌类型
+
+- 如果 t 扩展为看起来像数字的内容，则 ```%ifnum t``` 成功。
+- ```%ifid t``` 如果 t 扩展为看起来像标识符的东西（即标签或 equ），则成功
+- 如果 t 扩展为看起来像字符串文字的内容，则 ```%ifstr t``` 成功。
+
+
+## 重复宏
+
+要重复某些文本一定次数，我们使用 ```%rep```：
+
+```x86asm
+%rep 10
+    inc rax
+%endrep
+```
+
+这将扩展为十个 ```inc rax``` 指令。 ```%rep``` 的参数可以是数值表达式。
+
+```%assign``` 可以与 ```%rep``` 一起使用来创建循环变量：
+
+```x86asm
+%assign i 0
+%rep 10
+    mov qword [arr + i], i
+    %assign i i+1
+%endrep
+```
+
+这将地址 ```arr``` 处的 10-qword 数组初始化为 0, 1, 2, 3, … 9
+
+我们可以使用 ```%exitrep``` 提前停止 ```%rep```：
+
+```x86asm
+section .data
+data:
+
+%assign i 1
+%rep 100
+    db i
+    %assign i i*2
+    %if i > 1024
+        %exitrep
+    %endif
+%endrep
+```
+
+这将创建一个带有标签数据的数组，其初始化为 1, 2, 4, 8, ...。
+
+## 上下文堆栈
+
+上下文堆栈是一种允许诸如宏本地标签之类的机制（如果宏多次扩展，这些标签不会中断）， 但被多个宏定义共享。例如，目前，一个宏中定义的宏局部标签不能以任何方式被另一个宏引用；它是看不见的。这使得定义更高级的宏（通常需要多个定义）变得困难或不可能。
+
+为了解决这个问题，YASM 维护了一个“上下文”堆栈。可以创建堆栈顶部上下文本地的标签。新的上下文可以使用 %push 推入堆栈顶部，并可以使用 %pop 删除。由于使用了堆栈，因此可以嵌套精美的宏而不会相互破坏。
+
+## 上下文本地标签
+
+要创建当前上下文本地的标签，我们编写 ```%$name```。这也可以用于 ```%define``` 或 ```%assign``` 一个宏，其名称是当前上下文的本地宏：
+
+```x86asm
+%define %$lm 5
+%assign %$i 0
+```
+
+这可以防止变量干扰其他作用域。
+
+请注意，当上下文被 ```%pop-ed``` 时，其所有本地标签/宏都是未定义的。
+
+## 示例：块 IF 语句
+
+假设我们想定义一个宏，它允许我们编写一个更自然的 if-like 结构：
+
+```x86asm
+IF rax, e, rcx
+    ...
+ENDIF
+```
+
+这扩展到类似的东西
+
+```x86asm
+cmp rax, rcx
+jne .endif
+    ...
+.endif:
+```
+
+除了标签 ```.endif``` 应该为每个 IF-ENDIF 唯一生成之外。
+
+我们需要定义两个%宏：
+
+```x86asm
+%macro IF 3
+    %push if 
+    cmp %1, %3
+    j%-2 %$endif
+%endmacro
+
+%macro ENDIF 0
+    %$endif:
+    %pop
+%endmacro
+```
+
+- 当我们调用 IF 宏时，它会将 if 上下文压入堆栈，让我们知道我们处于 if 内部。
+
+- 它还执行比较，如果比较失败则跳转。
+
+- ```ENDIF``` 宏创建作为 (2) 中跳转目标的标签，并从堆栈中删除 if 上下文（因为我们不再位于 if 内部）。
+
+这个宏可以工作，但是如果我们使用没有匹配 IF 的 ENDIF，它会严重失败。我们可以使用 %ifctx 条件来检查堆栈顶部的上下文，如果不在 IF 内，则发出错误：
+
+```x86asm
+%macro ENDIF 0
+    %ifctx if
+        %$endif:
+        %pop
+    %else
+        %error Expected IF before ENDIF
+    %endif
+%endmacro
+```
+
+我们可以使用类似的技术来定义用于迭代的 DO-WHILE 宏：
+
+```x86asm
+%macro DO 0
+    %push do_while
+    %$do
+%endmacro
+
+%macro WHILE 3
+    %ifctx do_while
+        cmp %1, %3
+        j%-2 %$do
+    %else
+        %error Expected DO before WHILE
+    %endif
+%endmacro
+```
+
+这可以用作
+
+```x86asm
+mov rax, 0
+DO
+    mov qword [arr + rax], rax
+    inc rax
+
+WHILE rax, le, 100 
+```
+
+这些循环/if 甚至可以相互嵌套，只要它们使用不同的寄存器即可。
+
+另一个例子：```PROC```/```ENDPROC```在微软汇编器中用于标记函数的开始/结束：
+
+```x86asm
+PROC myfunction
+    ... Stuff
+
+ENDPROC
+```
+
+在 MASM 中，需要这些来使函数内部的标签成为函数的本地标签； YASM不需要这个，因为我们有本地标签，但我们仍然可以定义它们以实现兼容性。我们甚至可以添加一些错误检查，这样没有 PROC 的 ENDPROC 或嵌套 PROC 就是一个汇编时错误:
+
+```x86asm
+%macro PROC 1
+    %ifnctx proc
+        %push proc
+        %{1}:
+    %else
+        %error Found PROC without preceding closing ENDPROC
+    %endif
+%endmacro
+
+%macro ENDPROC 0
+    %ifctx proc
+        %pop 
+    %else
+        %error Found ENDPROC without preceding PROC
+    %endif
+%endmacro
+```
 
 原文链接： https://staffwww.fullcoll.edu/aclifton/cs241/lecture-macros.html
+
+yasm 介绍文档： https://www.tortall.net/projects/yasm/manual/html/manual.html#nasm-macro-context-local
