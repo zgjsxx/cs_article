@@ -123,6 +123,120 @@ mov dword [fs:addr], ebx
 
 ## 内存视图
 
+传统上我们在 16 位模式下可用的 1MB 内存可以映射为：
+
+## 一个简单的引导加载程序
+
+我们将首先编写一个简单的引导加载程序，该程序将仅显示 Hello, world!在屏幕上，然后进入无限循环，有效地挂起（虚拟！）机器。
+
+**引导加载程序的结构**
+
+引导加载程序的长度必须正好为 512 字节，并且必须以字值 0xAA55 结尾，这告诉 BIOS 这是一个有效的（可引导）记录。 BIOS 会将整个 512 字节加载到内存中，从地址 0x7c00 开始。
+
+```x86asm
+;; 
+;; hello-boot.s
+;;
+bits 16
+org 0x7c00
+
+; Boot code begins here
+; ...
+
+; Hang system
+loop:       jmp loop
+
+; Pad remainder with 0 bytes
+times 510 - ($ - $$)    db 0
+
+; Write boot signature at end
+dw 0xaa55
+```
+
+请注意，虽然我们可以创建一个 ```.s ```文件来生成大于 512 字节的二进制文件，并且我们可以创建包含该二进制文件的磁盘映像，但系统只会将前 512 字节加载到内存中；如果我们想从磁盘加载任何额外的代码，我们必须手动执行。
+
+```bits```告诉 YASM 生成 16 位代码。这并不是绝对必要的，因为它在输出 bin 文件时默认生成 16 位代码，但有助于使我们在做什么变得显而易见。
+
+为了组装这个，我们运行
+
+```x86asm
+yasm hello-boot.s -f bin -o boot.bin
+```
+
+## 写入屏幕：方法1：内存映射 IO
+
+## 写入屏幕，方法2：BIOS
+
+我们还可以使用 BIOS 调用一次写入一个字符，而不是直接写入视频内存。
+
+大多数处理视频的 BIOS 调用都是通过中断 0x10 进行的，这与我们上面用来设置视频模式的中断相同。
+
+我们想要使用的所有中断都将使用 ax 作为子函数，使用 bl 作为页码（对我们来说，这应该始终为 0），以及用于各种用途的 cx 和 dx。我们需要做更多的工作来使其适合我们的寄存器。
+
+要在屏幕上当前光标位置写入 al 中的字符：
+
+```x86asm
+mov ah, 0x0a
+mov al, character...
+mov cx, 1 
+int 0x10
+```
+
+我们必须自己跟踪光标位置，但幸运的是 ```bx```（字符串中的当前索引）可以作为光标位置执行双重任务。
+
+```x86asm
+mov ah, 0x0a
+mov dh, 0
+mov dl, bl
+```
+洗牌一些寄存器给我们
+
+```x86asm
+bits 16
+org 0x7c00
+
+; Set 80x25 text mode
+mov ah, 0x0
+mov al, 0x3
+int 0x10
+
+; Print text
+mov si, 0          ; Memory index/cursor position
+print:
+    ; Print character
+    mov ah, 0x0a    ; Subfunction = write char
+    mov al, byte [si + string]
+    mov bh, 0       ; Page = 0
+    mov cx, 1       ; Write count = 1
+    int 0x10
+
+    ; Move cursor
+    inc si
+    mov ah, 0x02    ; Subfunction = set cursor pos.
+    mov bh, 0       ; Page = 0
+    mov dh, 0       ; Cursor row = 0
+    mov dx, si      ; Cursor col = si
+    mov dh, 0
+    int 0x10
+
+    cmp si, strlen
+    jne print
+
+; Infinite loop
+forever: jmp forever
+
+; Unreachable, 
+string:         db      "Hello, world!"
+strlen:         equ     $-string
+screen_addr:    equ     0xb8000
+
+; Pad remainder with 0 bytes
+times 510 - ($ - $$)    db 0
+
+; Write boot signature at end
+dw 0xaa55
+```
+
 
 
 原文连接：https://staffwww.fullcoll.edu/aclifton/cs241/lecture-operating-systems-1.html
