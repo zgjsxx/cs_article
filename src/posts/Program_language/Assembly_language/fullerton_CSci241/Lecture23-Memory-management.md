@@ -35,6 +35,18 @@ category:
 
 请注意，如果允许运行多个进程，则必须对它们进行编译，以便将每个进程加载到单独的内存区域中（或者必须将它们编译为“位置无关”，并且加载器必须负责将它们放置在不同的内存区域中）。
 
+
+
+## x86-64 Linux内存管理
+
+
+
+
 ## 大页内存
 
 x86-64 默认内存页面大小为 4KB，但可以使用大小为 2MB、4MB 和 1GB 的页面。
+
+
+## 附录
+
+课程原文： https://staffwww.fullcoll.edu/aclifton/cs241/lecture-memory-management.html
