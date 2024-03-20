@@ -39,8 +39,6 @@ movw:复制16位数据(2个字节)
 
 movl:复制32位数据(4个字节)
 
-
-
 ## AND 
 调用格式：
 
@@ -63,13 +61,13 @@ STD： 设置DF=1
 
 movb:
 if DF = 0:
-    SI = SI + 1 , DI = DI + 1 ；
+    SI = SI + 1 , DI = DI + 1 ;
 else if DF = 1 
     SI = SI - 1 , DI = DI - 1 ;
 
 movw: 
 if DF = 0:
-    SI = SI + 2 , DI = DI + 2 ；
+    SI = SI + 2 , DI = DI + 2 ;
 else if DF = 1:
     SI = SI - 2 , DI = DI - 2 ;
 
@@ -81,14 +79,18 @@ TEST可以判断测试位是否为0。
 
 
 
-## JE JZ
+## jcc 
+
+JE JZ
+
 JE和JZ的功能是相同的。
 
 如果标志位ZF=1， 则进行跳转
 
 如果标志位ZF=0， 则不进行跳转
 
-## JNE JNZ
+
+JNE JNZ
 JNE和JNZ的作用是相同的。
 
 如果标志位ZF=0， 则进行跳转

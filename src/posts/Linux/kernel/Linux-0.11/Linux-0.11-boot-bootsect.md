@@ -140,30 +140,45 @@ go:	mov	ax,cs  #将ds，es，ss都设置成移动后代码所在的段处(0x9000
 
 接下来这一部分用于加载setup.s的代码到0x9000:0200处。
 
-这里利用了BIOS的0x13号中断。
-
-下面是关于BIOS INT 0x13在使用时的说明:
-
-ah = 0x02 读磁盘到内存   al = 4 读4个扇区
-ch: 柱面号的低8位， cl: 0-5位代表开始扇区， 6-7位 代表磁道号的高2位代表柱面的高2位。
-dh 磁头号       dl 驱动器号。
-
-如果读取成功则执行ok_load_setup。 如果不成功，则对驱动器进行复位，再次读取。
+下面这里是bootsect.s的67-77行。
 
 ```x86asm
 load_setup:
-	mov	$0x0000, %dx		# drive 0, head 0
-	mov	$0x0002, %cx		# sector 2, track 0
-	mov	$0x0200, %bx		# address = 512, in INITSEG
-	.equ    AX, 0x0200+SETUPLEN
-	mov     $AX, %ax		# service 2, nr of sectors
-	int	$0x13			# read it
-	jnc	ok_load_setup		# ok - continue
-	mov	$0x0000, %dx
-	mov	$0x0000, %ax		# reset the diskette
-	int	$0x13
-	jmp	load_setup
+	mov	dx,#0x0000		! drive 0, head 0
+	mov	cx,#0x0002		! sector 2, track 0
+	mov	bx,#0x0200		! address = 512, in INITSEG
+	mov	ax,#0x0200+SETUPLEN	! service 2, nr of sectors
+	int	0x13			! read it
+	jnc	ok_load_setup		! ok - continue
+	mov	dx,#0x0000
+	mov	ax,#0x0000		! reset the diskette
+	int	0x13
+	j	load_setup
 ```
+
+这里利用了BIOS的```0x13```号中断，```0x13```中断和磁盘操作相关，这里使用了2号功能码。
+
+0x13中断的2号功能的各项参数含义如下：
+
+- AH = 02h
+- AL = number of sectors to read (must be nonzero)
+- CH = low eight bits of cylinder number
+- CL = sector number 1-63 (bits 0-5)
+- high two bits of cylinder (bits 6-7, hard disk only)
+- DH = head number
+- DL = drive number (bit 7 set for hard disk)
+- ES:BX -> data buffer
+
+ax = 0x0204， 因此ah=0x02,al=0x04,代表这里进行的操作是都磁盘到内存，且要读取4个扇区。
+bx = 0x200， 因此从磁盘中读取的数据将拷贝到0x9000:0x200处
+cx = 0x0002, cx[5:0] = 0x2，表示起始扇区为2，{cx[7:6], cx[15:8]} = 0x0, 代表柱面为0。
+dx = 0x0000， dh = 0x0, 磁头0， dl = 0x0, 驱动器0。
+
+关于```0x13```中断的更多详细功能，可以参考[这里](http://www.ctyme.com/intr/int-13.htm)。
+
+
+
+如果读取成功则执行ok_load_setup。 如果不成功，则对驱动器进行复位，再次读取。
 
 下面依旧是使用INT 0x13去获取一些磁盘驱动器的参数。
 

@@ -5,9 +5,9 @@ category:
 
 - [第十六讲： 结构体和结构体对齐；信号](#第十六讲-结构体和结构体对齐信号)
   - [汇编语言中的结构体](#汇编语言中的结构体)
-  - [函数调用规约(结构体)](#函数调用规约结构体)
-    - [返回值是结构体](#返回值是结构体)
   - [信号处理](#信号处理)
+    - [信号](#信号)
+    - [捕捉信号](#捕捉信号)
   - [附录](#附录)
 
 # 第十六讲： 结构体和结构体对齐；信号
@@ -161,73 +161,16 @@ mov qword [rsp - thing_size + d], 0
 |rsp - 8	|d|	0|
 |rsp|	top of stack| |	
 
-## 函数调用规约(结构体)
-
-如果使用结构体指针传递结构体，比较简单。如果直接按值传递结构体会是怎样的?
-
-```cpp
-void f(thing x);
-```
-
-在汇编语言中，如何传递```x```? 要将结构体按值传递给函数，有很多的规则，主要取决于结构体及其成员的大小。基本思路是通过将结构分解为各个成员，并在寄存器中单独传递它们，但小于```qword```的成员可以组合在单个寄存器中。
-
-- 如果结构的大小≤ 8字节，则整个结构将打包到单个64位寄存器中并通过它传递给函数。
-- 如果结构的大小 > 16字节并且第一个qword无法在 ```xmm``` 寄存器中传递，则将整个结构传递到栈上。
-- 如果结构的大小 > 64字节，或者其任何成员未正确对齐，则将其传递到栈上。
-- 如果结构体的大小 > 8字节 但 ≤ 64字节，那么我们检查该结构，就好像它是一个 qword 序列，通过查看进入其中的字段，根据正常参数对每个 qword 分别进行分类- 通过规则，然后使用最严格的要求。例如，如果 qword 中的一个字段可以在寄存器中传递，但另一个字段必须在堆栈上传递，则整个结构都会在堆栈上传递。
-  - 
-
-因此，为了弄清楚如何将大于8字节的结构体传递给函数。我们用8字节为一组来构建结构体的内存映射。
-
-
-|8字节序列|字段|传递|
-|--|--|--|
-|0|a|```xmm```寄存器|
-|1|b,c,填充|GP 寄存器|
-|2|d|GP 寄存器|
-
-请注意，只有当结构体大于8字节、小于64字节时，我们才会执行此过程；如果大于16，则第一个 qword 将在 xmm 寄存器中传递。如果我们要重新排序结构体的元素，使双精度 a 不是第一个元素，那么该结构体将在堆栈上传递（大小 > 16 并且第一个元素不是 xmm 兼容值）。
-
-结构体的函数传参从来都不会一部分使用寄存器，一部分使用栈。如果结构体中的任何成员无法在寄存器中传递，那么整个结构体都会通过栈进行传递。
-
-### 返回值是结构体
-
-
-
-**例子**
-```c
-// Note: sizeof(structparm) == 16
-struct structparm {
-    int a, b;
-    double d;
-};
-
-structparm s;
-int e, f, g, h, i, j, k;
-double m, n;
-
-structparm func(int e, int f, 
-                structparm s, 
-                int g, int h, 
-                double m, 
-                double n, 
-                int i, int j, int k);
-```
-
-如何为此函数调用设置寄存器和堆栈？
-
-|GP registers|FP register| Stack|
-|--|--|--|
-|rdi：e <br> rsi: f <br> rdx: s.a, s.b <br> rcx: g <br> r8: h <br> r9: i| xmm0: s.d <br> xmm1: m <br> xmm2: n| 0：j <br> 8： k|
-
-返回值将如何表示？
-
-GP registers	FP registers	Stack
-rax: ret.a, ret.b	xmm0: ret.d	None
 
 ## 信号处理
 
 如果我们在程序中除以0，那么程序会因为浮点异常而崩溃。为了避免这种情况，我们需要在程序中安装信号处理函数，以捕获除零错误产生的```sigfpe```信号。我们需要使用```sigaction```函数。
+
+尝试从 ```sigfpe``` 恢复通常非常危险。
+
+### 信号
+
+信号是基于Unix的操作系统与其上运行的进程进行通信的方式之一。信号可以分为那些可以被我们的进程捕获的信号和那些不可捕获的信号。
 
 |信号|是否可以捕获|默认的行为|
 |--|--|--|
@@ -239,6 +182,172 @@ rax: ret.a, ret.b	xmm0: ret.d	None
 |SIGHUP|是|终止进程|
 |SIGWINCH|是|不做任何事情|
 
+信号异步地发送到一个进程，这意味着，信号处理程序可以在任何地方触发。
+
+信号处理程序的典型行为是设置一些全局变量，然后返回。如果是一些致命信号，唯一真正的选择是清理然后退出。
+
+### 捕捉信号
+
+要捕获信号，我们可以使用以下两种机制之一：
+
+```c
+#include <stdio.h>
+#include <signal.h>
+
+int window_resized = 0;
+
+void my_handler(int sig) {
+    window_resized = 1;
+}
+
+int main() {
+    if(signal(SIGWINCH, my_handler) == SIG_ERR) {
+        return 1; // Handler could not be attached
+    }
+
+    // Wait for window resizes
+    while(1) { 
+        if(window_resized) {
+            printf("Window resized!\n");
+            window_resized = 0;
+        }
+    }
+
+    return 0;
+}
+```
+
+信号函数有两个参数：一个信号常量和一个指向处理函数的指针。每个处理函数都应该具有原型 ```void handler(int sig)```，其中参数将是捕获的信号的序号。
+
+信号函数的行为未完全指定，特别是在处理程序执行时捕获到信号时。因此，首选第二种方法，它使用 ```sigaction``` 结构和函数：
+
+```c
+#include <stdio.h>
+#include <signal.h>
+
+int window_resized = 0;
+
+void my_handler(int sig) {
+    window_resized = 1;
+}
+
+int main() {
+    struct sigaction act;
+    act.sa_handler = my_handler;    // Handler function
+    sigemptyset(&act.sa_mask);      // Signals to block while running handler
+    act.sa_flags = SA_RESTART;      // Flags
+
+    if(sigaction(SIGWINCH, &act, NULL) != 0) {
+        return 1; // Could not register handler
+    }
+
+    // Wait for window resizes
+    while(1) { 
+        if(window_resized) {
+            printf("Window resized!\n");
+            window_resized = 0;
+        }
+    }
+
+    return 0;
+}
+```
+```signal.h``` 中定义的 ```sigaction``` 结构如下所示：
+
+```c
+struct sigaction
+{
+    handler_t sa_handler;           // Function pointer (8 bytes) 
+    unsigned long int sa_mask[16];  // Signal mask      (16*8 = 128 bytes)
+    int sa_flags;                   // Flags            (4 bytes)
+
+    // ... Other members
+};
+```
+
+整个结构的大小为 152 字节。
+
+与此对应的装汇编语言的结构定义为：
+
+```x86asm
+struc sigaction_t
+    sa_handler:     resq 1
+    sa_mask:        resq 16
+    sa_flags:       resd 1
+                    resb 12 ; Padding/other members
+endstruc
+```
+
+幸运的是，这里的结构体使用指针传递，因此我们不必考虑的结构体传递规则。我们可以分配该结构的全局实例并传递它的地址。
+
+```x86asm
+section .data
+
+SIGWINCH:       equ         28
+SA_RESTART:     equ         268435456
+msg:            db          "Window resized!\n", 0
+
+window_resized: dq          0
+
+action: istruc sigaction_t
+    at sa_handler,  dq              my_handler
+    at sa_mask,     times 16 dq     0
+    at sa_flags,    dd              SA_RESTART
+                    times 12 db     0 
+iend
+```
+
+```my_handler```必须是带有单个int参数的C兼容函数：
+
+```x86asm
+my_handler:
+    push rbp
+    mov rbp, rsp
+
+    mov qword [window_resized], 1
+
+    pop rbp
+    ret
+```
+
+最复杂的部分是```main```，因为它必须设置信号处理程序，然后循环等待信号：
+
+```x86asm
+extern sigaction
+extern printf
+
+main:
+    push rbp
+    mov rbp, rsp
+
+    ; Install signal handler
+    mov rdi, SIGWINCH
+    mov rsi, action
+    call sigaction
+
+    cmp rax, 0
+    je .continue
+
+    ; Couldn't register handler, return 1
+    mov rax, 1
+    pop rbp
+    ret
+
+    ; Loop forever
+.continue:
+
+    cmp qword [window_resized], 1
+    jne .continue
+
+    mov rdi, msg
+    call printf
+    mov qword [window_resized], 0
+    jmp .continue
+
+    pop rbp
+    mov rax, 0
+    ret
+```
 
 ## 附录
 
