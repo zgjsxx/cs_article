@@ -21,41 +21,120 @@ bootsect.s主要做了如下的三件事:
 ## 过程详解
 
 ### 搬运bootsect.s代码到0x9000:0x0000处
-将ax寄存器设置为0x07c0， 接着ax寄存器的值拷贝给ds，即ds目前也为0x07c0。
 
-将ax寄存器设置为0x9000， 接着ax寄存器的值拷贝给es，即es目前也为0x9000。
+下面是bootsect.s中开头1-50行。
+
 ```x86asm
-mov	$BOOTSEG, %ax	#将ds段寄存器设置为0x07c0
-mov	%ax, %ds
-mov	$INITSEG, %ax	#将es段寄存器设置为0x9000
-mov	%ax, %es
+!
+! SYS_SIZE is the number of clicks (16 bytes) to be loaded.
+! 0x3000 is 0x30000 bytes = 196kB, more than enough for current
+! versions of linux
+!
+SYSSIZE = 0x3000
+!
+!	bootsect.s		(C) 1991 Linus Torvalds
+!
+! bootsect.s is loaded at 0x7c00 by the bios-startup routines, and moves
+! iself out of the way to address 0x90000, and jumps there.
+!
+! It then loads 'setup' directly after itself (0x90200), and the system
+! at 0x10000, using BIOS interrupts. 
+!
+! NOTE! currently system is at most 8*65536 bytes long. This should be no
+! problem, even in the future. I want to keep it simple. This 512 kB
+! kernel size should be enough, especially as this doesn't contain the
+! buffer cache as in minix
+!
+! The loader has been made as simple as possible, and continuos
+! read errors will result in a unbreakable loop. Reboot by hand. It
+! loads pretty fast by getting whole sectors at a time whenever possible.
+
+.globl begtext, begdata, begbss, endtext, enddata, endbss
+.text
+begtext:
+.data
+begdata:
+.bss
+begbss:
+.text
+
+SETUPLEN = 4				! nr of setup-sectors
+BOOTSEG  = 0x07c0			! original address of boot-sector
+INITSEG  = 0x9000			! we move boot here - out of the way
+SETUPSEG = 0x9020			! setup starts here
+SYSSEG   = 0x1000			! system loaded at 0x10000 (65536).
+ENDSEG   = SYSSEG + SYSSIZE		! where to stop loading
+
+! ROOT_DEV:	0x000 - same type of floppy as boot.
+!		0x301 - first partition on first drive etc
+ROOT_DEV = 0x306
+
+entry _start
+_start:
+	mov	ax,#BOOTSEG
+	mov	ds,ax
+	mov	ax,#INITSEG
+	mov	es,ax
 ```
 
-接下来将ecx的值设置为256。接下来通过sub将si和di寄存器设置为0。
+其中最关键的是下面这几行：
 
-接下来使用rep和movsw从ds:si拷贝256个字(512字节)到es:si处。
 ```x86asm
-mov	$256, %cx		#设置移动计数值256字
-sub	%si, %si		#源地址	ds:si = 0x07C0:0x0000
-sub	%di, %di		#目标地址 es:si = 0x9000:0x0000
-rep					#重复执行并递减cx的值
-movsw				#从内存[si]处移动cx个字到[di]处
+	mov	ax,#BOOTSEG 
+	mov	ds,ax
+	mov	ax,#INITSEG
+	mov	es,ax
 ```
 
-接下来使用ljmp跳转到0x9000 偏移量为go处的代码执行。
+这里首先将```ax```寄存器设置为```0x07c0```， 接着将```ax```寄存器的值拷贝给```ds```，即```ds```目前为```0x07c0```。
 
-```c
-ljmp	$INITSEG, $go
+接下来将```ax```寄存器设置为```0x9000```， 接着将```ax```寄存器的值拷贝给```es```，即```es```目前为```0x9000```。
+
+
+下面是bootsect.s中的51-55行：
+
+```x86asm
+
+	mov	cx,#256 #设置移动计数值256字
+	sub	si,si   #源地址	ds:si = 0x07C0:0x0000
+	sub	di,di   #目标地址 es:di = 0x9000:0x0000
+	rep         #重复执行并递减cx的值
+	movw        #从内存[si]处移动cx个字到[di]处			
 ```
 
-cs寄存器的值为0x9000。接下来的操作就是将ds，es，ss都赋值为0x9000。同时将sp设置为0xFF00。
-```c
-go:	mov	%cs, %ax		#将ds，es，ss都设置成移动后代码所在的段处(0x9000)
-	mov	%ax, %ds
-	mov	%ax, %es
-	mov	%ax, %ss
-	mov	$0xFF00, %sp		# arbitrary value >>512
+这里首先将```cx```的值设置为```256```。
+
+接下来```sub```指令后跟了两个相同的```si```寄存器，这其实会将寄存器```si```设置为0。```sub	di,di```同理将```di```设置为0。
+
+接下来使用```rep```前缀和```movsw```指令。
+
+根据Intel手册，```movsw```的作用是从```DS:(E)SI```拷贝一个字到```ES:（E)DI```。```movsw```操作之后会对```si```和```si```进行递增或者递减，递增还是递减由```EFLAGS```寄存器中的方向位(DF: direction flag)来决定， DF=0，则进行递增， DF=1，则进行递减。
+
+因此```rep movsw```的实际作用是从```ds:si```拷贝256个字(512字节)到```es:si```处。
+
+
+接下来是bootsect.s的第56行，使用```jmpi```指令进行跳转。
+
+```x86asm
+	jmpi	go,INITSEG
 ```
+
+```jmpi```是段间跳转指令，```jmpi```的格式是```jmpi 段内偏移， 段选择子```。
+
+跳转到```0x9000``` 偏移量为```go```处的代码执行。
+
+下面是bootsect.s的第57-62行。
+
+```x86asm
+go:	mov	ax,cs  #将ds，es，ss都设置成移动后代码所在的段处(0x9000)
+	mov	ds,ax
+	mov	es,ax
+	mov	ss,ax
+	mov	sp,#0xFF00
+```
+
+```cs```寄存器的值为```0x9000```。接下来的操作就是将```ds```，```es```，```ss```都赋值为```0x9000```。同时将```sp```设置为```0xFF00```。
+
 
 ### 加载setup.s代码到0x9000:0x200处
 

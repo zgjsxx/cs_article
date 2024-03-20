@@ -8,7 +8,11 @@ tag:
 
 # Linux-0.11 详解大纲
 
-本系列使用的源码: https://github.com/yuan-xy/Linux-0.11.git
+本系列使用的源码: 
+
+https://github.com/karottc/linux-0.11 (Intel汇编格式)
+
+https://github.com/yuan-xy/Linux-0.11.git( AT&T 汇编格式)
 
 参考书籍: 
 - Linux-0.11深入解读.pdf
