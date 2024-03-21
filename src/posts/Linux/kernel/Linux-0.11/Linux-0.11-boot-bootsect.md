@@ -20,7 +20,7 @@ bootsect.s主要做了如下的三件事:
 
 ## 过程详解
 
-### 搬运bootsect.s代码到0x9000:0x0000处
+### step1：搬运bootsect.s代码到0x9000:0x0000处
 
 下面是bootsect.s中开头1-50行。
 
@@ -136,7 +136,7 @@ go:	mov	ax,cs  #将ds，es，ss都设置成移动后代码所在的段处(0x9000
 ```cs```寄存器的值为```0x9000```。接下来的操作就是将```ds```，```es```，```ss```都赋值为```0x9000```。同时将```sp```设置为```0xFF00```。
 
 
-### 加载setup.s代码到0x9000:0x200处
+### step2：加载setup.s代码到0x9000:0x200处
 
 接下来这一部分用于加载setup.s的代码到0x9000:0200处。
 
@@ -159,166 +159,233 @@ load_setup:
 这里利用了BIOS的```0x13```号中断，```0x13```中断和磁盘操作相关，这里使用了2号功能码。
 
 0x13中断的2号功能的各项参数含义如下：
-
 - AH = 02h
-- AL = number of sectors to read (must be nonzero)
-- CH = low eight bits of cylinder number
-- CL = sector number 1-63 (bits 0-5)
-- high two bits of cylinder (bits 6-7, hard disk only)
-- DH = head number
-- DL = drive number (bit 7 set for hard disk)
-- ES:BX -> data buffer
+- AL = 要读取多少扇区，非0的数值
+- CH = 柱面的低8位
+- CL = CL[5：0]表示起始扇区，CL[7：6]是柱面的高2位
+- DH = 磁头号
+- DL = 驱动器号
+- ES:BX = 数据缓冲区的位置
 
-ax = 0x0204， 因此ah=0x02,al=0x04,代表这里进行的操作是都磁盘到内存，且要读取4个扇区。
-bx = 0x200， 因此从磁盘中读取的数据将拷贝到0x9000:0x200处
-cx = 0x0002, cx[5:0] = 0x2，表示起始扇区为2，{cx[7:6], cx[15:8]} = 0x0, 代表柱面为0。
-dx = 0x0000， dh = 0x0, 磁头0， dl = 0x0, 驱动器0。
+返回值:
+- 当出错时CF被设置。
+- 成功操作时，CF被清楚。
+
+```ax = 0x0204```， 因此```ah=0x02```, ```al=0x04```,代表这里进行的操作是都磁盘到内存，且要读取4个扇区。
+```bx = 0x200```， 因此从磁盘中读取的数据将拷贝到```0x9000:0x200```处
+```cx = 0x0002```, ```cx[5:0] = 0x2```，表示起始扇区为2，```{cx[7:6], cx[15:8]} = 0x0```, 代表柱面为0。
+```dx = 0x0000```， ```dh = 0x0```, 磁头号为0， ```dl = 0x0```, 驱动器号为0。
 
 关于```0x13```中断的更多详细功能，可以参考[这里](http://www.ctyme.com/intr/int-13.htm)。
 
+如果读取成功则执行```ok_load_setup```。 这里使用的是```jnc```跳转指令，它会根据CF的状态决定是否跳转。
 
+如果不成功，则对驱动器进行复位，再次读取。复位操作仍然使用的是```0x13```中断，操作码为0。
 
-如果读取成功则执行ok_load_setup。 如果不成功，则对驱动器进行复位，再次读取。
+- AH = 00h
+- DL = 驱动器号
 
-下面依旧是使用INT 0x13去获取一些磁盘驱动器的参数。
-
-ah = 0x08 用于获取驱动器参数。 dl为驱动器号。
-
-
-返回信息：
-- 如果出错则CF置为， ah=状态码
-- al = 0， al = 0 
-- bl为驱动器的类型 AT/PS2
-- ch 最大柱面号的低8位
-- cl 0-5为每磁道最大扇区数， 6-7代表柱面号高2位
-- dh最大磁头数 
-- dl驱动器数量
-- es:di 软驱磁盘参数表
+接下来是bootsect.s的79-90行。
 
 ```x86asm
 ok_load_setup:
-	mov	$0x00, %dl
-	mov	$0x0800, %ax		# AH=8 is get drive parameters
-	int	$0x13
-	mov	$0x00, %ch
-	#seg cs
-	mov	%cx, %cs:sectors+0	# %cs means sectors is in %cs
-	mov	$INITSEG, %ax
-	mov	%ax, %es
+
+! Get disk drive parameters, specifically nr of sectors/track
+
+	mov	dl,#0x00
+	mov	ax,#0x0800		! AH=8 is get drive parameters
+	int	0x13
+	mov	ch,#0x00
+	seg cs
+	mov	sectors,cx
+	mov	ax,#INITSEG
+	mov	es,ax
 ```
 
-下面会使用BIOS中断0x10向终端中打印信息。
+这里是使用```0x13```中断的8号功能码去获取一些磁盘驱动器的参数。
 
-0x10中断号有多个功能
+入参：
+- ah：功能码，08h代表去获取驱动器的参数。
+- dl：为驱动器号。
 
-(1)读光标位置：
-功能号:ah=0x03
-输入：
-- bh = 页号
-输出：
-- ch = 扫描开始线
-- cl = 扫描结束线
-- dh = 行号
-- dl = 列号
+返回信息：
+- CF：如果出错则CF置为1，如果成功则CF=0。如果出错，ah=状态码
+- ah = 0， al = 0 
+- bl：驱动器的类型(AT/PS2)
+- ch：最大柱面号的低8位
+- cl: cl[5:0]代表每磁道最大扇区数， cl[7：6]代表最大柱面号高2位
+- dh:最大磁头数 
+- dl:驱动器数量
+- es:di：软驱磁盘参数表
 
-(1)打印字符串：
-功能号:ah=0x013
-输入：
-- al = 放置光标的方式和规定属性
-- es:bp 字符串位置
-- cx = 显示的字符串字符数
-- bh = 显示页面号
-- bl = 字符属性
-- dh = 行号
-- dl = 列号
+在调用完0x13中断获取完磁盘参数后，首先对```ch```进行置零，因为```ch```中存放的是最大柱面，而我们下面要去获取扇区数，因此避免其干扰。
 
+这下面使用```mov	sectors,cx```将最大扇区数存在了sectors中。
 
-```c
-	mov	$0x03, %ah		# read cursor pos
-	xor	%bh, %bh
-	int	$0x10
+最后由于中断返回值修改了```es```，因此需要进行恢复。
+
+```x86asm
+mov	ax,#INITSEG
+mov	es,ax
+```
+
+下面是bootsect.s的第92-102行，主要使用BIOS中断```0x10```向终端中打印信息。
+
+```x86asm
+! Print some inane message
+
+	mov	ah,#0x03		! read cursor pos
+	xor	bh,bh
+	int	0x10
 	
-	mov	$30, %cx
-	mov	$0x0007, %bx		# page 0, attribute 7 (normal)
-	#lea	msg1, %bp
-	mov     $msg1, %bp
-	mov	$0x1301, %ax		# write string, move cursor
-	int	$0x10
+	mov	cx,#24
+	mov	bx,#0x0007		! page 0, attribute 7 (normal)
+	mov	bp,#msg1
+	mov	ax,#0x1301		! write string, move cursor
+	int	0x10
 ```
 
-### 加载system模块到0x1000:0x0000处
+```0x10```中断号有多个功能,具体含义如下：
+- 1.读光标位置，```ah=0x03```
+	
+  输入：
+  - bh = 页号
+	
+  输出：
+  - ch = 扫描开始线
+  - cl = 扫描结束线
+ - dh = 行号
+ - dl = 列号
+
+- 2.打印字符串：```ah=0x013```
+  
+  输入：
+  - al = 放置光标的方式和规定属性
+  - es:bp 字符串位置
+  - cx = 显示的字符串字符数
+  - bh = 显示页面号
+  - bl = 字符属性
+  - dh = 行号
+  - dl = 列号
+
+首先读取了目前光标所在的位置，存储在了```dx```中。
+
+```x86asm
+	mov	ah,#0x03		! read cursor pos
+	xor	bh,bh
+	int	0x10
+```
+
+接着指定了要显示的字符串的长度为24， 页面号为0，字符属性为7，要显示的字符位置是```0x9000:msg```, 即```\r\nLoading system ...\r\n\r\n```,放置光标的方式和规定属性为0x1。
+
+```x86asm
+	mov	cx,#24
+	mov	bx,#0x0007		! page 0, attribute 7 (normal)
+	mov	bp,#msg1
+	mov	ax,#0x1301		! write string, move cursor
+	int	0x10
+```
+
+### step3：加载system模块到0x1000:0x0000处
 
 接下来，要继续读system模块到内存中。 
 
-ax =  0x1000, es = 0x1000
-```c
-	mov	$SYSSEG, %ax
-	mov	%ax, %es		# segment of 0x010000
+下面是bootsect.s的104-110行：
+
+```x86asm
+! ok, we've written the message, now
+! we want to load the system (at 0x10000)
+
+	mov	ax,#SYSSEG
+	mov	es,ax		! segment of 0x010000
 	call	read_it
 	call	kill_motor
 ```
 
-read_it实际上就是将system模块存放在0x1000:0x0000处。
+这里实际会设置```ax=0x1000```, ```es = 0x1000```，进而会调用```read_it```方法，稍后我们会详细理解```read_it```方法，这里我们先有个概念，```read_it```实际上作用就是将system模块存放在```0x1000:0x0000```处。
 
+```read_it```位于bootsect.s的第151行。
 
-test执行的是0x1000 & 0x0fff = 0x0000,
+首先看151-155行。
+
 ```x86asm
 read_it:
-	mov	%es, %ax
-	test	$0x0fff, %ax
-die:	jne 	die			# es must be at 64kB boundary
-	xor 	%bx, %bx		# bx is starting address within segment
+	mov ax,es
+	test ax,#0x0fff
+die:	jne die			! es must be at 64kB boundary
+	xor bx,bx		! bx is starting address within segment
 ```
 
-接下来rp_read的过程实际是逐磁道读取磁盘中system模块的过程。如下图所示共两个磁道，两个磁头，每磁道八个扇区，读取顺序如下所示，首先读取0磁头0磁道，然后读取1磁头0磁道，接着读取0磁头1磁道，最后读取1磁头1磁道。
+```test```指令执行AND运算，当AND运算的结果为零时，```test```设置零标志```ZF=1```。
 
-![rp_read](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/boot_ok_read.png)
+而这里```0x1000 & 0x0fff = 0x0000```,因此```ZF```会被设置。```jne```跳转的条件是```ZF == 0```，因此不会进行跳转。这里的作用主要是用来检查```es```的值要在````64KB```的边界处。
 
-rp_read首先判断是否已经读入了所有的数据(system模块)。比较ax和ENDSEG的值，如果不相等，则跳转到ok1_read中执行。
+除此以外```xor bx，bx```将```bx```的寄存器设置为0。
+
+接下来是第156-160行
 
 ```x86asm
 rp_read:
-	mov 	%es, %ax
- 	cmp 	$ENDSEG, %ax		# have we loaded all yet?
-	jb	ok1_read
+	mov ax,es
+	cmp ax,#ENDSEG		! have we loaded all yet?
+	jb ok1_read
 	ret
 ```
 
-在ok1_read中，则主要计算了当前磁道上还有多少扇区没有读取完。
+```rp_read```的实际是逐磁道读取磁盘中system模块的过程。如下图所示共两个磁道，两个磁头，每磁道八个扇区，读取顺序如下所示，首先读取0磁头0磁道，然后读取1磁头0磁道，接着读取0磁头1磁道，最后读取1磁头1磁道。
+
+![rp_read](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/boot_ok_read.png)
+
+rp_read首先判断是否已经读入了所有的数据(system模块)。比较```ax```和```ENDSEG```的值，如果不相等，则需要继续读取，于是跳转到```ok1_read```中执行。
+
+```ok1_read```位于161-172行：
 
 ```x86asm
 ok1_read:
-	#seg cs
-	mov	%cs:sectors+0, %ax !获取每磁道的扇区数
-	sub	sread, %ax         !减去当前磁道已读扇区数(bootsect + setup)
-	mov	%ax, %cx           !cx = ax = 当前柱面未读扇区数
-	shl	$9, %cx            !cx = cx * 512字节 + 段内偏移
-	add	%bx, %cx
-	jnc 	ok2_read       !调用ok2_read函数进行读取当前磁道上剩余扇区。
-	je 	ok2_read
-	xor 	%ax, %ax
-	sub 	%bx, %ax
-	shr 	$9, %ax
+	seg cs
+	mov ax,sectors
+	sub ax,sread
+	mov cx,ax
+	shl cx,#9
+	add cx,bx
+	jnc ok2_read
+	je ok2_read
+	xor ax,ax
+	sub ax,bx
+	shr ax,#9
+```
+
+```ok1_read```主要计算了当前磁道上还有多少扇区没有读取完。
+
+下面这几句计算出还有多少扇区没有读取，存到了```ax```中。
+
+```x86asm
+	mov ax,sectors
+	sub ax,sread
+	mov cx,ax
+	shl cx,#9
+	add cx,bx
 ```
 
 
-ok2_read实际的作用就是将**当前磁道上的所有扇区全部读完**。更具体的，就是读取开始扇区cl和需读扇区数al的数据到es:bx开始处。
+Ok2_read位于173-183行。ok2_read实际的作用就是将**当前磁道上的所有扇区全部读完**。更具体的，就是读取开始扇区```cl```和需读扇区数```al```的数据到```es:bx```开始处。
 
 ```x86asm
 ok2_read:
-	call 	read_track   !读当前柱面上指定开始扇区和要读的扇区数
-	mov 	%ax, %cx     !ax代表本次读取的扇区数，复制到cx中
-	add 	sread, %ax   !ax = ax + sread
-	#seg cs
-	cmp 	%cs:sectors+0, %ax !如果当前磁道上还有扇区未读，则跳转到ok3_read
-	jne 	ok3_read
-	mov 	$1, %ax       !ax = 1
-	sub 	head, %ax     !如果head = 0， ax = ax - head = 1,如果head = 1， ax = ax - head = 0, 即如果磁头号为0，则读取磁头面为1的扇区， 否则的话将读取下一个磁道上的数据。
-	jne 	ok4_read
-	incw    track 
+	call read_track
+	mov cx,ax             ！cx = ax，本次读取的扇区数
+	add ax,sread          ！当前磁道上已经读取的扇区数
+	seg cs
+	cmp ax,sectors        ！如果当前磁道上还有扇区未读，则跳转到ok3_read。
+	jne ok3_read
+	mov ax,#1             ！
+	sub ax,head           ！判断当前磁头号
+	jne ok4_read          ！如果是0磁头，则再去读1磁头上的扇区数据。如果是1磁头
+	inc track             ！否则读取下一个磁道
 ```
 
 如果当前磁道上还有扇区没有读，则会直接进入ok3_read，再次读取。否则先进入ok4_read，移动到下一个磁道或者下一个磁头进行读取。
+
 ```x86asm
 ok4_read:
 	mov	%ax, head        !保存当前的磁头号
@@ -335,39 +402,29 @@ ok3_read:
 	jmp	rp_read
 ```
 
-接下来的read_track在ok2_read中被调用，其作用是读取当前磁道上的扇面到es:bx处。
-
-回顾一下INT 0x13读取磁盘数据时的参数:
-- ah = 0x02 功能号，代表读磁盘到内存   
-- al = 需要读出的扇区总数
-- ch = 磁道(柱面)号的低8位
-- cl = 0-5位代表开始扇区， 6-7位代表磁道号的高2位代表柱面的高2位。
-- dh = 磁头号       
-- dl = 驱动器号
-- es:bx = 指向数据缓冲区
-- 如果出错，则CF标志位置位，ah中将存放出错码
+接下来的read_track在ok2_read中被调用，其作用是读取当前磁道上的扇面到```es:bx````处。
 
 ```x86asm
 read_track:
-	push	%ax       !保存ax,bx,cx,dx寄存器
-	push	%bx
-	push	%cx
-	push	%dx
-	mov	track, %dx    !获取当前的磁道号
-	mov	sread, %cx    !获取当前磁道上的已读扇区数
-	inc	%cx           !cl = 开始读的扇区号
-	mov	%dl, %ch      !ch = 当前磁道号
-	mov	head, %dx     !dx = 当前磁头号， 目前磁头号还在dl中，后面会挪动到dh中。
-	mov	%dl, %dh      !将磁头号从dl挪动到dh中
-	mov	$0, %dl       !dl = 驱动器号
-	and	$0x0100, %dx  !将dx与0x0100进行按位与，实际就是使得磁头号小于等于1。
-	mov	$2, %ah       !ah = 2，读磁盘扇区的功能号
-	int	$0x13         !0x13号中断， 读取磁盘数据。
-	jc	bad_rt        !如果出错，则跳转运行bad_rt
-	pop	%dx           !恢复dx,cx,bx,ax寄存器
-	pop	%cx
-	pop	%bx
-	pop	%ax
+	push ax            !保存ax,bx,cx,dx寄存器
+	push bx            
+	push cx            
+	push dx
+	mov dx,track       !获取当前的磁道号
+	mov cx,sread       !获取当前磁道上的已读扇区数
+	inc cx             !cl = 开始读的扇区号
+	mov ch,dl          !ch = 当前磁道号
+	mov dx,head        !dx = 当前磁头号， 目前磁头号还在dl中，后面会挪动到dh中。
+	mov dh,dl          !将磁头号从dl挪动到dh中
+	mov dl,#0          !dl = 驱动器号
+	and dx,#0x0100     !将dx与0x0100进行按位与，实际就是使得磁头号小于等于1。
+	mov ah,#2          !ah = 2，读磁盘扇区的功能号
+	int 0x13           !0x13号中断， 读取磁盘数据。
+	jc bad_rt          !如果出错，则跳转运行bad_rt
+	pop dx             !恢复dx,cx,bx,ax寄存器
+	pop cx
+	pop bx
+	pop ax
 	ret
 ```
 
