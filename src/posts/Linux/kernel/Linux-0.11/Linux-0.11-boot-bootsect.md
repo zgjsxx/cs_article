@@ -336,7 +336,7 @@ rp_read:
 
 ![rp_read](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/boot_ok_read.png)
 
-rp_read首先判断是否已经读入了所有的数据(system模块)。比较```ax```和```ENDSEG```的值，如果不相等，则需要继续读取，于是跳转到```ok1_read```中执行。
+```rp_read```首先判断是否已经读入了所有的数据(system模块)。比较```ax```和```ENDSEG```的值，如果不相等，则需要继续读取，于是跳转到```ok1_read```中执行。
 
 ```ok1_read```位于161-172行：
 
@@ -355,23 +355,32 @@ ok1_read:
 	shr ax,#9
 ```
 
-```ok1_read```主要计算了当前磁道上还有多少扇区没有读取完。
+```ok1_read```主要计算了当前磁道上还有多少扇区没有读取完，并将当期磁道上还剩下的扇区数存在了```ax```中， 将下一次读磁盘读到的字节数存到了```cx```中。
 
-下面这几句计算出还有多少扇区没有读取，存到了```ax```中。
+下面这几句便是计算的过程：
 
 ```x86asm
 	mov ax,sectors
-	sub ax,sread
+	sub ax,sread          ！当前磁道还有多少扇区没有读，下面调用read_track的时候会使用到该参数
 	mov cx,ax
-	shl cx,#9
-	add cx,bx
+	shl cx,#9             ！计算这一次读会读多少字节
 ```
 
+接下来进行判断，读到的数据是否超过了64KB。如果没有超过，则会跳转到```ok2_read```执行。
 
-Ok2_read位于173-183行。ok2_read实际的作用就是将**当前磁道上的所有扇区全部读完**。更具体的，就是读取开始扇区```cl```和需读扇区数```al```的数据到```es:bx```开始处。
+```x86asm
+	add cx,bx             ！计算是否会超过64KB，64KB = 65536 = 1_00000000_00000000
+	jnc ok2_read
+	je ok2_read
+```
+
+ok2_read/ok3_read/ok4_read位于173-196行。
+
+ok2_read实际的作用就是将**当前磁道上的所有扇区全部读完**。更具体的，就是读取开始扇区```cl```和需读扇区数```al```的数据到```es:bx```开始处。
 
 ```x86asm
 ok2_read:
+                          ! ax 先前已经设置
 	call read_track
 	mov cx,ax             ！cx = ax，本次读取的扇区数
 	add ax,sread          ！当前磁道上已经读取的扇区数
@@ -382,19 +391,14 @@ ok2_read:
 	sub ax,head           ！判断当前磁头号
 	jne ok4_read          ！如果是0磁头，则再去读1磁头上的扇区数据。如果是1磁头
 	inc track             ！否则读取下一个磁道
-```
-
-如果当前磁道上还有扇区没有读，则会直接进入ok3_read，再次读取。否则先进入ok4_read，移动到下一个磁道或者下一个磁头进行读取。
-
-```x86asm
 ok4_read:
-	mov	%ax, head        !保存当前的磁头号
-	xor	%ax, %ax         !清除已读扇区数
+	mov	%ax, head         !保存当前的磁头号
+	xor	%ax, %ax          !清除已读扇区数
 ok3_read:
-	mov	%ax, sread       !保存当前扇区已读扇区数
+	mov	%ax, sread        !保存当前扇区已读扇区数
 	shl	$9, %cx
 	add	%cx, %bx
-	jnc	rp_read
+	jnc	rp_read           ！已经读取了64KB数据，调整当前段，为读取下一段数据做准备。
 	mov	%es, %ax
 	add	$0x1000, %ax
 	mov	%ax, %es
@@ -402,7 +406,14 @@ ok3_read:
 	jmp	rp_read
 ```
 
-接下来的read_track在ok2_read中被调用，其作用是读取当前磁道上的扇面到```es:bx````处。
+
+```ok2_read```的第一句话是调用了```read_track```方法：
+
+```x86asm
+call read_track
+```
+
+```read_track```的作用是读取当前磁道上的扇面到```es:bx```处。
 
 ```x86asm
 read_track:
@@ -428,34 +439,73 @@ read_track:
 	ret
 ```
 
+```read_track```之后，会统计一些数据，看本磁道上的扇区是否全部读完，如果没有读完，则跳转到```ok3_read```进行再次读取。
 
-看到这里，我们再回到调用read_it的地方,	注意到其中的```ljmp	$SETUPSEG, $0```，这便是跳转到了setup.s中进行执行。
 ```x86asm
-	mov	$SYSSEG, %ax
-	mov	%ax, %es		# segment of 0x010000
-	call	read_it     !读取磁盘上system模块
-	call	kill_motor  !关闭驱动器马达
+	mov cx,ax             ！cx = ax，本次读取的扇区数
+	add ax,sread          ！当前磁道上已经读取的扇区数
+	seg cs
+	cmp ax,sectors        ！如果当前磁道上还有扇区未读，则跳转到ok3_read。
+	jne ok3_read
+```
 
-	#seg cs
-	mov	%cs:root_dev+0, %ax
-	cmp	$0, %ax
+如果已经读完，则调整磁头和磁道，继续读取。这里指定了磁盘读取的顺序。
+
+```x86asm
+	mov ax,#1             ！
+	sub ax,head           ！判断当前磁头号
+	jne ok4_read          ！如果是0磁头，则再去读1磁头上的扇区数据。如果是1磁头
+	inc track             ！否则读取下一个磁道
+ok4_read:
+	mov head,ax
+	xor ax,ax
+```
+
+需要分情况进行讨论：
+- 如果当前是0磁头0磁道，即```head=0```， ```track=0```则```ax = 1```，```sub ax, head```之后，```ax = 1```， 由于相减不等于0，因此```ZF = 0```，```jne```会进行跳转， 于是```head=1```。
+- 如果当前是1磁头0磁道，即```head=1```， ```track=0```则```ax = 0```，```sub ax, head```之后，```ax = 0```， 由于相减等于0，因此```ZF = 1```，```jne```不会进行跳转， 于是```head=0```，```track=1```。
+- 如果当前是0磁头1磁道，即```head=0```， ```track=1```则```ax = 1```，```sub ax, head```之后，```ax = 1```， 由于相减不等于0，因此```ZF = 0```，```jne```会进行跳转， 于是```head=1```。
+
+总结起来读取顺序是首先读取0磁头0磁道，然后读取1磁头0磁道，接着读取0磁头1磁道，最后读取1磁头1磁道。
+
+读到这里应该对整个读取的过程有了一个概念，整个过程的流程如下所示：
+
+![read_disk](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/read_disk.png)
+
+
+看到这里，我们再回到调用```read_it```的地方,	注意到其中的```ljmp	$SETUPSEG, $0```，这便是跳转到了setup.s中进行执行。
+
+```x86asm
+! After that we check which root-device to use. If the device is
+! defined (!= 0), nothing is done and the given device is used.
+! Otherwise, either /dev/PS0 (2,28) or /dev/at0 (2,8), depending
+! on the number of sectors that the BIOS reports currently.
+
+	seg cs
+	mov	ax,root_dev
+	cmp	ax,#0
 	jne	root_defined
-	#seg cs
-	mov	%cs:sectors+0, %bx
-	mov	$0x0208, %ax		# /dev/ps0 - 1.2Mb
-	cmp	$15, %bx
+	seg cs
+	mov	bx,sectors
+	mov	ax,#0x0208		! /dev/ps0 - 1.2Mb
+	cmp	bx,#15
 	je	root_defined
-	mov	$0x021c, %ax		# /dev/PS0 - 1.44Mb
-	cmp	$18, %bx
+	mov	ax,#0x021c		! /dev/PS0 - 1.44Mb
+	cmp	bx,#18
 	je	root_defined
 undef_root:
 	jmp undef_root
 root_defined:
-	#seg cs
-	mov	%ax, %cs:root_dev+0
+	seg cs
+	mov	root_dev,ax
 
-	ljmp	$SETUPSEG, $0   !跳转到SETUPSEG模块进行执行
+! after that (everyting loaded), we jump to
+! the setup-routine loaded directly after
+! the bootblock:
+
+	jmpi	0,SETUPSEG
 ```
+
 ## Q & A
 
 
