@@ -8,7 +8,6 @@ export const zhSidebar = sidebar({
       prefix: "",
       link: "",
       children: [
-        "readme",
         "Linux-0.11-assemble-language",
         "Linux-0.11-boot-bootsect",
         "Linux-0.11-boot-head",
