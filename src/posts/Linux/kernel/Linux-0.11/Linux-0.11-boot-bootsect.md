@@ -5,6 +5,15 @@ tag:
   - Linux-0.11代码解读系列
 ---
 
+- [Linux-0.11 boot目录bootsect.s详解](#linux-011-boot目录bootsects详解)
+	- [模块简介](#模块简介)
+	- [过程详解](#过程详解)
+		- [step1：搬运bootsect.s代码到```0x9000:0x0000```处](#step1搬运bootsects代码到0x90000x0000处)
+		- [step2：加载setup.s代码到```0x9000:0x200```处](#step2加载setups代码到0x90000x200处)
+		- [step3：加载system模块到```0x1000:0x0000```处](#step3加载system模块到0x10000x0000处)
+	- [参考文章](#参考文章)
+
+
 # Linux-0.11 boot目录bootsect.s详解
 
 ## 模块简介
@@ -20,7 +29,7 @@ bootsect.s主要做了如下的三件事:
 
 ## 过程详解
 
-### step1：搬运bootsect.s代码到0x9000:0x0000处
+### step1：搬运bootsect.s代码到```0x9000:0x0000```处
 
 下面是bootsect.s中开头1-50行。
 
@@ -136,9 +145,9 @@ go:	mov	ax,cs  #将ds，es，ss都设置成移动后代码所在的段处(0x9000
 ```cs```寄存器的值为```0x9000```。接下来的操作就是将```ds```，```es```，```ss```都赋值为```0x9000```。同时将```sp```设置为```0xFF00```。
 
 
-### step2：加载setup.s代码到0x9000:0x200处
+### step2：加载setup.s代码到```0x9000:0x200```处
 
-接下来这一部分用于加载setup.s的代码到0x9000:0200处。
+接下来这一部分用于加载setup.s的代码到```0x9000:0x200```处。
 
 下面这里是bootsect.s的67-77行。
 
@@ -286,7 +295,7 @@ mov	es,ax
 	int	0x10
 ```
 
-### step3：加载system模块到0x1000:0x0000处
+### step3：加载system模块到```0x1000:0x0000```处
 
 接下来，要继续读system模块到内存中。 
 
@@ -400,7 +409,7 @@ ok3_read:
 	add	%cx, %bx
 	jnc	rp_read           ！已经读取了64KB数据，调整当前段，为读取下一段数据做准备。
 	mov	%es, %ax
-	add	$0x1000, %ax
+	add	$0x1000, %ax      !刚开始是0x1000，读完64Kb之后，调整为0x2000，0x3000，最终到0x4000结束。
 	mov	%ax, %es
 	xor	%bx, %bx
 	jmp	rp_read
@@ -473,9 +482,13 @@ ok4_read:
 ![read_disk](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/read_disk.png)
 
 
-看到这里，我们再回到调用```read_it```的地方,	注意到其中的```ljmp	$SETUPSEG, $0```，这便是跳转到了setup.s中进行执行。
+看到这里，我们再回到调用```read_it```的地方, 我们看看当读取完system模块之后，还会做些什么操作。
 
 ```x86asm
+	mov	ax,#SYSSEG
+	mov	es,ax		! segment of 0x010000
+	call	read_it
+	call	kill_motor
 ! After that we check which root-device to use. If the device is
 ! defined (!= 0), nothing is done and the given device is used.
 ! Otherwise, either /dev/PS0 (2,28) or /dev/at0 (2,8), depending
@@ -506,13 +519,67 @@ root_defined:
 	jmpi	0,SETUPSEG
 ```
 
-## Q & A
+这里首先判断了```root_dev```是否进行了定义。如果定义了，则跳转到```root_defined```执行。
 
+0x0306
 
-https://github.com/Wangzhike/HIT-Linux-0.11/blob/master/1-boot/OS-booting.md
+```x86asm
+	seg cs
+	mov	ax,root_dev
+	cmp	ax,#0
+	jne	root_defined
+```
 
------
+这里需要补充一下Linux-0.11对于设备号的定义：
+
+$$设备号 = 主设备号 * 256 + 次设备号$$
+
+主设备号： 1-内存，2-磁盘，3-硬盘， 4-ttyx，5-tty，6-并行口，7非命名管道
+
+|主设备号|设备名|含义|
+|--|--|--|
+|0x300|/dev/hd0|代表第1块硬盘|
+|0x301|/dev/hd1|代表第1块硬盘的第1个分区|
+|0x302|/dev/hd2|代表第1块硬盘的第2个分区|
+|0x303|/dev/hd3|代表第1块硬盘的第3个分区|
+|0x304|/dev/hd4|代表第1块硬盘的第4个分区|
+|0x305|/dev/hd5|代表第2块硬盘|
+|0x306|/dev/hd6|代表第2块硬盘的第1个分区|
+|0x307|/dev/hd7|代表第2块硬盘的第2个分区|
+|0x308|/dev/hd8|代表第2块硬盘的第3个分区|
+|0x309|/dev/hd9|代表第2块硬盘的第4个分区|
+
+在Linux-0.11中，这里的```ROOT_DEV```定义为```0x306```,因为当年linus是在第2块硬盘上的安装的文件系统。在编译内核时，可以根据自己的环境修改该参数。
+
+假设没有定义```ROOT_DEV```，就需要根据BIOS的每磁道扇区数来决定是使用/dev/PS0(0x0208)还是/dev/at0(0x021c)。
+
+```x86asm
+	seg cs
+	mov	bx,sectors
+	mov	ax,#0x0208		! /dev/ps0 - 1.2Mb
+	cmp	bx,#15
+	je	root_defined
+	mov	ax,#0x021c		! /dev/PS0 - 1.44Mb
+	cmp	bx,#18
+	je	root_defined
+```
+
+程序的最后，因为所有的需要加载的内容都加载完了，于是执行```jmpi	0,SETUPSEG```跳转到了setup.s中进行执行。
+
+文章的最后，我们通过一张图回顾一下bootsect.s所做的一些事情：
+
+![bootsect-overview](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/bootsect_overview.png)
+
 
 文中如有表达不正确之处，欢迎大家与我交流，微信号codebuilding。
 
-![](https://github.com/zgjsxx/static-img-repo/raw/main/blog/personal/wechat.jpg)
+![wechat](https://github.com/zgjsxx/static-img-repo/raw/main/blog/personal/wechat.jpg)
+
+-----
+
+
+## 参考文章
+
+https://github.com/Wangzhike/HIT-Linux-0.11/blob/master/1-boot/OS-booting.md
+
+
