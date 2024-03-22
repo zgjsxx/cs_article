@@ -18,9 +18,11 @@ https://github.com/yuan-xy/Linux-0.11.git( AT&T 汇编格式)
 - Linux-0.11深入解读.pdf
 
 ## 汇编语言基础
-[Linux-0.11 汇编语言](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-assemble-language.html)
+
+[Linux-0.11 中的汇编语言](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-assemble-language.html)
 
 ## 启动引导
+
 [Linux-0.11 boot目录bootsect.s详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-boot-bootsect.html)
 
 [Linux-0.11 boot目录setup.s详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-boot-setup.html)
@@ -28,6 +30,7 @@ https://github.com/yuan-xy/Linux-0.11.git( AT&T 汇编格式)
 [Linux-0.11 boot目录head.s详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-boot-head.html)
 
 ## 进程管理
+
 [Linux-0.11 kernel目录fork.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-fork.html)
 
 [Linux-0.11 kernel目录sched.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-sched.html)
@@ -66,6 +69,7 @@ https://github.com/yuan-xy/Linux-0.11.git( AT&T 汇编格式)
 
 
 ## 文件系统
+
 [Linux-0.11 fs 目录inode.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-fs-inode.html)
 
 [Linux-0.11 fs 目录buffer.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-fs-buffer.html)
