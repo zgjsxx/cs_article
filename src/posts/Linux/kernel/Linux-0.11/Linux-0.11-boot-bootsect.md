@@ -343,7 +343,7 @@ rp_read:
 
 ```rp_read```的实际是逐磁道读取磁盘中system模块的过程。如下图所示共两个磁道，两个磁头，每磁道八个扇区，读取顺序如下所示，首先读取0磁头0磁道，然后读取1磁头0磁道，接着读取0磁头1磁道，最后读取1磁头1磁道。
 
-![rp_read](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/boot_ok_read.png)
+![rp_read](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/bootsect/boot_ok_read.png)
 
 ```rp_read```首先判断是否已经读入了所有的数据(system模块)。比较```ax```和```ENDSEG```的值，如果不相等，则需要继续读取，于是跳转到```ok1_read```中执行。
 
@@ -479,7 +479,7 @@ ok4_read:
 
 读到这里应该对整个读取的过程有了一个概念，整个过程的流程如下所示：
 
-![read_disk](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/read_disk.png)
+![read_disk](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/bootsect/read_disk.png)
 
 
 看到这里，我们再回到调用```read_it```的地方, 我们看看当读取完system模块之后，还会做些什么操作。
@@ -568,7 +568,7 @@ $$设备号 = 主设备号 * 256 + 次设备号$$
 
 文章的最后，我们通过一张图回顾一下bootsect.s所做的一些事情：
 
-![bootsect-overview](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/bootsect_overview.png)
+![bootsect-overview](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/bootsect/bootsect_overview.png)
 
 
 文中如有表达不正确之处，欢迎大家与我交流，微信号codebuilding。

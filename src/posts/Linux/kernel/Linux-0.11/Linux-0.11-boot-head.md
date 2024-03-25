@@ -44,7 +44,7 @@ startup_32:
 
 中断门描述符的格式如下所示:
 
-![中断门描述符格式](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/head_idt.png)
+![中断门描述符格式](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/head/head_idt.png)
 
 
 ### 检查A20地址线是否开启
@@ -88,7 +88,7 @@ check_x87:
 ### 初始化页表并开启分页
 
 下面这里将进行页表的安装，安装的过程参考下面这张图：
-![页表的设置](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/head_setup_paging.png)
+![页表的设置](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/head/head_setup_paging.png)
 
 ```x86asm
 after_page_tables:
@@ -136,7 +136,7 @@ setup_paging:
 ```
 这里就需要回顾一下c语言的调用规约，如下图所示：
 
-![启动中内存分布变化](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/head_caller_stack.png)
+![启动中内存分布变化](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/head/head_caller_stack.png)
 
 因此这里可以得到L6是main函数的返回值。立即数0，0，0将会被作为main函数的入参。
 
