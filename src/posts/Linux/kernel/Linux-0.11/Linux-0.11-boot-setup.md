@@ -243,9 +243,7 @@ gdt_48:
 
 ### step4：打开A20地址线
 
-下面这里是开启A20地址线。
-
-后面涉及了对于中断芯片8259a的编程，这个过程参考附录1。
+下面是setup.s的137-144，用于开启A20地址线。
 
 ```x86asm
 	call	empty_8042
@@ -255,7 +253,11 @@ gdt_48:
 	mov	al,#0xDF		! A20 on
 	out	#0x60,al
 	call	empty_8042
+```
 
+后面这段程序主要对中断原件8259A进行了初始化，其中涉及了对于中断芯片8259a的编程，这块内容参考附录1。
+
+```x86asm
 ! well, that went ok, I hope. Now we have to reprogram the interrupts :-(
 ! we put them right after the intel-reserved hardware interrupts, at
 ! int 0x20-0x2F. There they won't mess up anything. Sadly IBM really
@@ -294,18 +296,21 @@ gdt_48:
 
 ### step5: 切换32位保护模式
 
-切换到32位保护模式
+下面是setup.s的191-192行，其作用是切换到32位保护模式。
 
 ```x86asm
-	#mov	$0x0001, %ax	# protected mode (PE) bit
-	#lmsw	%ax		# This is it!
-	mov	%cr0, %eax	# get machine status(cr0|MSW)	
-	bts	$0, %eax	# turn on the PE-bit 
-	mov	%eax, %cr0	# protection enabled
-				
-				# segment-descriptor        (INDEX:TI:RPL)
-	.equ	sel_cs0, 0x0008 # select for code segment 0 (  001:0 :00) 
+	mov	ax,#0x0001	! protected mode (PE) bit
+	lmsw	ax		! This is it!
+	jmpi	0,8		! jmp offset 0 of segment 8 (cs)
 ```
+
+这里首先需要加载机器状态字（Load-Machine status word-lmsw），其实就是设置CR0寄存器，降比特0改为1。
+
+接下来使用jmpi进行跳转，注意这里已经从实模式切换到了保护模式。
+
+```jmpi	0,8	```表示段选择子为8，偏移为0。位0-1表示请求的特权级。位2用于描述是全局描述符表(0)还是局部描述符表(1)。位3-15表示描述符的索引。
+
+```8 = 0000000000001_0_00```,因此请求特权级为0，使用的是gdt表中的第二段描述符。通过查找可知(setup.s的209行)，其基地址为0。这个时候0x0处存放的是system模块的代码。于是后续就跳转到了head.s中继续执行。
 
 ### 跳转到system.s中运行
 
@@ -325,13 +330,17 @@ gdt_48:
 
 ## 附录 
 
-### 1.8259工作方式
+### 1.Intel 8259A编程
 
-8259的命令字分为两部分：初始化命令字（ICW = initial command words）和操作命令字(OCW = operate command words)
+Intel 8259A用于管理和控制80x86的外部中断请求，实现优先级判决，提供中断类型码，屏蔽中断输入等功能。使用级联方式，可扩充到64级。
 
-A0 = 0， 操作端口为0x20和0xA0。
+8259A的命令字分为两部分：初始化命令字（ICW = initial command words）和操作命令字(OCW = operate command words)。8259A芯片的内部结构如下所示：
 
-ICW1的格式如下
+![ICW1](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/setup/8259A.png)
+
+**ICW1**
+
+ICW1的格式如下:
 
 <table>
     <tr>
@@ -368,7 +377,9 @@ ICW1的格式如下
 ![ICW1](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/setup/ICW1.png)
 
 
-ICW2主要设置了中断号的取值范围。其设置芯片送出的中断号的高5位。当A0 = 1时表示对ICW2进行设置
+**ICW2**
+
+**ICW2**主要设置了中断号的取值范围。其设置芯片送出的中断号的高5位。当A0 = 1时表示对ICW2进行设置
 
 A0 = 1， 操作端口为0x21和0xA1。
 
@@ -377,8 +388,9 @@ ICW2的格式如下：
 
 Linux 0.11系统把主片的ICW2设置为0x20，表示主片中断请求的0级-7级对应的中断号范围是0x20-0x27。 而从片的ICW2被设置为0x28，表示从片的中断请求8级-15级对应的中断号范围是0x28-0x2f。
 
+**ICW3**
 
-ICW3指定了主从8259芯片的连接关系。
+ICW3描述了主从8259A芯片的连接关系。
 
 A0 = 1， 操作端口为0x21和0xA1。
 
@@ -386,7 +398,19 @@ ICW3格式：
 
 Linux 0.11内核将8259A主片的ICW3设置为0x04，即s2 = 1，其余各位为0。
 
-ICW4：
+对于主片8259a， ICW3表示哪些${IR}_{i}$引脚接有从片8259A。接有从片8259A的相应S位置1，否则置0。
+
+例如若IR2、IR6上接有从片8259A，且其他IR引脚没有接从片8259A，则主片ICW3为```0100_0100```。
+
+对于从片8259A,用ICW3中的ID2~ID0表示本8259A接在主片8259A的哪一根IR引脚下。IR0-IR7分别对应ID码为000-111。
+
+例如从片的8259A接在主片的8259A的IR6上，则从片8259A的ICW3设定为：
+
+$$ID2=1， ID1=1,ID0=0$$
+
+**ICW4**
+
+80x86系统必须设置ICW4，端口为奇地址。
 
 |位|名称|含义|
 |${D}_{7}$|0|恒为0|
@@ -398,5 +422,9 @@ ICW4：
 |${D}_{1}$|AEOI|1-自动结束中断方式；0-非自动结束方式|
 |${D}_{0}$|uPM|1-8086/88处理器系统； 0-MCS80/85系统|
 
+更多有关8259A的内容，可以参考[这里](http://jpk.pku.edu.cn/course/wjyl/script/chapter18.pdf)。
+## 参考文献
+
+北京大学微机原理 http://jpk.pku.edu.cn/course/wjyl/script/chapter18.pdf
 
 https://blog.csdn.net/weixin_42214698/article/details/125036960
