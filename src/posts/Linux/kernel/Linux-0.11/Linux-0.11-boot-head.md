@@ -9,6 +9,8 @@ tag:
 
 ## 模块简介
 
+从这里开始，内核完全是在保护模式下运行了。head.s汇编程序与前面的语法格式不同，它采用的是AT&T汇编格式，需要使用GNU的gas和gld进行编译链接。
+
 在head.s中，操作系统主要做了如下几件事：
 - 重新设置中断描述符和全局描述符
 - 检查A20地址线是否开启
@@ -22,16 +24,16 @@ tag:
 
 在setup.s中我们已经设置过了IDT和GDT， 为什么还要再设置一遍？
 
-因为setup.s中设置的IDT和GDT后面会被覆盖，因此在head.S中会重新设置一遍。
+因为setup.s中设置的IDT和GDT后面会被覆盖，因此在head.s中会重新设置一遍。
 
 ```x86asm
 startup_32:
-	movl $0x10,%eax
+	movl $0x10,%eax      ！0x10 = 0000000000010_00_0, GDT表中的第2项，即内核数据段
 	mov %ax,%ds
 	mov %ax,%es
 	mov %ax,%fs
 	mov %ax,%gs
-	lss stack_start,%esp
+	lss stack_start,%esp   ！定义在sched.c中 
 	call setup_idt     !设置中断
 	call setup_gdt     !设置全局描述符表
 	movl $0x10,%eax		# reload all the segment registers
@@ -59,9 +61,14 @@ startup_32:
 	je 1b
 ```
 
+如果没有开启A20地址线，那么其寻址空间是0-fffff。超过fffff的部分的地址的高位将会被移除，这就会产生地址环绕。
+
+例如```1_00000```去除了高位的1之后，就是```000000```。对```00000```处写一个值，然后看```1_00000```处的值是否相同，如果相同，则代表产生了地址环绕，A20没有开启。如果不相同，则代表没有地址环绕，A20成功开启。
 
 
-### step2：检查数学协处理器
+
+### step3: 检查数学协处理器
+
 
 下面用于检查数学协处理器芯片是否存在
 
@@ -78,8 +85,8 @@ startup_32:
  * We depend on ET to be correct. This checks for 287/387.
  */
 check_x87:
-	fninit     !向协处理发出初始化命令
-	fstsw %ax  !取协处理器状态字到ax寄存器中
+	fninit          !向协处理发出初始化命令
+	fstsw %ax       !取协处理器状态字到ax寄存器中
 	cmpb $0,%al
 	je 1f			/* no coprocessor: have to set bits */
 	movl %cr0,%eax
@@ -163,6 +170,7 @@ setup_paging:
 ## Q & A
 
 ### setup_paging在建立页表时会将head.s的部分代码覆盖，怎么保证不会把正在执行的代码覆盖？
+
 可以通过反汇编查看一下system模块的内存分布
 
 ```shell
