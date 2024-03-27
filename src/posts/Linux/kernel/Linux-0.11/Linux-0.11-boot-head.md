@@ -12,7 +12,7 @@ tag:
 		- [step2：检查A20地址线是否开启](#step2检查a20地址线是否开启)
 		- [step3: 检查数学协处理器](#step3-检查数学协处理器)
 		- [step4：初始化页表并开启分页](#step4初始化页表并开启分页)
-		- [step4：跳转到main函数执行](#step4跳转到main函数执行)
+		- [step5：跳转到main函数执行](#step5跳转到main函数执行)
 	- [Q \& A](#q--a)
 		- [setup\_paging在建立页表时会将head.s的部分代码覆盖，怎么保证不会把正在执行的代码覆盖？](#setup_paging在建立页表时会将heads的部分代码覆盖怎么保证不会把正在执行的代码覆盖)
 
@@ -185,7 +185,9 @@ setup_paging:
 	movl $pg3+7,pg_dir+12		/*  --------- " " --------- */
 ```
 
-这一番操作使得页目录表中的四个元素指向了对应的页表。
+这一番操作使得页目录表中的四个元素指向了对应的页表,如下图所示：
+
+![页目录表初始化](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/head/setup-pagetable-1.png)
 
 接下俩就是初始化四个页表中的内容了，这里的构建方式是物理地址和线性地址一一对应的关系。
 
@@ -213,7 +215,7 @@ setup_paging:
 	ret			/* this also flushes prefetch-queue */
 ```
 
-### step4：跳转到main函数执行
+### step5：跳转到main函数执行
 
 在setup_paging执行完毕之后，会通过ret返回，ret指令会将栈顶的内容弹出到PC指针中去执行。此时esp指向的位置存放的是main函数的地址。因此接下来会执行main函数。
 
