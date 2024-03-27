@@ -96,9 +96,7 @@ check_x87:
 
 ### step3：初始化页表并开启分页
 
-下面这里将进行页表的安装，安装的过程参考下面这张图：
-
-![页表的设置](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/head/head_setup_paging.png)
+下面是head.s的200-220， 其作用是初始化页表，并开启分页功能。
 
 ```x86asm
 after_page_tables:
@@ -133,7 +131,7 @@ setup_paging:
 	ret			/* this also flushes prefetch-queue */
 ```
 
-建立页表的第一步是对页目录表和页表项进行清零的初始化。
+建立页表的第一步是对**页目录表**和**页表项**进行清零的初始化操作。
 
 ```x86asm
 setup_paging:
@@ -150,6 +148,58 @@ setup_paging:
 最后使用```cld;rep;stosl```进行循环赋值。将```eax```的值依次赋值给```0x0， 0x4， 0x8 ...```。
 
 总结起来，这里的作用就是将页目录表和页表全部清零。
+
+接下来的操作是给页目录表进行赋值。这里我们回顾一下页目录项和页表项的结构。其中高20位代表的是帧地址。第0位表示存在位，第1位表示读写标志位，第2位表示用户超级用户标志。
+
+```shell
+31                 12   9   7 6 5 4 3   2   1 0
++--------------------+---+-+-+-+-+-+-+---+---+-+
++ Frame Address      +   |0 0|D|A|0 0+U/S|R/W|P|
++--------------------+---+-+-+-+-+-+-+---+---+-+
+```
+
+第一个页表所在的地址是```0x00001007 & 0xfffff000 = 0x1000```，属性标志是```0x00001007 & 0x00000fff = 0x07```。
+
+第一个页表所在的地址是```0x00002007 & 0xfffff000 = 0x2000```，属性标志是```0x00002007 & 0x00000fff = 0x07```。
+
+第一个页表所在的地址是```0x00003007 & 0xfffff000 = 0x3000```，属性标志是```0x00003007 & 0x00000fff = 0x07```。
+
+第一个页表所在的地址是```0x00004007 & 0xfffff000 = 0x4000```，属性标志是```0x00004007 & 0x00000fff = 0x07```。
+
+```x86asm
+	movl $pg0+7,pg_dir		/* set present bit/user r/w */
+	movl $pg1+7,pg_dir+4		/*  --------- " " --------- */
+	movl $pg2+7,pg_dir+8		/*  --------- " " --------- */
+	movl $pg3+7,pg_dir+12		/*  --------- " " --------- */
+```
+
+这一番操作使得页目录表中的四个元素指向了对应的页表。
+
+接下俩就是初始化四个页表中的内容了，这里的构建方式是物理地址和线性地址一一对应的关系。
+
+```x86asm
+	movl $pg3+4092,%edi
+	movl $0xfff007,%eax		/*  16Mb - 4096 + 7 (r/w user,p) */
+	std
+1:	stosl			/* fill pages backwards - more efficient :-) */
+	subl $0x1000,%eax
+	jge 1b
+```
+
+最终初始化后的页表如下图所示：
+
+![页表的设置](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/head/head_setup_paging.png)
+
+下面设置```cr3```指向全局页目录表，并且开启分页。
+
+```x86asm
+	xorl %eax,%eax		/* pg_dir is at 0x0000 */
+	movl %eax,%cr3		/* cr3 - page directory start */
+	movl %cr0,%eax
+	orl $0x80000000,%eax
+	movl %eax,%cr0		/* set paging (PG) bit */
+	ret			/* this also flushes prefetch-queue */
+```
 
 ### step4：跳转到main函数执行
 
@@ -183,7 +233,6 @@ setup_paging:
    ...
    ret
 ```
-
 
 ## Q & A
 
@@ -270,7 +319,6 @@ objdump -d tools/system
 ```
 
 可以看到代码标号setup_page的起始地址是0000544e，而内存页表和页目录表的地址范围是0x0000-0x5000。因此当程序执行到setup_page时，将建立页目录表和页表， 这将会覆盖0x0000-0x5000的部分代码，即pg_dir，check_x87，setup_idt，rp_sidt，setup_gdt， 并不会覆盖到setup_page的代码，head.s在代码的分布计算上确实是费了一番功夫。
-
 
 -----
 
