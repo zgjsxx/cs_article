@@ -5,6 +5,26 @@ tag:
   - Linux-0.11代码解读系列
 ---
 
+- [Linux-0.11 文件系统buffer.c详解](#linux-011-文件系统bufferc详解)
+  - [模块简介](#模块简介)
+  - [函数详解](#函数详解)
+    - [buffer\_init](#buffer_init)
+    - [find\_buffer](#find_buffer)
+    - [get\_hash\_table](#get_hash_table)
+    - [getblk](#getblk)
+    - [remove\_from\_queues](#remove_from_queues)
+    - [insert\_into\_queues](#insert_into_queues)
+    - [brelse](#brelse)
+    - [bread](#bread)
+    - [bread\_page](#bread_page)
+    - [breada](#breada)
+    - [wait\_on\_buffer](#wait_on_buffer)
+    - [sys\_sync](#sys_sync)
+    - [sync\_dev](#sync_dev)
+    - [invalidate\_buffer](#invalidate_buffer)
+    - [check\_disk\_change](#check_disk_change)
+
+
 # Linux-0.11 文件系统buffer.c详解
 
 ## 模块简介
