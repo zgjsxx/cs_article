@@ -11,6 +11,8 @@ tag:
   - [lea](#lea)
   - [lds](#lds)
   - [lss指令](#lss指令)
+  - [lodsb/lodsw](#lodsblodsw)
+  - [stosb/stosw](#stosbstosw)
   - [AND](#and)
   - [std和cld](#std和cld)
   - [TEST](#test)
@@ -83,6 +85,38 @@ lds dest, src
 ## lss指令
 
 lss指令是SS装入指令，格式如下 ```lss add, %esp``` 把add指向的内容装入到```SS:ESP``中。 这里要注意，add是一个内存地址，lss指令会把add指向的内存地址的前四字节装入ESP寄存器，后两字节装入SS段寄存器，而不是把add这个值装入ESP寄存器。 如：内存0x1000地址的内容为0x0000F000,0x0010，则lss指令会把0x0000F000装入ESP，0x0010装入SS段寄存器。
+
+## lodsb/lodsw
+
+lodsb等同于
+
+```x86asm
+mov al, ds:[si]
+inc si
+```
+
+lodsw等同于
+
+```x86asm
+mov ax, ds:[si]
+add si, 2
+```
+
+## stosb/stosw
+
+stosb等同于：
+
+```x86asm
+mov al, ds:[si]
+inc si
+```
+
+stosw等同于：
+
+```x86asm
+mov ax, ds:[si]
+add si, 2
+```
 
 ## AND 
 

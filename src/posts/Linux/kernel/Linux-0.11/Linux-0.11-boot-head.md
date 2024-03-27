@@ -69,7 +69,6 @@ startup_32:
 
 ### step3: 检查数学协处理器
 
-
 下面用于检查数学协处理器芯片是否存在
 
 ```x86asm
@@ -98,6 +97,7 @@ check_x87:
 ### step3：初始化页表并开启分页
 
 下面这里将进行页表的安装，安装的过程参考下面这张图：
+
 ![页表的设置](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/head/head_setup_paging.png)
 
 ```x86asm
@@ -132,6 +132,24 @@ setup_paging:
 	movl %eax,%cr0		/* set paging (PG) bit */
 	ret			/* this also flushes prefetch-queue */
 ```
+
+建立页表的第一步是对页目录表和页表项进行清零的初始化。
+
+```x86asm
+setup_paging:
+	movl $1024*5,%ecx		/* 5 pages - pg_dir+4 page tables */
+	xorl %eax,%eax
+	xorl %edi,%edi			/* pg_dir is at 0x000 */
+	cld;rep;stosl
+```
+
+由于后面会使用```rep```前缀，因此首先需要设置循环的次数。页目录表和页表的总大小是```1024*4*(4+1)```，由于我们使用的是```stosl```，即一次进行4个字节的初始化操作，于是```ecx```设置为```1024*5```。
+
+```xorl %eax,%eax```和 ```xorl %edi,%edi```将```eax```和```edi```设置为0。
+
+最后使用```cld;rep;stosl```进行循环赋值。将```eax```的值依次赋值给```0x0， 0x4， 0x8 ...```。
+
+总结起来，这里的作用就是将页目录表和页表全部清零。
 
 ### step4：跳转到main函数执行
 
