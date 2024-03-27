@@ -5,6 +5,20 @@ tag:
   - Linux-0.11代码解读系列
 ---
 
+- [Linux-0.11 boot目录setup.s详解](#linux-011-boot目录setups详解)
+	- [模块简介](#模块简介)
+	- [过程详解](#过程详解)
+		- [step1：打印硬件信息](#step1打印硬件信息)
+		- [step2：重新搬运system的位置](#step2重新搬运system的位置)
+		- [step3：设置IDT和GDT](#step3设置idt和gdt)
+		- [step4：打开A20地址线](#step4打开a20地址线)
+		- [step5: 切换32位保护模式](#step5-切换32位保护模式)
+		- [跳转到system.s中运行](#跳转到systems中运行)
+	- [附录](#附录)
+		- [1.Intel 8259A编程](#1intel-8259a编程)
+	- [参考文献](#参考文献)
+
+
 # Linux-0.11 boot目录setup.s详解
 
 ## 模块简介

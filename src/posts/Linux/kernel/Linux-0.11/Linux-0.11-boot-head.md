@@ -5,6 +5,18 @@ tag:
   - Linux-0.11代码解读系列
 ---
 
+- [Linux-0.11 boot目录head.s详解](#linux-011-boot目录heads详解)
+	- [模块简介](#模块简介)
+	- [过程详解](#过程详解)
+		- [step1：重新设置IDT和GDT](#step1重新设置idt和gdt)
+		- [step2：检查A20地址线是否开启](#step2检查a20地址线是否开启)
+		- [step3: 检查数学协处理器](#step3-检查数学协处理器)
+		- [step4：初始化页表并开启分页](#step4初始化页表并开启分页)
+		- [step4：跳转到main函数执行](#step4跳转到main函数执行)
+	- [Q \& A](#q--a)
+		- [setup\_paging在建立页表时会将head.s的部分代码覆盖，怎么保证不会把正在执行的代码覆盖？](#setup_paging在建立页表时会将heads的部分代码覆盖怎么保证不会把正在执行的代码覆盖)
+
+
 # Linux-0.11 boot目录head.s详解
 
 ## 模块简介
