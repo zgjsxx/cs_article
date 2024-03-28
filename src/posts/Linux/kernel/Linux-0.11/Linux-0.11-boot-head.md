@@ -26,7 +26,7 @@ tag:
 在head.s中，操作系统主要做了如下几件事：
 - 重新设置中断描述符和全局描述符
 - 检查A20地址线是否开启
-- 检查数学协处理器
+- 检查x87数学协处理器
 - 初始化页表并开启分页
 - 跳转到main函数执行
 
@@ -34,11 +34,14 @@ tag:
 
 ### step1：重新设置IDT和GDT
 
+下面是head.s的17-32行，其作用是重新设置IDT和GDT。
+
 在setup.s中我们已经设置过了IDT和GDT， 为什么还要再设置一遍？
 
 因为setup.s中设置的IDT和GDT后面会被覆盖，因此在head.s中会重新设置一遍。
 
 ```x86asm
+.globl startup_32
 startup_32:
 	movl $0x10,%eax      ！0x10 = 0000000000010_00_0, GDT表中的第2项，即内核数据段
 	mov %ax,%ds
@@ -49,17 +52,93 @@ startup_32:
 	call setup_idt     !设置中断
 	call setup_gdt     !设置全局描述符表
 	movl $0x10,%eax		# reload all the segment registers
-	mov %ax,%ds		# after changing gdt. CS was already
-	mov %ax,%es		# reloaded in 'setup_gdt'
+	mov %ax,%ds		    # after changing gdt. CS was already
+	mov %ax,%es		    # reloaded in 'setup_gdt'
 	mov %ax,%fs
 	mov %ax,%gs
 	lss stack_start,%esp
 ```
 
-中断门描述符的格式如下所示:
+setup_idt对中断描述符进行初始化，其位于head.s的88-95行：
+
+```x86asm
+setup_idt:
+	lea ignore_int,%edx        // 将ignore_int的地址传递给edx
+	movl $0x00080000,%eax      // 将选择符0x0008放入eax的高16位中
+	movw %dx,%ax		       // 将偏移值的低16位移入ax中
+	movw $0x8E00,%dx	       /* interrupt gate - dpl=0, present */
+
+	lea idt,%edi
+	mov $256,%ecx
+rp_sidt:
+	movl %eax,(%edi)
+	movl %edx,4(%edi)
+	addl $8,%edi
+	dec %ecx
+	jne rp_sidt
+	lidt idt_descr
+	ret
+```
+
+在阅读该段代码之前，需要首先了解中断门描述符的格式，如下所示:
 
 ![中断门描述符格式](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/head/head_idt.png)
 
+代码中使用eax作为中断门的0-31位， edx作用中断门的32-63位。
+
+首先观察对于```eax```的操作。将ignore_int的地址赋给了```edx```，随后将```0x0008```赋值给```eax```。最后将ignore_int的低16位放到的```eax```中
+```x86asm
+	lea ignore_int,%edx        // 将ignore_int的地址传递给edx
+	movl $0x00080000,%eax      // 将选择符0x0008放入eax的高16位中
+	movw %dx,%ax		       // 将偏移值的低16位移入ax中
+```
+
+操作结束之后eax的构成如下所示，其实就是组装好了中断描述符的低31位。
+
+```shell
+31                                0
++------------------+-------------------+
++     段描述符      +   偏移地址低16位   +
++------------------+-------------------+
++       0x8        + ignore_int[15：0] +
++------------------+-------------------+
++                 EAX                  +
++--------------------------------------+
+```
+
+这里在构建```edx```的低16位，低16位是中断描述符的属性，即存在位P为1， DPL=0。
+
+```x86asm
+movw $0x8E00,%dx	 // 0x8E00 = 1_00_0111000000000
+```
+
+```shell
+63                                      32 
++------------------+-+-+------+---+-----+
++                  | |D |     |   |     +
++  偏移地址高16位   |P|P |01110|000|     +
++                  | |L |     |   |     +
++------------------+-+--+-----+---+-----+
++ ignore[31：16]   |1|00|01110|000|00000+
++------------------+-+--+-----+---+-----+
++                 EDX                   +
++---------------------------------------+
+```
+
+接下来的事情就比较简单了，循环的给中断表中的256项内容都设置成哑中断(ignore_int)。
+
+```x86asm
+	lea idt,%edi
+	mov $256,%ecx
+rp_sidt:
+	movl %eax,(%edi)
+	movl %edx,4(%edi)
+	addl $8,%edi
+	dec %ecx
+	jne rp_sidt
+	lidt idt_descr
+	ret
+```
 
 ### step2：检查A20地址线是否开启
 
