@@ -581,5 +581,3 @@ $$设备号 = 主设备号 * 256 + 次设备号$$
 ## 参考文章
 
 https://github.com/Wangzhike/HIT-Linux-0.11/blob/master/1-boot/OS-booting.md
-
-

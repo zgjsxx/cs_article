@@ -454,6 +454,7 @@ $$ID2=1， ID1=1,ID0=0$$
 |${D}_{0}$|uPM|1-8086/88处理器系统； 0-MCS80/85系统|
 
 更多有关8259A的内容，可以参考[这里](http://jpk.pku.edu.cn/course/wjyl/script/chapter18.pdf)。
+
 ## 参考文献
 
 北京大学微机原理 http://jpk.pku.edu.cn/course/wjyl/script/chapter18.pdf
