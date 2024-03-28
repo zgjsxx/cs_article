@@ -59,7 +59,9 @@ startup_32:
 	lss stack_start,%esp
 ```
 
-setup_idt对中断描述符进行初始化，其位于head.s的88-95行：
+这段代码的开始依次将```ds```,```es```，```fs```和```gs```设置为```0x10```。
+
+接着调用```setup_idt```方法对中断描述符进行初始化，```setup_idt```方法位于head.s的88-95行：
 
 ```x86asm
 setup_idt:
@@ -84,7 +86,7 @@ rp_sidt:
 
 ![中断门描述符格式](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/head/head_idt.png)
 
-代码中使用```eax```作为中断门的0-31位， ``edx```作为中断门的32-63位。
+代码中使用```eax```作为中断门的0-31位， ```edx```作为中断门的32-63位。
 
 首先观察对于```eax```的操作。将ignore_int的地址赋给了```edx```，随后将```0x0008```赋值给```eax```。最后将```ignore_int```的低16位放到的```eax```中。
 
@@ -97,7 +99,7 @@ rp_sidt:
 操作结束之后```eax```的构成如下所示，其实就是组装好了中断描述符的低31位。
 
 ```shell
-31                                0
+31                                     0
 +------------------+-------------------+
 +     段描述符      +   偏移地址低16位   +
 +------------------+-------------------+
@@ -107,7 +109,7 @@ rp_sidt:
 +--------------------------------------+
 ```
 
-接下来构建```edx```的低16位，低16位是中断描述符的属性，设置存在位P为1， DPL=0。
+接下来构建```edx```。```edx```的高16位先前已经组装好，存储的是```ignore_int[31：16]```。 ```edx```的低16位存储的是中断描述符的属性，设置存在位P为1， DPL=0。
 
 ```x86asm
 movw $0x8E00,%dx	 // 0x8E00 = 1_00_0111000000000
@@ -128,7 +130,7 @@ movw $0x8E00,%dx	 // 0x8E00 = 1_00_0111000000000
 +---------------------------------------+
 ```
 
-接下来的事情就比较简单了，循环的给中断表中的256项内容都设置成哑中断(ignore_int)。最后使用```lidt idt_descr```加载中断描述符表```ldit```要求6字节操作数，前2字节是idt表的限长，后4字节是idt表在线性空间的32位基地址。
+接下来的事情就比较简单了，循环的给中断表中的256项内容都设置成哑中断(```ignore_int```)。最后使用```lidt idt_descr```加载中断描述符表```ldit```要求6字节操作数，前2字节是idt表的限长，后4字节是idt表在线性空间的32位基地址。
 
 ```x86asm
 	lea idt,%edi
@@ -141,6 +143,92 @@ rp_sidt:
 	jne rp_sidt
 	lidt idt_descr
 	ret
+```
+
+下图显示了```setup_idt```的之后，中断描述符的情况：
+
+![setup_idt](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/head/setup_idt.png)
+
+这里再看一下哑中断(```ignore_int```)做了些什么，其位于head.s的148-172行。
+
+```x86asm
+/* This is the default interrupt "handler" :-) */
+int_msg:
+	.asciz "Unknown interrupt\n\r"
+.align 2
+ignore_int:
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+	push %ds
+	push %es
+	push %fs
+	movl $0x10,%eax
+	mov %ax,%ds
+	mov %ax,%es
+	mov %ax,%fs
+	pushl $int_msg
+	call printk
+	popl %eax
+	pop %fs
+	pop %es
+	pop %ds
+	popl %edx
+	popl %ecx
+	popl %eax
+	iret
+```
+
+该方法其实只是会调用```printk```向中断打印一句```Unknown interrupt```。
+
+接下来继续看```setup_gdt```，其比较简单，直接使用```lgdt```将```gdt_descr```加载进全局描述符寄存器。
+
+```setup_gdt:
+	lgdt gdt_descr
+	ret
+```
+
+```gdt_descr```内容如下所示，设置了长度为256*8字节， 地址位于```gdt```。
+
+```x86asm
+gdt_descr:
+	.word 256*8-1		# so does gdt (not that that's any
+	.long gdt		# magic number, but it works for me :^)
+```
+
+gdt处定义的内容如下所示：
+
+```x86asm
+gdt:	.quad 0x0000000000000000	/* NULL descriptor */
+	.quad 0x00c09a0000000fff	/* 16Mb */ 0x08
+	.quad 0x00c0920000000fff	/* 16Mb */  0x10
+	.quad 0x0000000000000000	/* TEMPORARY - don't use */
+	.fill 252,8,0			/* space for LDT's and TSS's etc */
+```
+
+```gdt```表中第一项是一个空置。第二项和第三项是内核代码段和数据段。其含义如下所示：
+
+0x00c09a00_00000fff   
+- 段基址 = 0x00000000  
+- 段长度 = 0xfff+1 = 4096 * 4Kb = 16MB
+- 段类型值 = 9a， 代表存在于内存中，段特权级别为0，可读可执行代码段，段代码是32位，颗粒度是4KB
+
+0x00c09200_00000fff   
+- 段基址 = 0x00000000
+- 段长度 = 0xfff+1 = 4096 * 4Kb = 16MB
+- 段类型值 = 92， 代表存在于内存中，段特权级别为0，可读可写数据段，段代码是32位，颗粒度是4KB
+
+后续的252项是LDT和TSS，这里为其开启存储空间，后续会对其进行操作。
+
+程序的最后，重新给段寄存器进行赋值，因为在setup_gdt之间，可能会被修改。
+
+```x86asm
+	movl $0x10,%eax		# reload all the segment registers
+	mov %ax,%ds		    # after changing gdt. CS was already
+	mov %ax,%es		    # reloaded in 'setup_gdt'
+	mov %ax,%fs
+	mov %ax,%gs
+	lss stack_start,%esp
 ```
 
 ### step2：检查A20地址线是否开启
