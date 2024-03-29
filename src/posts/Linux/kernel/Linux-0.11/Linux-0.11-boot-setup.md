@@ -356,8 +356,9 @@ gdt_48:
 
 文中如有表达不正确之处，欢迎大家与我交流，微信号codebuilding。
 
-![](https://github.com/zgjsxx/static-img-repo/raw/main/blog/personal/wechat.jpg)
+![wechat](https://github.com/zgjsxx/static-img-repo/raw/main/blog/personal/wechat.jpg)
 
+---
 
 ## 附录 
 

@@ -61,6 +61,22 @@ startup_32:
 
 这段代码的开始依次将```ds```,```es```，```fs```和```gs```设置为```0x10```。
 
+接下来设置了栈指针。
+
+```x86asm
+lss stack_start,%esp   ！定义在sched.c中 
+```
+
+栈顶指针的位置定义在了sched.c中，因此这样操作之后，```ss = 0x10```, ```esp```指向了user_stack的最后一个元素。
+
+```c
+long user_stack [ PAGE_SIZE>>2 ] ;
+struct {
+	long * a;
+	short b;
+	} stack_start = { & user_stack [PAGE_SIZE>>2] , 0x10 };
+```
+
 接着调用```setup_idt```方法对中断描述符进行初始化，```setup_idt```方法位于head.s的88-95行：
 
 ```x86asm
@@ -220,7 +236,7 @@ gdt:	.quad 0x0000000000000000	/* NULL descriptor */
 
 后续的252项是LDT和TSS，这里为其开启存储空间，后续会对其进行操作。
 
-程序的最后，重新给段寄存器进行赋值，因为在setup_gdt之间，可能会被修改。
+程序的最后，重新给段寄存器进行赋值。再次设置为0x10。
 
 ```x86asm
 	movl $0x10,%eax		# reload all the segment registers
@@ -243,15 +259,13 @@ gdt:	.quad 0x0000000000000000	/* NULL descriptor */
 	je 1b
 ```
 
-如果没有开启A20地址线，那么其寻址空间是0-fffff。超过fffff的部分的地址的高位将会被移除，这就会产生地址环绕。
+如果没有开启A20地址线，那么其寻址空间是```0-fffff```。超过```fffff```的部分的地址的高位将会被移除，这就会产生地址环绕。
 
 例如```1_00000```去除了高位的1之后，就是```000000```。对```00000```处写一个值，然后看```1_00000```处的值是否相同，如果相同，则代表产生了地址环绕，A20没有开启。如果不相同，则代表没有地址环绕，A20成功开启。
 
-
-
 ### step3: 检查数学协处理器
 
-下面用于检查数学协处理器芯片是否存在
+下面head.s的45-65行，用于检查x87数学协处理器芯片是否存在, x87数学协处理器主要用于浮点数的计算，x86_64下浮点数运算的指令有xmm和x87两种。我的另一篇文章[汇编语言-浮点数](https://zgjsxx.github.io/posts/Program_language/Assembly_language/fullerton_CSci241/Lecture10-float-point.html#x87%E6%B5%AE%E7%82%B9%E6%95%B0%E6%8C%87%E4%BB%A4)中有相关介绍。
 
 ```x86asm
 	movl %cr0,%eax		# check math chip
@@ -270,6 +284,59 @@ check_x87:
 	fstsw %ax       !取协处理器状态字到ax寄存器中
 	cmpb $0,%al
 	je 1f			/* no coprocessor: have to set bits */
+	movl %cr0,%eax
+	xorl $6,%eax		/* reset MP, set EM */
+	movl %eax,%cr0
+	ret
+```
+
+这里检查的主要思路是修改控制寄存器CRO，假设协处理器存在，执行一个协处理器指令，如果出错则说明协处理器不存在。
+
+这里首先修改了cr0寄存器，将MP位为设置为1。
+
+```x86asm
+	movl %cr0,%eax		# check math chip
+	andl $0x80000011,%eax	# Save PG,PE,ET
+/* "orl $0x10020,%eax" here for 486 might be good */
+	orl $2,%eax		# set MP
+	movl %eax,%cr0
+```
+
+这里需要了解一下cr0寄存器的结构：
+
+|比特位|名称|完整的名称|描述|
+|--|--|--|--|
+|0|PE|启用保护模式|如果为1，则启用保护模式，否则系统处于实模式|
+|1|MP|监控协处理器|控制 WAIT/FWAIT 指令与 CR0 中 TS 标志的交互|
+|2|EM|仿真|如果设置，则不存在 x87 浮点单元，如果清除，则存在 x87 FPU|
+|3|TS|任务切换|仅在使用 x87 指令后才允许在任务切换时保存 x87 任务上下文|
+|4|ET|扩展类型|在 386 上，它允许指定外部数学协处理器是 80287 还是 80387|
+|5|NE|数学错误|设置时启用内部 x87 浮点错误报告，否则启用 PC 风格 x87 错误检测|
+|16|WP|写保护|设置后，当特权级别为 0 时，CPU 无法写入只读页|
+|18|AM|对齐掩码|如果设置了 AM、设置了 AC 标志（在 EFLAGS 寄存器中）且特权级别为 3，则启用对齐检查|
+|29|NW|非直写|全局启用/禁用直写式缓存|
+|30|CD|缓存禁用|全局启用/禁用缓存|
+|32|PG|分页|如果为 1，则启用分页并使用 § CR3 寄存器，否则禁用分页。|
+
+这里向协处理器发出初始化命令，取协处理器状态字到ax寄存器中，如果协处理器储不存在，则```al = 0```。
+
+```x86asm
+	fninit
+	fstsw %ax
+	cmpb $0,%al
+```
+
+如果存在，则将80287设置为保护模式，这里不用过多理解，大概了解即可。
+
+```x86asm
+.align 2
+1:	.byte 0xDB,0xE4		/* fsetpm for 287, ignored by 387 */
+	ret
+```
+
+如果协处理器不存在，需要将MP位设置为0， 将EM位设置为1。
+
+```x86asm
 	movl %cr0,%eax
 	xorl $6,%eax		/* reset MP, set EM */
 	movl %eax,%cr0
@@ -402,7 +469,6 @@ setup_paging:
 
 因此这里可以得到L6是main函数的返回值。立即数0，0，0将会被作为main函数的入参。
 
-
 接下来再看下面的代码就很清晰了，实际就是在建立好页表的映射关系后，就开始跳转到main函数去执行了(init/main.c)。
 ```x86asm
 after_page_tables:
@@ -417,6 +483,10 @@ setup_paging:
    ...
    ret
 ```
+
+在阅读main的内容之前，我们回顾一下此时内存中的数据状态，如下所示：
+
+![head.s结束之后内存分布](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/head/head-memoryview.png)
 
 ## Q & A
 
@@ -508,4 +578,4 @@ objdump -d tools/system
 
 文中如有表达不正确之处，欢迎大家与我交流, 微信号codebuilding。
 
-![](https://github.com/zgjsxx/static-img-repo/raw/main/blog/personal/wechat.jpg)
+![wechat](https://github.com/zgjsxx/static-img-repo/raw/main/blog/personal/wechat.jpg)

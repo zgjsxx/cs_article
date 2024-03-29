@@ -13,6 +13,7 @@ tag:
   - [lss指令](#lss指令)
   - [lodsb/lodsw](#lodsblodsw)
   - [stosb/stosw](#stosbstosw)
+  - [xorl](#xorl)
   - [AND](#and)
   - [std和cld](#std和cld)
   - [TEST](#test)
@@ -116,6 +117,14 @@ stosw等同于：
 ```x86asm
 mov ax, ds:[si]
 add si, 2
+```
+
+## xorl
+
+按位异或，值相同为0，值不同为1，如果源操作数和目标操作数相同，等同于清零。
+
+```x86asm
+xorl %eax %eax
 ```
 
 ## AND 
