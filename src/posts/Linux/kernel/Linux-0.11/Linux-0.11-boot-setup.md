@@ -353,13 +353,6 @@ gdt_48:
 	jmpi	0,8		! jmp offset 0 of segment 8 (cs)
 ```
 
-
-文中如有表达不正确之处，欢迎大家与我交流，微信号codebuilding。
-
-![wechat](https://github.com/zgjsxx/static-img-repo/raw/main/blog/personal/wechat.jpg)
-
----
-
 ## 附录 
 
 ### 1.Intel 8259A编程
@@ -461,3 +454,9 @@ $$ID2=1， ID1=1,ID0=0$$
 北京大学微机原理 http://jpk.pku.edu.cn/course/wjyl/script/chapter18.pdf
 
 https://blog.csdn.net/weixin_42214698/article/details/125036960 
+
+---
+
+文中如有表达不正确之处，欢迎大家与我交流，微信号codebuilding。
+
+![wechat](https://github.com/zgjsxx/static-img-repo/raw/main/blog/personal/wechat.jpg)
