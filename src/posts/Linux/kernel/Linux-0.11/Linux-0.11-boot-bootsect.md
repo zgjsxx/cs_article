@@ -568,7 +568,7 @@ $$设备号 = 主设备号 * 256 + 次设备号$$
 
 文章的最后，我们通过一张图回顾一下bootsect.s所做的一些事情：
 
-![bootsect-overview](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/bootsect/bootsect_overview.png)
+![bootsect-overview](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/bootsect/bootsect-overview.png)
 
 
 文中如有表达不正确之处，欢迎大家与我交流，微信号codebuilding。

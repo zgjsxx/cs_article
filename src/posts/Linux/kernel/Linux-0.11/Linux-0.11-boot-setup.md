@@ -13,7 +13,6 @@ tag:
 		- [step3：设置IDT和GDT](#step3设置idt和gdt)
 		- [step4：打开A20地址线](#step4打开a20地址线)
 		- [step5: 切换32位保护模式](#step5-切换32位保护模式)
-		- [跳转到system.s中运行](#跳转到systems中运行)
 	- [附录](#附录)
 		- [1.Intel 8259A编程](#1intel-8259a编程)
 	- [参考文献](#参考文献)
@@ -260,7 +259,7 @@ end_move:
 	lgdt	gdt_48		! load gdt with whatever appropriate
 ```
 
-idt_48和gdt_48的值定义在下面：
+```idt_48```和```gdt_48```的值定义在下面：
 
 ```x86asm
 idt_48:
@@ -271,6 +270,18 @@ gdt_48:
 	.word	0x800		! gdt limit=2048, 256 GDT entries
 	.word	512+gdt,0x9	! gdt base = 0X9xxxx
 ```
+
+idt_48中设置的是一个"假中断描述符表"，地址为0，长度为0，可见是一个临时的无效的指向，后面进入head.s之后会重新设置。
+
+由于gdt的值定义在setup.s中，因此这里在指定gdt位置时需要特别注意，要增加setup.s的偏移量```0x90200```。
+
+设置完之后的效果如下图所示：
+
+![setup-gdt](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/setup/idt-gdt.png)
+
+这里设置idt和gdt是临时的，因为0x90000这段地址后续要作为其他用途，也就意味着gdt表可能会被覆盖。在head.s中我们会将gdt搬到一个安全的地址中。
+
+这里设置gdt表，为下面开启保护模式后，跳转到head.s做准备。
 
 ### step4：打开A20地址线
 
@@ -343,15 +354,9 @@ gdt_48:
 
 ```8 = 0000000000001_0_00```,因此请求特权级为0，使用的是gdt表中的第二段描述符。通过查找可知(setup.s的209行)，其基地址为0。这个时候0x0处存放的是system模块的代码。于是后续就跳转到了head.s中继续执行。
 
-### 跳转到system.s中运行
+文章的最后，我们通过一张图回顾一下setup.s所做的一些事情：
 
-跳转到sytem模块执行。
-
-```x86asm
-	mov	ax,#0x0001	! protected mode (PE) bit
-	lmsw	ax		! This is it!
-	jmpi	0,8		! jmp offset 0 of segment 8 (cs)
-```
+![bootsect-overview](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/setup/setup-overview.png)
 
 ## 附录 
 
