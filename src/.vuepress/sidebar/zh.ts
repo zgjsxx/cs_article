@@ -10,8 +10,8 @@ export const zhSidebar = sidebar({
       children: [
         "Linux-0.11-assemble-language",
         "Linux-0.11-boot-bootsect",
-        "Linux-0.11-boot-head",
         "Linux-0.11-boot-setup",
+        "Linux-0.11-boot-head",
         "Linux-0.11-fs-bitmap",
         "Linux-0.11-fs-block_dev",
         "Linux-0.11-fs-buffer",
