@@ -13,32 +13,6 @@ main.c大部分代码主要是对内核进行初始化，而main.c开始，就�
 
 ## 函数详解
 
-### time_init
-```c
-static void time_init(void)
-```
-该函数读取CMOS时钟信息作为系统的开机时间。
-
-```c
-	struct tm time;
-
-	do {
-		time.tm_sec = CMOS_READ(0);//当前的秒数
-		time.tm_min = CMOS_READ(2);//当前分钟值
-		time.tm_hour = CMOS_READ(4);//当前小时数
-		time.tm_mday = CMOS_READ(7);//当前的天数
-		time.tm_mon = CMOS_READ(8);//当前的月份
-		time.tm_year = CMOS_READ(9);//当前的年份
-	} while (time.tm_sec != CMOS_READ(0));
-	BCD_TO_BIN(time.tm_sec); //转换成二进制数值
-	BCD_TO_BIN(time.tm_min);
-	BCD_TO_BIN(time.tm_hour);
-	BCD_TO_BIN(time.tm_mday);
-	BCD_TO_BIN(time.tm_mon);
-	BCD_TO_BIN(time.tm_year);
-	time.tm_mon--;
-	startup_time = kernel_mktime(&time);//调用kernel_mktime构建时间，详情参考Linux-0.11 kernel目录mktime.c详解
-```
 
 ### main
 ```c
@@ -58,6 +32,7 @@ else
 ```
 
 接下来就是对各个模块进行初始化。其内容在具体的模块都有讲解，这里不再赘述。在这最后，会重新打开中断。
+
 ```c
 	mem_init(main_memory_start,memory_end);
 	trap_init();
@@ -224,4 +199,32 @@ init进程是系统中真正的第一个进程。
 	}
 	_exit(0);	/* NOTE! _exit, not exit() */
 ```
+
+### time_init
+```c
+static void time_init(void)
+```
+该函数读取CMOS时钟信息作为系统的开机时间。
+
+```c
+	struct tm time;
+
+	do {
+		time.tm_sec = CMOS_READ(0);//当前的秒数
+		time.tm_min = CMOS_READ(2);//当前分钟值
+		time.tm_hour = CMOS_READ(4);//当前小时数
+		time.tm_mday = CMOS_READ(7);//当前的天数
+		time.tm_mon = CMOS_READ(8);//当前的月份
+		time.tm_year = CMOS_READ(9);//当前的年份
+	} while (time.tm_sec != CMOS_READ(0));
+	BCD_TO_BIN(time.tm_sec); //转换成二进制数值
+	BCD_TO_BIN(time.tm_min);
+	BCD_TO_BIN(time.tm_hour);
+	BCD_TO_BIN(time.tm_mday);
+	BCD_TO_BIN(time.tm_mon);
+	BCD_TO_BIN(time.tm_year);
+	time.tm_mon--;
+	startup_time = kernel_mktime(&time);//调用kernel_mktime构建时间，详情参考Linux-0.11 kernel目录mktime.c详解
+```
+
 ## Q & A

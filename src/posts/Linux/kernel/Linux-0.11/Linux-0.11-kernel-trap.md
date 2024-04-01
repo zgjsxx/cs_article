@@ -5,6 +5,28 @@ tag:
   - Linux-0.11代码解读系列
 ---
 
+- [Linux-0.11 kernel目录进程管理trap.c详解](#linux-011-kernel目录进程管理trapc详解)
+	- [模块简介](#模块简介)
+	- [函数详解](#函数详解)
+		- [die](#die)
+		- [do\_double\_fault](#do_double_fault)
+		- [do\_general\_protection](#do_general_protection)
+		- [do\_divide\_error](#do_divide_error)
+		- [do\_int3](#do_int3)
+		- [do\_nmi](#do_nmi)
+		- [do\_debug](#do_debug)
+		- [do\_overflow](#do_overflow)
+		- [do\_bounds](#do_bounds)
+		- [do\_invalid\_op](#do_invalid_op)
+		- [do\_device\_not\_available](#do_device_not_available)
+		- [do\_coprocessor\_segment\_overrun](#do_coprocessor_segment_overrun)
+		- [do\_invalid\_TSS](#do_invalid_tss)
+		- [do\_segment\_not\_present](#do_segment_not_present)
+		- [do\_stack\_segment](#do_stack_segment)
+		- [do\_coprocessor\_error](#do_coprocessor_error)
+		- [do\_reserved](#do_reserved)
+		- [trap\_init](#trap_init)
+	- [Q \& A](#q--a)
 
 # Linux-0.11 kernel目录进程管理trap.c详解
 
@@ -197,10 +219,16 @@ void do_reserved(long esp, long error_code)
 die("reserved (15,17-47) error",esp,error_code);
 ```
 ### trap_init
+
+trap_init方法的原型如下所示：
+
 ```c
 void trap_init(void)
 ```
+
 初始化trap。
+
+中断门与陷阱门的区别在于对于EFLAGS的中断允许标志IF的影响。通过中断门描述符执行的中断会复位IF标志，因此这种方式可以避免其他中断干扰当前中断的处理，并且随后的中断结束指令IRET会从堆栈上恢复IF标志的原值。而通过陷阱门执行的中断则不会影响IF标志。
 
 ```c
 	int i;
