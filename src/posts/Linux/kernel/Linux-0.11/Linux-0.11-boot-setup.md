@@ -285,7 +285,7 @@ idt_48中设置的是一个"假中断描述符表"，地址为0，长度为0，�
 
 ### step4：打开A20地址线
 
-下面是setup.s的137-144，用于开启A20地址线。
+下面是setup.s的137-144，用于开启A20地址线。开启A20是利用8042键盘控制器实现的。
 
 ```x86asm
 	call	empty_8042
@@ -296,6 +296,19 @@ idt_48中设置的是一个"假中断描述符表"，地址为0，长度为0，�
 	out	#0x60,al
 	call	empty_8042
 ```
+
+程序的开始调用了```empty_8042```，它的作用是查看键盘的输入缓存是否是空的，只有是空的才可以执行下面的操作。
+
+```x86asm
+empty_8042:
+	.word	0x00eb,0x00eb
+	in	al,#0x64	! 8042 status port
+	test	al,#2		! is input buffer full?
+	jnz	empty_8042	! yes - loop
+	ret
+```
+
+随后对0x64端口写0xD1，代表写数据到8042的P2端口。接着向0x60写0xDF，这个是0xDF代表A20选通的参数。
 
 后面这段程序主要对中断原件8259A进行了初始化，其中涉及了对于中断芯片8259a的编程，这块内容参考附录1。
 
@@ -336,6 +349,8 @@ idt_48中设置的是一个"假中断描述符表"，地址为0，长度为0，�
 	out	#0xA1,al
 ```
 
+这段代码是一种固定套路，就连linus本文在注释中都说上面这段代码编写真是枯燥。
+
 ### step5: 切换32位保护模式
 
 下面是setup.s的191-192行，其作用是切换到32位保护模式。
@@ -346,9 +361,9 @@ idt_48中设置的是一个"假中断描述符表"，地址为0，长度为0，�
 	jmpi	0,8		! jmp offset 0 of segment 8 (cs)
 ```
 
-这里首先需要加载机器状态字（Load-Machine status word-lmsw），其实就是设置CR0寄存器，降比特0改为1。
+这里首先需要加载机器状态字（Load-Machine status word-lmsw），其实就是设置```cr0```寄存器，将比特0改为1。
 
-接下来使用jmpi进行跳转，注意这里已经从实模式切换到了保护模式。
+接下来使用```jmpi```进行跳转，注意这里已经从实模式切换到了保护模式。
 
 ```jmpi	0,8	```表示段选择子为8，偏移为0。位0-1表示请求的特权级。位2用于描述是全局描述符表(0)还是局部描述符表(1)。位3-15表示描述符的索引。
 
@@ -367,6 +382,12 @@ Intel 8259A用于管理和控制80x86的外部中断请求，实现优先级判�
 8259A的命令字分为两部分：初始化命令字（ICW = initial command words）和操作命令字(OCW = operate command words)。8259A芯片的内部结构如下所示：
 
 ![ICW1](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/setup/8259A.png)
+
+8259A的初始化要遵循下面的流程：
+
+![8259a-init-flow](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/setup/8259a-init-flow.png)
+
+下面依次介绍上面的flow中所提到的寄存器的作用。
 
 **ICW1**
 

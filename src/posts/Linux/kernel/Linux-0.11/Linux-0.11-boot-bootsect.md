@@ -103,7 +103,6 @@ _start:
 下面是bootsect.s中的51-55行：
 
 ```x86asm
-
 	mov	cx,#256 #设置移动计数值256字
 	sub	si,si   #源地址	ds:si = 0x07C0:0x0000
 	sub	di,di   #目标地址 es:di = 0x9000:0x0000
