@@ -13,12 +13,39 @@ main.c大部分代码主要是对内核进行初始化，而main.c开始，就�
 
 ## 函数详解
 
-
 ### main
+
 ```c
 void main(void)	
 ```
+
 在head.s中会跳转main函数中进行执行。
+
+main函数的开始定义了一些数据，包含了根设备的设备号，硬盘参数表信息，最大内存地址。
+
+```c
+#define EXT_MEM_K (*(unsigned short *)0x90002)
+#define DRIVE_INFO (*(struct drive_info *)0x90080)
+#define ORIG_ROOT_DEV (*(unsigned short *)0x901FC)
+
+ 	ROOT_DEV = ORIG_ROOT_DEV;
+ 	drive_info = DRIVE_INFO;        // 复制0x90080处的硬盘参数
+	memory_end = (1<<20) + (EXT_MEM_K<<10);     // 内存大小=1Mb + 扩展内存(k)*1024 byte
+	memory_end &= 0xfffff000;                   // 忽略不到4kb(1页)的内存数
+```
+
+这里需要回忆一下，setup.s中所建立的一些数据：
+
+|内存地址|长度(字节)|名称|描述|
+|--|--|--|--|
+|0x90002|2|扩展内存数|系统从1MB开始的扩展内存数值|
+|0x90080|16|硬盘参数表|第1个硬盘的参数表|
+|0x90090|16|硬盘参数表|第2个硬盘的参数表|
+|0x901FC|2|根设备号|根文件系统所在的设备号(bootsect.s设置)|
+
+根设备信息号从```0x901fc```处获取，第一块硬盘的信息从```0x90080```处获取，扩展内存的数量从```0x90002```处获取。
+
+这里根据设备总内存的大小决定高速缓存的位置。此外如果定义了虚拟盘```RAMDISK```，还需要预留一块内存。
 
 ```c
 if (memory_end > 16*1024*1024)
@@ -29,7 +56,14 @@ else if (memory_end > 6*1024*1024)
     buffer_memory_end = 2*1024*1024;
 else
     buffer_memory_end = 1*1024*1024;
+#ifdef RAMDISK
+	main_memory_start += rd_init(main_memory_start, RAMDISK*1024);
+#endif
 ```
+
+这样定义好的内存各个模块的作用如下图所示：
+
+![memory-area](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-init/memory-area.png)
 
 接下来就是对各个模块进行初始化。其内容在具体的模块都有讲解，这里不再赘述。在这最后，会重新打开中断。
 
@@ -48,6 +82,7 @@ else
 ```
 
 接下来，将切换到用户态去执行进程0。
+
 ```c
 	move_to_user_mode();
 	if (!fork()) {		/* we count on this going ok */
@@ -73,26 +108,29 @@ else
 接下来我们依次分析。
 
 首先是代码段，{0x0000009f,0x00c0fa00}， 翻译成二进制,注意是按照小端序列，如下所示：
-```c
+
+```shell
 63-48:00000000 11000000
 47-32:11111010 00000000
 31-16:00000000 00000000
 15-00:00000000 10011111
 ```
 
-按照段描述符的定义，代码段的分析结果如下
-:
+按照段描述符的定义，代码段的分析结果如下:
+
 段基址:00000000 00000000 00000000 00000000
 段限长:0x009f * 4k
 
 
 接下来是数据段，{0x0000009f,0x00c0f200}， 翻译成二进制,注意是按照小端序列，如下所示：
+
 ```c
 63-48:00000000 11000000
 47-32:11110010 00000000
 31-16:00000000 00000000
 15-00:00000000 10011111
 ```
+
 按照段描述符的定义，数据段的分析结果如下
 
 段基址:00000000 00000000 00000000 00000000
@@ -104,7 +142,7 @@ else
 
 因此sched_init为这里切换进程0到用户态执行打下了铺垫。
 
-下面我们就来看move_to_user_mode， 其定义如下：
+下面我们就来看```move_to_user_mode```， 其定义如下：
 
 ```c
 #define move_to_user_mode() \
@@ -123,14 +161,15 @@ __asm__ ("movl %%esp,%%eax\n\t" \
 	:::"ax")
 ```
 
-看到其中使用了iret指令，因此这里其实是模拟了一个中断的压栈情况。其效果就是在iret返回时，使得ss=0x17,cs=0x0f
+看到其中使用了```iret```指令，因此这里其实是模拟了一个中断的压栈情况。其效果就是在iret返回时，使得ss=0x17,cs=0x0f
 ![move_to_user_mode](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-init/move_to_user_mode.png)
 
-接着通过movw指令，将ds、es、fs、gs都设置为0x17。
+接着通过```movw```指令，将```ds```、```es```、```fs```、```gs```都设置为0x17。
 
 通过这一番操作，这些寄存器中的DPL都是3了，也就是用户态了。因此，可以这样总结，move_to_user_mode实际就是将cs/ds/es/fs/gs/ss 都设置为用户态的值。
 
 在这最后，进程0开始fork出进程1， 而自己则进入pause，因此进程0又被称为idle进程。
+
 ```c
 	if (!fork()) {		/* we count on this going ok */
 		init();
@@ -139,9 +178,11 @@ __asm__ ("movl %%esp,%%eax\n\t" \
 ```
 
 ### init
+
 ```c
 void init(void)
 ```
+
 init进程是系统中真正的第一个进程。
 
 ```c
@@ -201,9 +242,11 @@ init进程是系统中真正的第一个进程。
 ```
 
 ### time_init
+
 ```c
 static void time_init(void)
 ```
+
 该函数读取CMOS时钟信息作为系统的开机时间。
 
 ```c

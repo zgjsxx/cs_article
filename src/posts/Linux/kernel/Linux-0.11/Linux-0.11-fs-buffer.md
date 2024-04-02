@@ -45,10 +45,30 @@ void * b;
 int i;
 ```
 
-start_buffer定义为end的位置，即内存中system模块的结束的位置。
+```start_buffer```定义为```end```的位置，即内存中```system```模块的结束的位置。
+
 ```c
 struct buffer_head * start_buffer = (struct buffer_head *) &end;
 ```
+
+这里```end```是链接器设置的。下面这个简单的例子可以更好的理解```end```变量的来源。
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+extern char etext, edata, end;
+
+int main() {
+    printf("First address past:\n");
+    printf("    program text (etext)      %10p\n", &etext);
+    printf("    initialized data (edata)  %10p\n", &edata);
+    printf("    uninitialized data (end)  %10p\n", &end);
+
+    exit(EXIT_SUCCESS);
+}
+```
+
 经过这个步骤之后h实际上指向了内核高速缓冲区的低地址。
 
 
