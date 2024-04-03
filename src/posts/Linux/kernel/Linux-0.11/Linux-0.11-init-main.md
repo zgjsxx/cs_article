@@ -65,7 +65,9 @@ else
 
 ![memory-area](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-init/memory-area.png)
 
-接下来就是对各个模块进行初始化。其内容在具体的模块都有讲解，这里不再赘述。在这最后，会重新打开中断。
+接下来就是对各个模块进行初始化。其内容在具体的模块都有讲解，这里不再赘述。
+
+各个模块的初始化完毕之后，就可以重新打开中断了。
 
 ```c
 	mem_init(main_memory_start,memory_end);
@@ -90,9 +92,25 @@ else
 	}
 ```
 
-在分析move_to_user_mode，我们回顾一下sched_init函数中和进程0相关的部分。
+在分析```move_to_user_mode```之前，我们需要看一下```sched_init```函数中和进程0相关的部分。
 
-在sched_init函数中设置了进程0的ldt和tss。其中ldt部分的定义如下：
+由于后面的0号进程是用户态进程，因此```sched_init```中设置了LDTR寄存器的值。 LDTR寄存器的高13位代表位于GDTR中的索引。进程0的LDT位于GDT表中的第5项，因此索引为LDTR=(5<<3)。进程n的LDTR的位置是(5<<3) + (2n << 3)， 因为LDT和TSS是交替存放的，所以需要n需要乘以2。
+
+```c
+#define FIRST_TSS_ENTRY 4
+#define FIRST_LDT_ENTRY (FIRST_TSS_ENTRY+1)
+#define _LDT(n) ((((unsigned long) n)<<4)+(FIRST_LDT_ENTRY<<3))
+#define lldt(n) __asm__("lldt %%ax"::"a" (_LDT(n)))
+
+sched_init(){
+	...
+	lldt(0);
+	...
+}
+```
+设置完LDTR寄存器之后，下面要设置的就是LDT项的内容。
+
+在```sched_init```函数中设置了进程0的```ldt```和```tss```。其中```ldt```部分的定义如下：
 
 ```c
     //ldt
@@ -140,9 +158,7 @@ else
 
 数据段和代码段唯一不同的是TYPE字段不同，代码段是1010，代表是代码段，其可读可执行。数据段是0010，代表数据段，且可读可写。
 
-因此sched_init为这里切换进程0到用户态执行打下了铺垫。
-
-下面我们就来看```move_to_user_mode```， 其定义如下：
+有了这些铺垫之后，下面就可以通过```move_to_user_mode```切换到用户态了，其定义如下：
 
 ```c
 #define move_to_user_mode() \
@@ -161,14 +177,22 @@ __asm__ ("movl %%esp,%%eax\n\t" \
 	:::"ax")
 ```
 
-看到其中使用了```iret```指令，因此这里其实是模拟了一个中断的压栈情况。其效果就是在iret返回时，使得ss=0x17,cs=0x0f
+看到其中使用了```iret```指令，因此这里其实是模拟了一个中断的压栈情况。其效果就是在```iret```返回时，使得```ss=0x17,cs=0x0f```
+
 ![move_to_user_mode](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-init/move_to_user_mode.png)
 
-接着通过```movw```指令，将```ds```、```es```、```fs```、```gs```都设置为0x17。
+接着通过```movw```指令，将```ds```、```es```、```fs```、```gs```都设置为```0x17```。
 
-通过这一番操作，这些寄存器中的DPL都是3了，也就是用户态了。因此，可以这样总结，move_to_user_mode实际就是将cs/ds/es/fs/gs/ss 都设置为用户态的值。
+这里解释一下```0x17```和```0x0f```, 这两个段描述符的共性是都代码用户态，且位于LDT表中。 区别是0x17位于LDT表的第2项，即数据段，0x0f位于LDT表的第1项，即代码段。(此前```cs = 0x08```, ```ss = 0x10```,代表内核态)。
 
-在这最后，进程0开始fork出进程1， 而自己则进入pause，因此进程0又被称为idle进程。
+```shell
+0x17 = 00010_1_11
+0x0f = 00001_1_11
+```
+
+通过这一番操作，这些寄存器中的DPL都是3了，也就是用户态了。因此，可以这样总结，```move_to_user_mode```实际就是将```cs/ds/es/fs/gs/ss``` 都设置为用户态的值。
+
+在这最后，进程0开始fork出进程1(init进程)， 而自己则进入pause，因此进程0又被称为idle进程。
 
 ```c
 	if (!fork()) {		/* we count on this going ok */
@@ -185,11 +209,14 @@ void init(void)
 
 init进程是系统中真正的第一个进程。
 
+setup()是一个系统调用。用于读取硬盘参数包括分区表信息并加载虚拟盘(若存在的话)和安装根文件系统设备。该函数用25行上的宏定义，对应函数是sys_setup()，在块设备子目录kernel/blk_drv/hd.c中。
+
 ```c
 	int pid,i;
 	setup((void *) &drive_info);
 ```
 
+下面以读写访问方式打开设备"/dev/tty0",它对应终端控制台。由于这是第一次打开文件操作，因此产生的文件句柄号(文件描述符)肯定是0。该句柄是UNIX类操作系统默认的控制台标准输入句柄stdin。这里再把它以读和写的方式别人打开是为了复制产生标准输出(写)句柄stdout和标准出错输出句柄stderr。函数前面的"(void)"前缀用于表示强制函数无需返回值。
 
 ```c
 	(void) open("/dev/tty0",O_RDWR,0);
@@ -200,8 +227,8 @@ init进程是系统中真正的第一个进程。
 	printf("Free mem: %d bytes\n\r",memory_end-main_memory_start);
 ```
 
+执行shell程序，加载```/etc/rc```。
 
-执行shell程序，加载/etc/rc
 ```c
 	if (!(pid=fork())) {
 		close(0);
