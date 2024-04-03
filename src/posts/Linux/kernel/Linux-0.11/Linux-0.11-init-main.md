@@ -201,6 +201,8 @@ __asm__ ("movl %%esp,%%eax\n\t" \
 	for(;;) pause();
 ```
 
+关于init进程所做的事情，可以参考下文。
+
 ### init
 
 ```c
