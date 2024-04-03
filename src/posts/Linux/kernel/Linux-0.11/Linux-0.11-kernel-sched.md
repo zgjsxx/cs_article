@@ -420,6 +420,7 @@ for(i=1;i<NR_TASKS;i++) {
 ```
 
 显式地将任务0的tss加载到寄存器tr中， 显式地将任务0的ldt加载到ldtr中。
+
 ```c
 ltr(0);
 lldt(0);
