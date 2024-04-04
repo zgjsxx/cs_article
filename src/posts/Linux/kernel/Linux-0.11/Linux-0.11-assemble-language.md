@@ -8,6 +8,10 @@ tag:
 - [Linux-0.11中的汇编](#linux-011中的汇编)
   - [内嵌汇编](#内嵌汇编)
   - [mov(x)](#movx)
+  - [add](#add)
+  - [sub](#sub)
+  - [mul](#mul)
+  - [div](#div)
   - [lea](#lea)
   - [lds](#lds)
   - [lss指令](#lss指令)
@@ -16,7 +20,7 @@ tag:
   - [xorl](#xorl)
   - [AND](#and)
   - [std和cld](#std和cld)
-  - [TEST](#test)
+  - [test](#test)
   - [jcc](#jcc)
 
 
@@ -53,6 +57,42 @@ movb:复制8位数据(1个字节)
 movw:复制16位数据(2个字节)
 
 movl:复制32位数据(4个字节)
+
+## add
+
+ADD (Addition)：将源操作数的值加到目标操作数中，并将结果存储在目标操作数中。
+示例：将两个寄存器的值相加并存储到目标寄存器中：
+
+```x86asm
+ADD eax, ebx   ; 将 ebx 寄存器的值加到 eax 寄存器中，并将结果存储在 eax 中
+```
+
+## sub
+
+SUB (Subtraction)：从目标操作数中减去源操作数的值，并将结果存储在目标操作数中。
+示例：从目标寄存器中减去一个立即数并将结果存储到目标寄存器中：
+
+```x86asm
+SUB ecx, 10   ; 从 ecx 寄存器中减去 10，并将结果存储在 ecx 中
+```
+
+## mul
+
+MUL (Multiplication)：将目标操作数乘以源操作数的值，并将结果存储在目标操作数中。
+示例：将一个寄存器的值乘以另一个寄存器的值并存储到目标寄存器中：
+
+```x86asm
+MUL edx   ; 将 edx 寄存器的值乘以 eax 寄存器中的值，并将结果存储在 edx:eax 中
+```
+
+## div
+
+DIV (Division)：将目标操作数除以源操作数的值，并将商存储在目标操作数中。
+示例：将目标寄存器中的值除以一个立即数并将商存储到目标寄存器中：
+
+```x86asm
+DIV ebx   ; 将 eax:edx 寄存器中的值除以 ebx 寄存器中的值，并将商存储在 eax 中，余数存储在 edx
+```
 
 ## lea
 
@@ -163,7 +203,7 @@ else if DF = 1:
     SI = SI - 2 , DI = DI - 2 ;
 
 
-## TEST
+## test
 
 **功能**: 执行BIT与BIT之间的**逻辑与**运算
 
