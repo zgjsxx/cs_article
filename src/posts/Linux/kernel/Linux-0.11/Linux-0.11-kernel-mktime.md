@@ -5,6 +5,12 @@ tag:
   - Linux-0.11代码解读系列
 ---
 
+- [Linux-0.11 kernel目录mktime.c详解](#linux-011-kernel目录mktimec详解)
+  - [模块简介](#模块简介)
+  - [函数详解](#函数详解)
+    - [kernel\_mktime](#kernel_mktime)
+
+
 # Linux-0.11 kernel目录mktime.c详解
 
 ## 模块简介
