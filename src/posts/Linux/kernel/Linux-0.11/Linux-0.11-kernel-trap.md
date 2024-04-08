@@ -9,24 +9,25 @@ tag:
 	- [模块简介](#模块简介)
 	- [函数详解](#函数详解)
 		- [die](#die)
-		- [do\_double\_fault](#do_double_fault)
-		- [do\_general\_protection](#do_general_protection)
-		- [do\_divide\_error](#do_divide_error)
-		- [do\_int3](#do_int3)
-		- [do\_nmi](#do_nmi)
-		- [do\_debug](#do_debug)
-		- [do\_overflow](#do_overflow)
-		- [do\_bounds](#do_bounds)
-		- [do\_invalid\_op](#do_invalid_op)
-		- [do\_device\_not\_available](#do_device_not_available)
-		- [do\_coprocessor\_segment\_overrun](#do_coprocessor_segment_overrun)
-		- [do\_invalid\_TSS](#do_invalid_tss)
-		- [do\_segment\_not\_present](#do_segment_not_present)
-		- [do\_stack\_segment](#do_stack_segment)
-		- [do\_coprocessor\_error](#do_coprocessor_error)
-		- [do\_reserved](#do_reserved)
 		- [trap\_init](#trap_init)
-	- [Q \& A](#q--a)
+		- [中断函数入口](#中断函数入口)
+			- [do\_double\_fault](#do_double_fault)
+			- [do\_general\_protection](#do_general_protection)
+			- [do\_divide\_error](#do_divide_error)
+			- [do\_int3](#do_int3)
+			- [do\_nmi](#do_nmi)
+			- [do\_debug](#do_debug)
+			- [do\_overflow](#do_overflow)
+			- [do\_bounds](#do_bounds)
+			- [do\_invalid\_op](#do_invalid_op)
+			- [do\_device\_not\_available](#do_device_not_available)
+			- [do\_coprocessor\_segment\_overrun](#do_coprocessor_segment_overrun)
+			- [do\_invalid\_TSS](#do_invalid_tss)
+			- [do\_segment\_not\_present](#do_segment_not_present)
+			- [do\_stack\_segment](#do_stack_segment)
+			- [do\_coprocessor\_error](#do_coprocessor_error)
+			- [do\_reserved](#do_reserved)
+
 
 # Linux-0.11 kernel目录进程管理trap.c详解
 
@@ -102,7 +103,7 @@ printk("base: %p, limit: %p\n",get_base(current->ldt[1]),get_limit(0x17));
 +-------------------+-----------------+
 | 其他              | [6] 高4位        |
 +-------------------+-----------------+
-| 基址 29:16        | [6] 低4位       |
+| 基址 29:16        | [6] 低4位        |
 +-------------------+-----------------+
 | 其他              | [5]             |
 +-------------------+-----------------+
@@ -148,161 +149,6 @@ for(i=0;i<10;i++)
 
 ```esp[1]```的内容是cs段描述符， ```esp[0]```的内容是EIP指针。这段代码的作用是打印当前栈帧中连续 10 个字节的十六进制值，以便在调试时查看栈上的内容。
 
-### do_double_fault
-```c
-void do_double_fault(long esp, long error_code)
-```
-调用die打印double fault的出错信息。
-```c
-{
-	die("double fault",esp,error_code);
-}
-```
-### do_general_protection
-```c
-void do_general_protection(long esp, long error_code)
-```
-调用die打印general protection的出错信息。
-```c
-{
-	die("general protection",esp,error_code);
-}
-```
-### do_divide_error
-```c
-void do_divide_error(long esp, long error_code)
-```
-调用die打印divide error的出错信息。
-```c
-{
-	die("divide error",esp,error_code);
-}
-```
-
-### do_int3
-```c
-void do_int3(long * esp, long error_code,
-		long fs,long es,long ds,
-		long ebp,long esi,long edi,
-		long edx,long ecx,long ebx,long eax)
-``` 
-
-打印int3的信息。
-```c
-	int tr;
-
-	__asm__("str %%ax":"=a" (tr):"0" (0));
-	printk("eax\t\tebx\t\tecx\t\tedx\n\r%8x\t%8x\t%8x\t%8x\n\r",
-		eax,ebx,ecx,edx);
-	printk("esi\t\tedi\t\tebp\t\tesp\n\r%8x\t%8x\t%8x\t%8x\n\r",
-		esi,edi,ebp,(long) esp);
-	printk("\n\rds\tes\tfs\ttr\n\r%4x\t%4x\t%4x\t%4x\n\r",
-		ds,es,fs,tr);
-	printk("EIP: %8x   CS: %4x  EFLAGS: %8x\n\r",esp[0],esp[1],esp[2]);
-```
-
-### do_nmi
-```c
-void do_nmi(long esp, long error_code)
-```
-调用die打印nmi的出错信息。
-```c
-die("nmi",esp,error_code);
-```
-
-### do_debug
-```c
-void do_debug(long esp, long error_code)
-```
-调用die打印debug的出错信息。
-```c
-die("debug",esp,error_code);
-```
-### do_overflow
-```c
-void do_overflow(long esp, long error_code)
-```
-调用die打印overflow的出错信息。
-```c
-die("overflow",esp,error_code);
-```
-
-### do_bounds
-```c
-void do_bounds(long esp, long error_code)
-```
-
-调用die打印bounds的出错信息。
-```c
-die("bounds",esp,error_code);
-```
-
-### do_invalid_op
-```c
-void do_invalid_op(long esp, long error_code)
-```
-调用die打印invalid operand的出错信息。
-```c
-die("invalid operand",esp,error_code);
-```
-### do_device_not_available
-```c
-void do_device_not_available(long esp, long error_code)
-```
-调用die打印device not available的出错信息。
-```c
-die("device not available",esp,error_code);
-```
-
-### do_coprocessor_segment_overrun
-```c
-void do_coprocessor_segment_overrun(long esp, long error_code)
-```
-调用die打印coprocessor segment overrun的出错信息。
-```c
-die("coprocessor segment overrun",esp,error_code);
-```
-### do_invalid_TSS
-```c
-void do_invalid_TSS(long esp,long error_code)
-```
-调用die打印do_invalid_TSS的出错信息。
-```c
-die("invalid TSS",esp,error_code);
-```
-
-### do_segment_not_present
-```c
-void do_segment_not_present(long esp,long error_code)
-```
-调用die打印do_segment_not_present的出错信息。
-```c
-die("segment not present",esp,error_code);
-```
-
-### do_stack_segment
-```c
-void do_stack_segment(long esp,long error_code)
-```
-调用die打印do_stack_segment的出错信息。
-
-```c
-die("stack segment",esp,error_code);
-```
-
-### do_coprocessor_error
-```c
-void do_coprocessor_error(long esp, long error_code)
-```
-
-### do_reserved
-```c
-void do_reserved(long esp, long error_code)
-```
-调用die打印do_reserved的出错信息。
-```c
-die("reserved (15,17-47) error",esp,error_code);
-```
 ### trap_init
 
 trap_init方法的原型如下所示：
@@ -359,4 +205,294 @@ void trap_init(void)
 
 总的来说，中断门和陷阱门之间的主要区别在于中断门会关闭中断，而陷阱门不会。中断门通常用于处理需要及时响应且可能涉及硬件处理的情况，而陷阱门则用于处理软件产生的异常或陷阱。
 
-## Q & A
+```set_trap_gate```和```set_system_gate```都是通过```_set_gate```宏定义实现的。
+
+```c
+#define _set_gate(gate_addr,type,dpl,addr) \
+__asm__ ("movw %%dx,%%ax\n\t" \
+	"movw %0,%%dx\n\t" \
+	"movl %%eax,%1\n\t" \
+	"movl %%edx,%2" \
+	: \
+	: "i" ((short) (0x8000+(dpl<<13)+(type<<8))), \
+	"o" (*((char *) (gate_addr))), \
+	"o" (*(4+(char *) (gate_addr))), \
+	"d" ((char *) (addr)),
+	"a" (0x00080000))
+```
+
+这个是内嵌汇编，理解起来有一定难度，我们慢慢读。
+
+在```head.s```中，我们曾经将所有的中断描述符都设置为了```ignore_int```。这里再回顾一下当时的过程，使用了EDX存储高32位数据，EAX存储了低32位数据。
+
+```shell
+63                                      32 
++------------------+-+-+------+---+-----+
++                  | |D |     |   |     +
++  偏移地址高16位   |P|P |01110|000|     +
++                  | |L |     |   |     +
++------------------+-+--+-----+---+-----+
++   addr[31：16]   |1|00|01110|000|00000+
++------------------+-+--+-----+---+-----+
++                 EDX                   +
++---------------------------------------+
+```
+
+```shell
+31                                     0
++------------------+-------------------+
++     段描述符      +   偏移地址低16位   +
++------------------+-------------------+
++       0x8        +    addr[31：16]   +
++------------------+-------------------+
++                 EAX                  +
++--------------------------------------+
+```
+
+这里的```_set_gate```同样使用EDX存储高32位数据，EAX存储了低32位数据。
+
+首先理解下占位符%0-%4：
+- %0 由dpl和type组合成的类型标识字。修改存在为1，```0x8000 = 0x10000000_00000000```，相当于将存在位设置为1，设置dpl的值(dpl<<13)， 并设置中断的类型是陷阱门还是中断门(type<<8)。
+- %1 描述符低32位地址
+- %2 描述符高32位地址
+- %3 edx等于中断程序入口地址
+- %4 eax，高位设置位0x8，即段描述符是0x8。
+
+这里```edx```被初始化了中断程序入口地址。于是后面需要将其进行拆分，低16位要拆分到```eax```中。下面这句汇编的含义便是如此：
+
+```x86asm
+movw %%dx,%%ax\n\t" 
+```
+
+接下来将构建好的类型标识字赋给```edx```的低16位，即```dx```
+
+```x86asm
+movw %0,%%dx
+```
+
+到此为止，edx和eax组装完毕，将其赋值到指定的内存地址上。
+
+```x86asm
+"movl %%eax,%1\n\t" \
+"movl %%edx,%2"
+```
+
+其实过程和之前设置```ignore_int```大同小异。
+
+### 中断函数入口
+
+下面这部分是很多中断执行的最终的入口，大部分都是调用了```die```方法。
+
+#### do_double_fault
+
+```c
+void do_double_fault(long esp, long error_code)
+```
+
+调用die打印double fault的出错信息。
+
+```c
+{
+	die("double fault",esp,error_code);
+}
+```
+
+#### do_general_protection
+
+```c
+void do_general_protection(long esp, long error_code)
+```
+
+调用die打印general protection的出错信息。
+
+```c
+{
+	die("general protection",esp,error_code);
+}
+```
+
+#### do_divide_error
+
+```c
+void do_divide_error(long esp, long error_code)
+```
+
+调用die打印divide error的出错信息。
+
+```c
+{
+	die("divide error",esp,error_code);
+}
+```
+
+#### do_int3
+
+```c
+void do_int3(long * esp, long error_code,
+		long fs,long es,long ds,
+		long ebp,long esi,long edi,
+		long edx,long ecx,long ebx,long eax)
+``` 
+
+打印int3的信息。
+
+```c
+	int tr;
+
+	__asm__("str %%ax":"=a" (tr):"0" (0));
+	printk("eax\t\tebx\t\tecx\t\tedx\n\r%8x\t%8x\t%8x\t%8x\n\r",
+		eax,ebx,ecx,edx);
+	printk("esi\t\tedi\t\tebp\t\tesp\n\r%8x\t%8x\t%8x\t%8x\n\r",
+		esi,edi,ebp,(long) esp);
+	printk("\n\rds\tes\tfs\ttr\n\r%4x\t%4x\t%4x\t%4x\n\r",
+		ds,es,fs,tr);
+	printk("EIP: %8x   CS: %4x  EFLAGS: %8x\n\r",esp[0],esp[1],esp[2]);
+```
+
+#### do_nmi
+
+```c
+void do_nmi(long esp, long error_code)
+```
+
+调用die打印nmi的出错信息。
+
+```c
+die("nmi",esp,error_code);
+```
+
+#### do_debug
+
+```c
+void do_debug(long esp, long error_code)
+```
+
+调用die打印debug的出错信息。
+
+```c
+die("debug",esp,error_code);
+```
+
+#### do_overflow
+
+```c
+void do_overflow(long esp, long error_code)
+```
+
+调用die打印overflow的出错信息。
+
+```c
+die("overflow",esp,error_code);
+```
+
+#### do_bounds
+
+```c
+void do_bounds(long esp, long error_code)
+```
+
+调用die打印bounds的出错信息。
+
+```c
+die("bounds",esp,error_code);
+```
+
+#### do_invalid_op
+
+```c
+void do_invalid_op(long esp, long error_code)
+```
+
+调用die打印invalid operand的出错信息。
+
+```c
+die("invalid operand",esp,error_code);
+```
+
+#### do_device_not_available
+
+```c
+void do_device_not_available(long esp, long error_code)
+```
+
+调用die打印device not available的出错信息。
+
+```c
+die("device not available",esp,error_code);
+```
+
+#### do_coprocessor_segment_overrun
+
+```c
+void do_coprocessor_segment_overrun(long esp, long error_code)
+```
+
+调用die打印coprocessor segment overrun的出错信息。
+
+```c
+die("coprocessor segment overrun",esp,error_code);
+```
+
+#### do_invalid_TSS
+
+```c
+void do_invalid_TSS(long esp,long error_code)
+```
+
+调用die打印do_invalid_TSS的出错信息。
+
+```c
+die("invalid TSS",esp,error_code);
+```
+
+#### do_segment_not_present
+
+```c
+void do_segment_not_present(long esp,long error_code)
+```
+
+调用die打印do_segment_not_present的出错信息。
+
+```c
+die("segment not present",esp,error_code);
+```
+
+#### do_stack_segment
+
+```c
+void do_stack_segment(long esp,long error_code)
+```
+
+调用die打印do_stack_segment的出错信息。
+
+```c
+die("stack segment",esp,error_code);
+```
+
+#### do_coprocessor_error
+
+```c
+void do_coprocessor_error(long esp, long error_code)
+```
+
+```c
+	if (last_task_used_math != current)
+		return;
+	die("coprocessor error",esp,error_code);
+```
+
+首先，函数检查 last_task_used_math 是否等于当前任务 current，如果不相等，则说明上次使用浮点数单元的任务不是当前任务，这意味着上一次的错误处理已经由其他任务处理了，因此当前任务无需处理该错误，直接返回。如果 last_task_used_math 等于当前任务 current，则说明上次使用浮点数单元的任务就是当前任务，需要当前任务来处理这个错误。
+
+函数调用 die 函数，传递了错误消息字符串 "coprocessor error"、栈指针 esp 和错误代码 error_code 作为参数。这个 die 函数用于在内核发生严重错误时停止程序的执行，进行错误信息的输出和系统的关闭或者重启。
+
+#### do_reserved
+
+```c
+void do_reserved(long esp, long error_code)
+```
+
+调用die打印do_reserved的出错信息。
+
+```c
+die("reserved (15,17-47) error",esp,error_code);
+```
