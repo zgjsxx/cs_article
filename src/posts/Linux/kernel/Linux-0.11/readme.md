@@ -29,7 +29,20 @@ https://github.com/yuan-xy/Linux-0.11.git( AT&T 汇编格式)
 
 [Linux-0.11 boot目录head.s详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-boot-head.html)
 
+## 初始化init
+
+[Linux-0.11 init 目录main.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-init-main.html)
+
+
 ## 进程管理
+
+[Linux-0.11 kernel目录asm.s详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-asm.html)
+
+[Linux-0.11 kernel目录trap.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-trap.html)
+
+[Linux-0.11 kernel目录system_call.s详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-system_call.html)
+
+[Linux-0.11 kernel目录mktime.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-mktime.html)
 
 [Linux-0.11 kernel目录fork.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-fork.html)
 
@@ -41,23 +54,15 @@ https://github.com/yuan-xy/Linux-0.11.git( AT&T 汇编格式)
 
 [Linux-0.11 kernel目录ll-rw-blk.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-ll-rw-blk.html)
 
-[Linux-0.11 kernel目录mktime.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-mktime.html)
-
 [Linux-0.11 kernel目录panic.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-panic.html)
 
 [Linux-0.11 kernel目录printk.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-printk.html)
 
 [Linux-0.11 kernel目录sys.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-sys.html)
 
-[Linux-0.11 kernel目录trap.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-trap.html)
-
 [Linux-0.11 kernel目录tty_io.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-tty-io.html)
 
 [Linux-0.11 kernel目录tty_ioctl.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-tty_ioctl.html)
-
-[Linux-0.11 kernel目录system_call.s详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-system_call.html)
-
-[Linux-0.11 kernel目录asm.s详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-asm.html)
 
 [Linux-0.11 kernel目录exit.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-exit.html)
 
@@ -101,8 +106,3 @@ https://github.com/yuan-xy/Linux-0.11.git( AT&T 汇编格式)
 [Linux-0.11 fs 目录super.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-fs-super.html)
 
 [Linux-0.11 fs 目录fcntl.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-fs-fcntl.html)
-
-
-## 初始化init
-
-[Linux-0.11 init 目录main.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-init-main.html)
