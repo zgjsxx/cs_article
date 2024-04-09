@@ -14,6 +14,11 @@ tag:
 		- [coprocessor\_error](#coprocessor_error)
 		- [device\_not\_available](#device_not_available)
 		- [timer\_interrupt](#timer_interrupt)
+		- [hd\_interrupt](#hd_interrupt)
+		- [floppy\_interrupt](#floppy_interrupt)
+- [do\_floppy为一函数指针，将被赋值实际处理C函数指针。该指针在被交换放到eax寄存器后](#do_floppy为一函数指针将被赋值实际处理c函数指针该指针在被交换放到eax寄存器后)
+- [就将do\_floppy变量置空。然后测试eax中原指针是否为空，若是则使指针指向C函数。](#就将do_floppy变量置空然后测试eax中原指针是否为空若是则使指针指向c函数)
+		- [parallel\_interrupt](#parallel_interrupt)
 
 
 # Linux-0.11 kernel目录进程管理system_call.s详解
@@ -381,3 +386,76 @@ timer_interrupt:
 然后，它从堆栈中取出当前特权级别（CPL），并将其压入堆栈，作为参数传递给 ```do_timer()``` 函数。```do_timer()```函数负责执行任务切换、计时等工作。
 
 最后，它调用 ```do_timer()``` 函数，并通过 ```ret_from_sys_call``` 返回到系统调用的返回路径。
+
+### hd_interrupt
+
+```x86asm
+hd_interrupt:
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+	push %ds
+	push %es
+	push %fs
+	movl $0x10,%eax
+	mov %ax,%ds
+	mov %ax,%es
+	movl $0x17,%eax
+	mov %ax,%fs
+# 由于初始化中断控制芯片时没有采用自动EOI，所以这里需要发指令结束该硬件中断。
+	movb $0x20,%al
+	outb %al,$0xA0		# EOI to interrupt controller #1
+	jmp 1f			# give port chance to breathe
+1:	jmp 1f
+# do_hd定义为一个函数指针，将被赋值read_intr()或write_intr()函数地址。放到edx
+# 寄存器后就将do_hd指针变量置为NULL。然后测试得到的函数指针，若该指针为空，则
+# 赋予该指针指向C函数unexpected_hd_interrupt()，以处理未知硬盘中断。
+1:	xorl %edx,%edx
+	xchgl do_hd,%edx
+	testl %edx,%edx             # 测试函数指针是否为NULL
+	jne 1f                      # 若空，则使指针指向C函数unexpected_hd_interrup().
+	movl $unexpected_hd_interrupt,%edx
+1:	outb %al,$0x20              # 送主8259A中断控制器EOI命令(结束硬件中断)
+	call *%edx		# "interesting" way of handling intr.
+	pop %fs                     # 上句调用do_hd指向C函数
+	pop %es
+	pop %ds
+	popl %edx
+	popl %ecx
+	popl %eax
+	iret
+```
+
+### floppy_interrupt
+
+floppy_interrupt:
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+	push %ds
+	push %es
+	push %fs
+	movl $0x10,%eax
+	mov %ax,%ds
+	mov %ax,%es
+	movl $0x17,%eax
+	mov %ax,%fs
+	movb $0x20,%al
+	outb %al,$0x20		# EOI to interrupt controller #1
+# do_floppy为一函数指针，将被赋值实际处理C函数指针。该指针在被交换放到eax寄存器后
+# 就将do_floppy变量置空。然后测试eax中原指针是否为空，若是则使指针指向C函数。
+	xorl %eax,%eax
+	xchgl do_floppy,%eax
+	testl %eax,%eax
+	jne 1f
+	movl $unexpected_floppy_interrupt,%eax
+1:	call *%eax		# "interesting" way of handling intr.
+	pop %fs
+	pop %es
+	pop %ds
+	popl %edx
+	popl %ecx
+	popl %eax
+	iret
+
+### parallel_interrupt
