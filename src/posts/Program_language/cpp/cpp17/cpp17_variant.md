@@ -36,7 +36,7 @@ public:
 
 int main(){
 
-A<int, float, double, std::string> a;
-std::cout << a.get_index<std::string>() << std::endl;
+    A<int, float, double, std::string> a;
+    std::cout << a.get_index<std::string>() << std::endl;
 }
 ```
