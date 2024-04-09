@@ -5,12 +5,39 @@ tag:
   - Linux-0.11代码解读系列
 ---
 
+- [Linux-0.11 kernel目录进程管理sched.c详解](#linux-011-kernel目录进程管理schedc详解)
+	- [模块简介](#模块简介)
+	- [函数详解](#函数详解)
+		- [schedule](#schedule)
+		- [show\_task](#show_task)
+		- [show\_stat](#show_stat)
+		- [math\_state\_restore](#math_state_restore)
+		- [sys\_pause](#sys_pause)
+		- [sleep\_on](#sleep_on)
+		- [interruptible\_sleep\_on](#interruptible_sleep_on)
+		- [wake\_up](#wake_up)
+		- [ticks\_to\_floppy\_on](#ticks_to_floppy_on)
+		- [floppy\_on](#floppy_on)
+		- [floppy\_off](#floppy_off)
+		- [do\_floppy\_timer](#do_floppy_timer)
+		- [add\_timer](#add_timer)
+		- [do\_timer](#do_timer)
+		- [sys\_alarm](#sys_alarm)
+		- [sys\_getpid](#sys_getpid)
+		- [sys\_getppid](#sys_getppid)
+		- [sys\_getuid](#sys_getuid)
+		- [sys\_geteuid](#sys_geteuid)
+		- [sys\_getgid](#sys_getgid)
+		- [sys\_getegid](#sys_getegid)
+		- [sys\_nice](#sys_nice)
+		- [sched\_init](#sched_init)
+
 
 # Linux-0.11 kernel目录进程管理sched.c详解
 
 ## 模块简介
 
-sched.c主要功能是负责进程的调度，其最核心的函数就是**schedule**。除schedule以外， sleep_on和wake_up也是相对重要的函数。
+sched.c是内核中有关任务(进程调度管理的程序)，其中包括有关调度的基本函数(sleep_on()、wakeup()、schedule()等)以及一些简单的系统调用函数(比如getpid())。系统时钟中断处理函数do_timer()也被放置在本程序中。另外，为了便于软盘驱动器定时处理的编程，Linux也将有关软盘定时操作的几个函数放到了这里。
 
 ## 函数详解
 
@@ -303,14 +330,54 @@ while (p->next && p->next->jiffies < p->jiffies) {
 ```
 
 ### do_timer
+
 ```c
 void do_timer(long cpl)
 ```
-该函数是时钟中断的处理函数。其在system_call.s中的timer_interrupt函数中被调用。
 
-参数cpl表示的是当前的特权级， 0表示时钟中断发生时，当前运行在内核态，3表示时钟中断发生时，当前运行在用户态。
+该函数是时钟中断的处理函数。其在system_call.s中的timer_interrupt函数中被调用。调用层级如下所示：
 
-下面的代码根据cpl的值将进程PCB中的utime和stime进行修改。如果cpl为0，则增加stime(supervisor time)， 如果cpl为3， 则增加utime。
+```shell
+├── int 0x20
+  └── timer_interrupt
+	└── do_timer
+```
+
+参数```cp```表示的是当前的特权级， 0表示时钟中断发生时，当前运行在内核态，3表示时钟中断发生时，当前运行在用户态。
+
+程序的开始判断扬声器发生次数是否已经到。如果到了，就停止发声。
+
+```c
+	extern int beepcount;               // 扬声器发声滴答数
+	extern void sysbeepstop(void);      // 关闭扬声器。
+
+    // 如果发声计数次数到，则关闭发声。(向0x61口发送命令，复位位0和1，位0
+    // 控制8253计数器2的工作，位1控制扬声器)
+	if (beepcount)
+		if (!--beepcount)
+			sysbeepstop();
+```
+
+这里代码似乎可以简化为
+
+```c
+if(beepcount == 1) {
+	--beepcount;
+	sysbeepstop();
+	}
+```
+
+```sysbeepstop```定义在```console.c```中，向```0x61```口发送命令，复位位0和1，即```0xFC = 11111100```，位0控制8253计数器2的工作，位1控制扬声器)
+
+```c
+void sysbeepstop(void)
+{
+	/* disable counter 2 */
+	outb(inb_p(0x61)&0xFC, 0x61);
+}
+```
+
+下面的代码根据```cpl```的值将进程PCB中的```utime```和```stime```进行修改。如果```cpl```为0，则增加stime(supervisor time)， 如果```cpl```为3， 则增加```utime```。
 
 ```c
 if (cpl)
@@ -319,7 +386,8 @@ else
 	current->stime++;
 ```
 
-下面对定时器的链表进行遍历。 将链表的第一个定时器的滴答数减1。如果滴答数已经等于0， 代表该定时器已经到期，那么需要调用相应的处理程序进行处理。
+下面对定时器的链表进行遍历。 将链表的第一个定时器的滴答数减1。如果滴答数已经等于0， 代表该定时器已经到期，那么需要调用相应的处理程序进行处理。定时器是会在```add_timer```被创建。
+
 ```c
 if (next_timer) {
 	next_timer->jiffies--;
@@ -335,10 +403,12 @@ if (next_timer) {
 ```
 
 下面代码则是将当前运行的进程的时间片减去1，如果此时进程时间片没有用完，该函数则返回。 如果此时进程时间已经用完，则将时间片设置为0。并且如果此时cpl表明中断发生用户态，那么还将会触发进程的调度。
+
 ```c
 if ((--current->counter)>0) return;
 current->counter=0;
 ```
+
 ### sys_alarm
 ```c
 int sys_alarm(long seconds)
