@@ -11,13 +11,12 @@ tag:
 		- [system\_call](#system_call)
 		- [ret\_from\_sys\_call](#ret_from_sys_call)
 		- [sys\_fork](#sys_fork)
+		- [sys\_execve](#sys_execve)
 		- [coprocessor\_error](#coprocessor_error)
 		- [device\_not\_available](#device_not_available)
 		- [timer\_interrupt](#timer_interrupt)
 		- [hd\_interrupt](#hd_interrupt)
 		- [floppy\_interrupt](#floppy_interrupt)
-- [do\_floppy为一函数指针，将被赋值实际处理C函数指针。该指针在被交换放到eax寄存器后](#do_floppy为一函数指针将被赋值实际处理c函数指针该指针在被交换放到eax寄存器后)
-- [就将do\_floppy变量置空。然后测试eax中原指针是否为空，若是则使指针指向C函数。](#就将do_floppy变量置空然后测试eax中原指针是否为空若是则使指针指向c函数)
 		- [parallel\_interrupt](#parallel_interrupt)
 
 
@@ -215,6 +214,19 @@ sys_fork:
 
 ![内核栈的状态](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/fork/system_call_stack.png)
 
+### sys_execve
+
+这是sys_execve系统调用。取中断调用程序的代码指针作为参数调用C函数```do_execve()```。
+
+```x86asm
+sys_execve:
+	lea EIP(%esp),%eax  # eax指向堆栈中保存用户程序的eip指针处(EIP+%esp)
+	pushl %eax
+	call do_execve
+	addl $4,%esp        # 丢弃调用时压入栈的EIP值
+	ret
+```
+
 ### coprocessor_error
 
 这段代码是一个处理协处理器错误的中断处理程序。
@@ -346,6 +358,18 @@ void math_emulate(long edi, long esi, long ebp, long sys_call_ret,
 
 ### timer_interrupt
 
+这里是```int 0x20```时钟中断处理程序。中断频率被设置为100Hz。
+
+下面这里是中断处理函数的一个固定套路。
+
+首先，它保存了当前的数据段寄存器 ```ds```、```es```、```fs``` 到堆栈中，以便后续恢复。
+
+接着，它将 ```edx```、```ecx```、```ebx```、```eax``` 寄存器的值依次压入堆栈中，保存了这些寄存器的内容。
+
+然后，它将 ```ds``` 和 ```es``` 寄存器设置为指向内核数据段，即将数据段选择符设置为 ```0x10```，以确保后续操作在内核数据段中进行。
+
+```fs``` 寄存器被设置为指向局部数据段，即设置数据段选择符为 ```0x17```，这可能是为了在中断处理中访问特定于定时器的数据。
+
 ```
 timer_interrupt:
 	push %ds		# save ds,es and put kernel data space
@@ -360,9 +384,23 @@ timer_interrupt:
 	mov %ax,%es
 	movl $0x17,%eax
 	mov %ax,%fs
+```
+
+```incl jiffies``` 增加了全局变量 ```jiffies```，它用于跟踪系统运行时间。
+
+接下来，它向中断控制器发送 ```End-of-Interrupt（EOI）```信号，以告知硬件中断处理已完成。
+
+```x86asm
 	incl jiffiesss
 	movb $0x20,%al		# EOI to interrupt controller #1
 	outb %al,$0x20      # 操作命令字OCW2送0x20端口
+```
+
+然后，它从堆栈中取出当前特权级别（CPL），并将其压入堆栈，作为参数传递给 ```do_timer()``` 函数。```do_timer()```函数负责执行任务切换、计时等工作。
+
+最后，它调用 ```do_timer()``` 函数，并通过 ```ret_from_sys_call``` 返回到系统调用的返回路径。
+
+```x86asm
 	movl CS(%esp),%eax
 	andl $3,%eax		# %eax is CPL (0 or 3, 0=supervisor)
 	pushl %eax
@@ -371,23 +409,15 @@ timer_interrupt:
 	jmp ret_from_sys_call
 ```
 
-首先，它保存了当前的数据段寄存器 ```ds```、```es```、```fs``` 到堆栈中，以便后续恢复。
-
-接着，它将 ```edx```、```ecx```、```ebx```、```eax``` 寄存器的值依次压入堆栈中，保存了这些寄存器的内容。
-
-然后，它将 ```ds``` 和 ```es``` 寄存器设置为指向内核数据段，即将数据段选择符设置为 ```0x10```，以确保后续操作在内核数据段中进行。
-
-```fs``` 寄存器被设置为指向局部数据段，即设置数据段选择符为 ```0x17```，这可能是为了在中断处理中访问特定于定时器的数据。
-
-```incl jiffies``` 增加了全局变量 ```jiffies```，它用于跟踪系统运行时间。
-
-接下来，它向中断控制器发送 ```End-of-Interrupt（EOI）```信号，以告知硬件中断处理已完成。
-
-然后，它从堆栈中取出当前特权级别（CPL），并将其压入堆栈，作为参数传递给 ```do_timer()``` 函数。```do_timer()```函数负责执行任务切换、计时等工作。
-
-最后，它调用 ```do_timer()``` 函数，并通过 ```ret_from_sys_call``` 返回到系统调用的返回路径。
-
 ### hd_interrupt
+
+```hd_interrupt```是```int 0x2E```硬盘中断处理函数，相应硬件请求IRQ14。
+
+首先将 %eax、%ecx、%edx 寄存器的值压入堆栈。这是为了保存这些寄存器的值，在处理中断后恢复它们的原始值。
+
+接着将 %ds、%es、%fs 寄存器的值压入堆栈。同样，这是为了保存这些寄存器的值。
+
+设置数据段寄存器 %ds 和 %es 以及附加段寄存器 %fs 为指向内核数据段，即将数据段选择符设置为 0x10 和 0x17
 
 ```x86asm
 hd_interrupt:
@@ -402,22 +432,38 @@ hd_interrupt:
 	mov %ax,%es
 	movl $0x17,%eax
 	mov %ax,%fs
-# 由于初始化中断控制芯片时没有采用自动EOI，所以这里需要发指令结束该硬件中断。
+```
+
+将立即数 ```0x20``` 移动到 ```al``` 寄存器中。这个操作是为了向**从中断控制器**发送 End-of-Interrupt（EOI）信号，告知它当前处理的硬盘中断已经完成。
+
+```x86asm
 	movb $0x20,%al
 	outb %al,$0xA0		# EOI to interrupt controller #1
-	jmp 1f			# give port chance to breathe
+```
+
+将 ```do_hd``` 变量和 ```edx``` 寄存器的值进行交换。```do_hd``` 是一个函数指针，用于处理硬盘中断。这个操作将 ```do_hd``` 变量置空，并将原来 ```do_hd``` 的值（可能是一个函数指针）存储在 ```edx``` 中。
+
+```x86asm
+	jmp 1f			# give port chance to breathe 延时作用
 1:	jmp 1f
-# do_hd定义为一个函数指针，将被赋值read_intr()或write_intr()函数地址。放到edx
-# 寄存器后就将do_hd指针变量置为NULL。然后测试得到的函数指针，若该指针为空，则
-# 赋予该指针指向C函数unexpected_hd_interrupt()，以处理未知硬盘中断。
 1:	xorl %edx,%edx
 	xchgl do_hd,%edx
-	testl %edx,%edx             # 测试函数指针是否为NULL
-	jne 1f                      # 若空，则使指针指向C函数unexpected_hd_interrup().
+```
+
+接下来测试 ```edx``` 寄存器的值是否为零。如果 ```edx``` 不为零，则跳转到标签 1f。否则将地址```unexpected_hd_interrupt``` 存储到 ```edx``` 寄存器中，准备调用一个处理软盘中断的 C 函数。调用前会向主8259A发用EOI指令。
+
+```x86asm
+	testl %edx,%edx             
+	jne 1f                      
 	movl $unexpected_hd_interrupt,%edx
-1:	outb %al,$0x20              # 送主8259A中断控制器EOI命令(结束硬件中断)
-	call *%edx		# "interesting" way of handling intr.
-	pop %fs                     # 上句调用do_hd指向C函数
+1:	outb %al,$0x20              
+	call *%edx	
+```
+
+调用完毕之后弹出栈中保存的寄存器的值。
+	
+```x86asm	
+	pop %fs                     
 	pop %es
 	pop %ds
 	popl %edx
@@ -428,6 +474,17 @@ hd_interrupt:
 
 ### floppy_interrupt
 
+这里是```int 0x26```软盘驱动器中断处理程序。相应硬件请求IRQ6。
+
+这里的处理流程与hd_interrupt的流程很相似。
+
+首先将 %eax、%ecx、%edx 寄存器的值压入堆栈。这是为了保存这些寄存器的值，在处理中断后恢复它们的原始值。
+
+接着将 %ds、%es、%fs 寄存器的值压入堆栈。同样，这是为了保存这些寄存器的值。
+
+设置数据段寄存器 %ds 和 %es 以及附加段寄存器 %fs 为指向内核数据段，即将数据段选择符设置为 0x10 和 0x17
+
+```x86asm
 floppy_interrupt:
 	pushl %eax
 	pushl %ecx
@@ -440,16 +497,38 @@ floppy_interrupt:
 	mov %ax,%es
 	movl $0x17,%eax
 	mov %ax,%fs
+```
+
+将立即数 ```0x20``` 移动到 ```al``` 寄存器中。这个操作是为了向主中断控制器发送 End-of-Interrupt（EOI）信号，告知它当前处理的软盘中断已经完成。
+
+```x86asm
 	movb $0x20,%al
 	outb %al,$0x20		# EOI to interrupt controller #1
-# do_floppy为一函数指针，将被赋值实际处理C函数指针。该指针在被交换放到eax寄存器后
-# 就将do_floppy变量置空。然后测试eax中原指针是否为空，若是则使指针指向C函数。
+```
+
+将 ```do_floppy``` 变量和 ```eax``` 寄存器的值进行交换。```do_floppy``` 是一个函数指针，用于处理软盘中断。这个操作将 ```do_floppy``` 变量置空，并将原来 ```do_floppy``` 的值（可能是一个函数指针）存储在 ```eax``` 中。
+
+读到这里会产生一个疑问，交换过后do_floppy就被清空了，那么下一次```floppy_interrupt```产生时，岂不是无法触发了？
+
+在```do_floppy```的内部还会重新设置一次```do_floppy```的指向。
+
+```x86asm
 	xorl %eax,%eax
 	xchgl do_floppy,%eax
+```
+
+接下来测试 ```eax``` 寄存器的值是否为零。如果 ```eax``` 不为零，则跳转到标签 1f。否则将地址```unexpected_floppy_interrupt``` 存储到 ```eax``` 寄存器中，准备调用一个处理软盘中断的 C 函数。
+
+```x86asm
 	testl %eax,%eax
 	jne 1f
 	movl $unexpected_floppy_interrupt,%eax
 1:	call *%eax		# "interesting" way of handling intr.
+```
+
+调用完毕之后弹出栈中保存的寄存器的值。
+
+```x86asm
 	pop %fs
 	pop %es
 	pop %ds
@@ -457,6 +536,7 @@ floppy_interrupt:
 	popl %ecx
 	popl %eax
 	iret
+```
 
 ### parallel_interrupt
 

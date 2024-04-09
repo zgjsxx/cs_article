@@ -485,6 +485,15 @@ void do_coprocessor_error(long esp, long error_code)
 
 函数调用 die 函数，传递了错误消息字符串 "coprocessor error"、栈指针 esp 和错误代码 error_code 作为参数。这个 die 函数用于在内核发生严重错误时停止程序的执行，进行错误信息的输出和系统的关闭或者重启。
 
+在Linux-0.11中，```do_coprocessor_error```没有被调用的地方。
+
+```trap_init```中设置的协处理器错误的中断函数入口是```coprocessor_error```，其定义在```system_call.s```中。
+
+```c
+set_trap_gate(16,&coprocessor_error);
+```
+
+
 #### do_reserved
 
 ```c
