@@ -121,11 +121,20 @@ switch_to(next);
 - tty_write
 
 ### show_task
+
 ```c
 void show_task(int nr,struct task_struct * p)
 ```
-该函数的作用是显示任务序号为nr的进程的pid，进程状态以及内核栈剩余的大小。
 
+show_task方法在show_stat方法中被调用。调用关系如下：
+
+```shell
+├── func(keyboard.S)
+  └── show_task
+	└── do_timer
+```
+
+该函数的作用是显示任务序号为```nr```的进程的```pid```，进程状态以及内核栈剩余的大小。
 
 ```c
 int i,j = 4096-sizeof(struct task_struct);
@@ -134,7 +143,7 @@ printk("%d: pid=%d, state=%d, ",nr,p->pid,p->state);
 i=0;
 ```
 
-此时j指向PCB所在内存页的顶部， i指向task_struct结构体的下一个字节。下面这段代码的所用实际就是统计内核栈中空闲大小。
+此时j指向PCB所在内存页的顶部， i指向```task_struct```结构体的下一个字节。下面这段代码的所用实际就是统计内核栈中空闲大小。
 
 ![show_task](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/sched/show_task.png)
 
@@ -144,11 +153,16 @@ while (i<j && !((char *)(p+1))[i])
 printk("%d (of %d) chars free in kernel stack\n\r",i,j);
 ```
 
+内核栈的位置是在fork.c中```copy_process```设置的。
+
 ### show_stat
+
 ```c
 void show_stat(void)
 ```
-该函数内部调用show_task函数，实际上就是遍历task数组， 调用show_stat函数显示进程相关信息。
+
+该函数内部调用```show_task```函数，实际上就是遍历```task```数组， 调用```show_stat```函数显示进程相关信息。
+
 ```c
 int i;
 
@@ -156,11 +170,49 @@ for (i=0;i<NR_TASKS;i++)//遍历task数组
 	if (task[i])
 		show_task(i,task[i]);//调用show_task
 ```
+
 ### math_state_restore
+
 ```c
 void math_state_restore()
 ```
+
 该函数的作用是将当前协处理器内容保存到老协处理器状态数组中，并将当前任务的协处理器内容加载进协处理器。
+
+这个条件判断检查上一个使用数学协处理器的任务是否与当前任务相同。如果是，则说明上一个任务就是当前任务，不需要进行任何操作，直接返回。这是一种优化，避免在不必要的情况下重复保存和恢复数学协处理器的状态。
+
+```c
+if (last_task_used_math == current)
+    return;
+```
+
+```fwait``` 指令是协处理器指令，用于确保之前的协处理器操作已经完成。在发送新的协处理器指令之前，必须确保之前的操作已经完成。
+
+如果上一个任务使用了数学协处理器，则使用 ```fnsave``` 指令保存其协处理器状态到该任务的 ```tss.i387``` 结构中。```fnsave``` 指令将协处理器的状态保存到内存中。
+
+```c
+__asm__("fwait");
+
+if (last_task_used_math) {
+    __asm__("fnsave %0"::"m" (last_task_used_math->tss.i387));
+}
+```
+
+更新 ```last_task_used_math``` 指针，指向当前任务。这是为了在下一次调用时，可以知道上一个使用数学协处理器的任务是哪一个。
+
+如果当前任务曾经使用过数学协处理器，则使用 ```frstor``` 指令从任务的 ```tss.i387``` 结构中恢复其协处理器状态。```frstor``` 指令从内存中加载协处理器的状态。
+
+如果当前任务是第一次使用数学协处理器，则使用 ```fninit``` 指令向协处理器发送初始化命令，并设置当前任务的 used_math 标志为 1，表示该任务已经使用了数学协处理器。
+
+```c
+	last_task_used_math=current;
+	if (current->used_math) {
+		__asm__("frstor %0"::"m" (current->tss.i387));
+	} else {
+		__asm__("fninit"::);        // 向协处理器发初始化命令
+		current->used_math=1;       // 设置已使用协处理器标志
+	}
+```
 
 ### sys_pause
 ```c
