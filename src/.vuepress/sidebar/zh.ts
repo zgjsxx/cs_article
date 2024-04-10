@@ -33,7 +33,7 @@ export const zhSidebar = sidebar({
         "Linux-0.11-kernel-exit",
         "Linux-0.11-kernel-fork",
         "Linux-0.11-kernel-ll-rw-blk",
-        "Linux-0.11-kernel-mktime-printk",
+        "Linux-0.11-kernel-mktime-printk-panic",
         "Linux-0.11-kernel-hd",
         "Linux-0.11-kernel-panic",
         "Linux-0.11-kernel-sched",

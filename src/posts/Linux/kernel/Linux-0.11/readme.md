@@ -42,7 +42,7 @@ https://github.com/yuan-xy/Linux-0.11.git( AT&T 汇编格式)
 
 [Linux-0.11 kernel目录system_call.s详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-system_call.html)
 
-[Linux-0.11 kernel目录mktime.c/printk.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-mktime-printk.html)
+[Linux-0.11 kernel目录mktime.c/printk.c/panic.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-mktime-printk-panic.html)
 
 [Linux-0.11 kernel目录fork.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-fork.html)
 
@@ -53,8 +53,6 @@ https://github.com/yuan-xy/Linux-0.11.git( AT&T 汇编格式)
 [Linux-0.11 kernel目录hd.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-hd.html)
 
 [Linux-0.11 kernel目录ll-rw-blk.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-ll-rw-blk.html)
-
-[Linux-0.11 kernel目录panic.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-panic.html)
 
 [Linux-0.11 kernel目录sys.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-sys.html)
 
