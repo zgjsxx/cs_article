@@ -493,7 +493,6 @@ void do_coprocessor_error(long esp, long error_code)
 set_trap_gate(16,&coprocessor_error);
 ```
 
-
 #### do_reserved
 
 ```c

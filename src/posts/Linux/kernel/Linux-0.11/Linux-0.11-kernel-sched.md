@@ -177,6 +177,14 @@ for (i=0;i<NR_TASKS;i++)//遍历task数组
 void math_state_restore()
 ```
 
+该方法的调用层级如下所示：
+
+```shell
+├── int 0x7
+  └── device_not_available
+	└── math_state_restore
+```
+
 该函数的作用是将当前协处理器内容保存到老协处理器状态数组中，并将当前任务的协处理器内容加载进协处理器。
 
 这个条件判断检查上一个使用数学协处理器的任务是否与当前任务相同。如果是，则说明上一个任务就是当前任务，不需要进行任何操作，直接返回。这是一种优化，避免在不必要的情况下重复保存和恢复数学协处理器的状态。
@@ -215,12 +223,14 @@ if (last_task_used_math) {
 ```
 
 ### sys_pause
+
 ```c
 int sys_pause(void)
 ```
-该函数是pause的系统调用。该函数会将当前任务的状态修改为可中断的状态， 并调用schedule函数去进行进程的调度。
 
-调用pause函数的进程会进入睡眠状态， 直到收到一个信号。
+该函数是```pause```的系统调用。该函数会将当前任务的状态修改为可中断的状态， 并调用```schedule```函数去进行进程的调度。
+
+调用```pause```函数的进程会进入睡眠状态， 直到收到一个信号。
 
 ```c
 current->state = TASK_INTERRUPTIBLE;
@@ -228,10 +238,12 @@ schedule();
 ```
 
 ### sleep_on
+
 ```c
 void sleep_on(struct task_struct **p)
 ```
-该函数的作用是将当前的task置为**不可中断的等待状态**， 直到被wake_up唤醒再继续执行。入参p是等待任务队列的头指针。通过p指针和tmp变量将等待的任务串在了一起。
+
+该函数的作用是将当前的task置为**不可中断的等待状态**， 直到被```wake_up```唤醒再继续执行。入参p是等待任务队列的头指针。通过p指针和tmp变量将等待的任务串在了一起。
 
 ![sleep_on示意图](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/sched/sleep_on.png)
 
@@ -248,6 +260,7 @@ if (current == &(init_task.task))	// 如果当前任务是任务0，则死机(im
 ```
 
 接着让当前等待任务的头指针指向当前任务。并将当前任务修改为**不可中断的等待状态**。进行调用schedule函数让操作系统切换其他任务执行。
+
 ```c
 tmp = *p;
 *p = current;
@@ -255,19 +268,24 @@ current->state = TASK_UNINTERRUPTIBLE;
 schedule();	
 ```
 
-当程序从schedule()返回继续执行时，说明任务已经被显式的wake_up，如果此时还有其他进程仍然在等待，那么也一同唤醒。
+当程序从```schedule```返回继续执行时，说明任务已经被显式的```wake_up```，如果此时还有其他进程仍然在等待，那么也一同唤醒。
 
 因为任务都在等待同样的资源， 那么当资源可用的时候， 就可以唤醒所有等待的任务。
+
 ```c
 if (tmp)			// 若还存在等待的任务，则也将其置为就绪状态（唤醒）。
 	tmp->state = 0;
 ```
 
+这里的将```tmp->state = 0```具有传递性，如果当前进程被唤醒，则将```sleep```链的下一个进程唤醒。当CPU执行到下一个进程时，又会将再下一个进程的状态状态改为运行态，以此类推。
+
 ### interruptible_sleep_on 
+
 ```c
 void interruptible_sleep_on (struct task_struct **p)
 ```
-该函数与sleep_on类似，但是该函数会将任务的状态修改为**可中断的等待状态**， 而sleep_on则是将任务修改为**不可中断的等待状态**。因此通过interruptible_sleep_on而等待的task是可以被信号唤醒的。 而通过sleep_on而等待的task是**不会被信号唤醒的**，只能通过wake_up函数唤醒。
+
+该函数与```sleep_on```类似，但是该函数会将任务的状态修改为**可中断的等待状态**， 而sleep_on则是将任务修改为**不可中断的等待状态**。因此通过interruptible_sleep_on而等待的task是可以被信号唤醒的。 而通过sleep_on而等待的task是**不会被信号唤醒的**，只能通过wake_up函数唤醒。
 
 ![interruptible_sleep_on示意图](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/sched/interruptible_sleep_on.png)
 
@@ -297,8 +315,9 @@ if (*p && *p != current)
 }
 ```
 
-下面一句代码有误，应该是*p = tmp，让队列头指针指向其余等待任务，否则在当前任务之前插入
+下面一句代码有误，应该是```*p = tmp```，让队列头指针指向其余等待任务，否则在当前任务之前插入
 等待队列的任务均被抹掉了
+
 ```c
 *p = NULL;
 if (tmp)
@@ -306,9 +325,11 @@ if (tmp)
 ```
 
 ### wake_up
+
 ```c
 void wake_up(struct task_struct **p)
 ```
+
 该函数的作用就是唤醒某一个任务。其用于唤醒p指向的等待队列中的任务。
 
 
@@ -321,27 +342,31 @@ if (p && *p)
 ```
 
 ### ticks_to_floppy_on
+
 ```c
 int ticks_to_floppy_on(unsigned int nr)
 ```
+
 该函数指定软盘到正常运转状态所需延迟滴答数（时间）。
 
 ### floppy_on
 ```c
 void floppy_on(unsigned int nr)
 ```
+
 该函数等待指定软驱马达启动所需时间。
 
 ### floppy_off
+
 ```c
 void floppy_off(unsigned int nr)
 ```
 
 关闭相应的软驱马达停转定时器3s。
+
 ```c
 moff_timer[nr]=3*HZ;
 ```
-
 
 ### do_floppy_timer
 ```c
