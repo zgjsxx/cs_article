@@ -111,6 +111,15 @@ switch_to(next);
 1. 当系统中存在运行状态的进程，则比较所有的进程的counter，取出拥有最大的counter的进程继续执行。如果系统中所有运行状态的进程的counter都为0， 则重新调整所有进程的counter。并取出序号最小的运行状态的进程继续执行。
 2. 当系统中不存在处于运行状态的进程，则切换0号进程运行。
 
+最后梳理一下，哪些地方会调用到```schedule```：
+- do_exit
+- sys_waitpid
+- sys_pause 
+- sleep_on
+- interruptible_sleep_on
+- do_timer
+- tty_write
+
 ### show_task
 ```c
 void show_task(int nr,struct task_struct * p)
