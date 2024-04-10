@@ -42,14 +42,17 @@ sched.c是内核中有关任务(进程调度管理的程序)，其中包括有�
 ## 函数详解
 
 ### schedule
+
 ```c
 void schedule(void)
 ```
+
 schedule函数的基本功能可以分为两大块， 第一块是**检查task中的报警信息和信号**， 第二块则是**进行任务的调度**。
 
 在第一块中，首先从任务数组的尾部任务开始，检查alarm是否小于当前系统滴答值，如果小于则代表alarm时间已经到期。将进程的signal中的SIGALARM位置1。
 
 接着就看如果检查进程的信号中如果处理BLOCK位以外还有别的信号，并且如果任务处于可中断状态，则将任务置为就绪状态。
+
 ```c
 int i,next,c;
 struct task_struct ** p;
@@ -65,7 +68,6 @@ for(p = &LAST_TASK ; p > &FIRST_TASK ; --p)
             (*p)->state=TASK_RUNNING; //修改任务的状态为就绪态
     }
 ```
-
 
 第二块的代码就是任务调度的核心代码。
 
@@ -93,6 +95,21 @@ while (1) {
 //切换任务执行next
 switch_to(next);
 ```
+
+注意如果所有运行状态的任务时间片为0的时候，重新调整所有任务的时间片。这里的算法是```counter = counter/2 + priority```。
+
+```c
+	if (c) break;
+	//如果当前没有RUNNING状态的任务的counter可以大于-1，那么则去更新counter的值，counter = counter/2 + priority
+	for(p = &LAST_TASK ; p > &FIRST_TASK ; --p)
+		if (*p)
+			(*p)->counter = ((*p)->counter >> 1) +
+					(*p)->priority;//更新counter值 counter = counter/2 + priority
+```
+
+总结起来：
+1. 当系统中存在运行状态的进程，则比较所有的进程的counter，取出拥有最大的counter的进程继续执行。如果系统中所有运行状态的进程的counter都为0， 则重新调整所有进程的counter。并取出序号最小的运行状态的进程继续执行。
+2. 当系统中不存在处于运行状态的进程，则切换0号进程运行。
 
 ### show_task
 ```c
