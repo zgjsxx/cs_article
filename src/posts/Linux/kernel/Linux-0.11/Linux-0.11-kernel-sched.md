@@ -382,7 +382,6 @@ moff_timer[nr]=10000;		/* 100 s = very big :-) */
 		mask |= nr;
 ```
 
-
 current_DOR定义如下所示：
 ```c
 unsigned char current_DOR = 0x0C;       // 允许DMA中断请求、启动FDC
@@ -411,6 +410,13 @@ unsigned char mask = 0x10 << nr;
 ```
 
 
+如果数字输出寄存器的当前值与要求的值不同，则向FDC数字输出端口输出新值(mask)，
+
+并且如果要求启动的马达还没有启动，则置相应软驱的马达启动定时器值(HZ/2 = 0.5秒，或50个滴答)。
+
+若已经启动，则再设置启动定时为2个滴答，能满足下面```do_floppy_timer()```中先递减后判断的要求。执行本次定时代码的要求即可。此后更新当前数字输出寄存器```current_DOR```。
+
+随后可以开启中断。
 
 ```c
 	if (mask != current_DOR) {
@@ -421,6 +427,8 @@ unsigned char mask = 0x10 << nr;
 			mon_timer[nr] = 2;
 		current_DOR = mask;
 	}
+	sti();                      // 开中断
+	return mon_timer[nr];       // 最后返回启动马达所需的时间值
 ```
 
 
@@ -430,6 +438,16 @@ void floppy_on(unsigned int nr)
 ```
 
 该函数等待指定软驱马达启动所需时间。
+
+等待指定软驱马达启动所需的一段时间，然后返回。设置指定软驱的马达启动到正常转速所需的延时，然后睡眠等待。在定时中断过程中会一直递减判断这里设定的延时值。当延时到期，就会唤醒这里的等待进程。
+
+```c
+	cli();                                  // 关中断
+    // 如果马达启动定时还没到，就一直把当前进程置为不可中断睡眠状态并放入等待马达运行的队列中。
+	while (ticks_to_floppy_on(nr))
+		sleep_on(nr+wait_motor);
+	sti();                                  // 开中断
+```
 
 ### floppy_off
 
@@ -443,12 +461,46 @@ void floppy_off(unsigned int nr)
 moff_timer[nr]=3*HZ;
 ```
 
+置关闭相应软驱马达停转定时器(3秒)。若不使用该函数明确关闭指定的软驱马达，则在马达开启100秒之后也会被关闭
+
 ### do_floppy_timer
+
 ```c
 void do_floppy_timer(void)
 ```
 
-如果马达启动定时到则唤醒进程。
+软盘定时处理子程序。调用关系如下所示：
+
+```shell
+├── int 0x20
+  └── timer_interrupt
+	└── do_timer
+		└── do_floppy_timer
+```
+
+更新马达启动定时值和马达关闭停转计时值。该子程序会在时钟定时中断过程中被调用，因此系统每经过一个滴答(10ms)就会被调用一次，随时更新马达开启或停转定时器
+的值。如果某一个马达停转定时到，则将数字输出寄存器马达启动位复位。
+
+```c
+	int i;
+	unsigned char mask = 0x10;
+
+	for (i=0 ; i<4 ; i++,mask <<= 1) {
+		if (!(mask & current_DOR))          // 如果不是DOR指定的马达则跳过。
+			continue;
+		if (mon_timer[i]) {                 // 如果马达启动定时到则唤醒进程。
+			if (!--mon_timer[i])
+				wake_up(i+wait_motor);
+		} else if (!moff_timer[i]) {        // 如果马达停转定时到则复位相应马达，并更新数字输出寄存器
+			current_DOR &= ~mask;
+			outb(current_DOR,FD_DOR);
+		} else
+			moff_timer[i]--;                // 否则马达停转计时递减。
+	}
+```
+
+如果有一个马达启动定时到则唤醒进程。
+
 ```c
 if (mon_timer[i]) {
 	if (!--mon_timer[i])
@@ -463,11 +515,31 @@ else if (!moff_timer[i]) {
 	outb(current_DOR,FD_DOR);
 ```
 
+否则马达停转计时递减。
+
+```c
+  moff_timer[i]--;
+```
+
 ### add_timer 
+
 ```c
 add_timer(long jiffies, void (*fn)(void))
-```、
+```
+
 该函数的作用是设置定时值和相应的处理函数。
+
+在了解```add_timer```方法之前，首先了解一下timer_list的结构。包含两个元素：
+- jiffies 定时滴答数
+- 定时处理函数
+
+```c
+static struct timer_list {
+	long jiffies;                   // 定时滴答数
+	void (*fn)();                   // 定时处理程序
+	struct timer_list * next;       // 链接指向下一个定时器
+} timer_list[TIME_REQUESTS], * next_timer = NULL;   // next_timer是定时器队列头指针
+```
 
 如果定时的值小于0， 那么立即调用处理函数。
 ```c
@@ -475,7 +547,8 @@ if (jiffies <= 0)
 	(fn)();
 ```
 
-如果定时的值大于0， 那么首先取timer_list数组中寻找一个位置，将该位置上的滴答数设置为jiffies，将该位置上的fn设置为入参fn。并让next_timer指向它。
+如果定时的值大于0， 那么首先取```timer_list```数组中寻找一个位置，将该位置上的滴答数设置为```jiffies```，将该位置上的``fn```设置为入参fn。并让next_timer指向它。
+
 ```c
 for (p = timer_list ; p < timer_list + TIME_REQUESTS ; p++)
 	if (!p->fn)
@@ -490,9 +563,10 @@ next_timer = p;
 
 下面这段代码的作用是将刚刚插入链表中的timer移动的合适的位置。
 
-由于next_timer这个链表上的jiffies是一个相对值，即相对于前面一个timer还有多久到期。因此上面步骤的timer也需要进行转换。
+由于```next_timer```这个链表上的jiffies是一个相对值，即相对于前面一个timer还有多久到期。因此上面步骤的timer也需要进行转换。
 
 ![timer移动示意图](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/sched/add_timer.png)
+
 ```c
 while (p->next && p->next->jiffies < p->jiffies) {
 	p->jiffies -= p->next->jiffies;//减去下一个timer的jiffies
@@ -594,94 +668,177 @@ int sys_alarm(long seconds)
 
 该函数用于设置**报警值**。
 
-jiffies是指的是系统开机到目前经历的滴答数。
+```jiffies```是指的是系统开机到目前经历的滴答数。
 
-current->alarm的单位也是系统滴答数。
+```current->alarm```的单位也是系统滴答数。
 
-因此(current->alarm - jiffies) /100 就代表就是当前的定时器还剩下多少秒。
+因此```(current->alarm - jiffies) /100``` 就代表就是当前的定时器还剩下多少秒。
 
-而设置alarm值则需要加上系统当前的滴答数据jiffies， 如下图所示:
+而设置```alarm```值则需要加上系统当前的滴答数据```jiffies```， 如下图所示:
 
 ![sys_alarm](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/sched/sys_alarm.png)
 
-
 ### sys_getpid
+
 ```c
 int sys_getpid(void)
 ```
+
 该函数用于获取进程的pid。
 
 ### sys_getppid
+
 ```c
 int sys_getppid(void)
 ```
+
 该函数用于获取父进程的pid。
 
 ### sys_getuid
+
 ```c
 int sys_getuid(void)
 ```
+
 该函数用于获取用户的uid。
 
 ### sys_geteuid
+
 ```c
 int sys_geteuid(void)
 ```
+
 该函数用于获取用户的有效id(euid)。
 
 ### sys_getgid
+
 ```c
 int sys_getgid(void)
 ```
+
 获取组和id号(gid)。
 
 ### sys_getegid
+
 ```c
 int sys_getegid(void)
 ```
+
 取有效的组id(egid)
 
 ### sys_nice
+
 ```c
 int sys_nice(long increment)
 ```
+
 该函数的作用是降低进程在调度时的优先级。
 
 ### sched_init
+
 ```c
 void sched_init(void)
 ```
+
 该函数的作用是初始化进程调度模块。
 
-首先在gdt表中设置任务0的tss和ldt值。接着对其他任务的tss和ldt进行初始化。
+首先在```gdt```表中设置任务0的```tss```和```ldt```值。接着对其他任务的tss和ldt进行初始化。
 ```c
-set_tss_desc(gdt+FIRST_TSS_ENTRY,&(init_task.task.tss));
-set_ldt_desc(gdt+FIRST_LDT_ENTRY,&(init_task.task.ldt));
-p = gdt+2+FIRST_TSS_ENTRY;
-for(i=1;i<NR_TASKS;i++) {
-	task[i] = NULL;
-	p->a=p->b=0;
-	p++;
-	p->a=p->b=0;
-	p++;
-}
+	set_tss_desc(gdt+FIRST_TSS_ENTRY,&(init_task.task.tss));
+	set_ldt_desc(gdt+FIRST_LDT_ENTRY,&(init_task.task.ldt));
+	p = gdt+2+FIRST_TSS_ENTRY;
+	for(i=1;i<NR_TASKS;i++) {
+		task[i] = NULL;
+		p->a=p->b=0;
+		p++;
+		p->a=p->b=0;
+		p++;
+	}
 ```
 
-显式地将任务0的tss加载到寄存器tr中， 显式地将任务0的ldt加载到ldtr中。
+下面这句话用于将EFLAGS的NT标志进行复位。
+主要执行了三个指令：
+- ```pushfl```：将标志寄存器（flags register）的内容（通常包括 CPU 状态标志，比如进位标志、零标志等）压入栈中。
+- ```andl``` $0xffffbfff,(%esp)：将栈顶的值与 0xffffbfff 进行按位与运算。这个操作的目的是将 NT（Nested Task）标志位清零，0xffffbfff 是一个掩码，将 NT 位清零，其余位不变。
+- ```popfl```：将修改后的标志寄存器的值弹出栈，并恢复到标志寄存器中。
 
 ```c
-ltr(0);
-lldt(0);
+	__asm__("pushfl ; andl $0xffffbfff,(%esp) ; popfl");        // 复位NT标志
 ```
+
+NT 标志是 x86 架构中的一个标志位，位于 EFLAGS 寄存器的第 14 位（从右往左数）。NT 标志用于指示 CPU 是否支持任务切换（task switching）功能。
+
+EFLAGS还有一些其他标志位，如下所示：
+- CF（Carry Flag）进位标志：用于处理无符号整数运算时的进位情况。
+- PF（Parity Flag）奇偶标志：用于指示结果中包含的 1 的位数是否为偶数。
+- AF（Adjust Flag）辅助进位标志：用于处理 BCD（Binary Coded Decimal）运算中的进位情况。
+- ZF（Zero Flag）零标志：用于指示运算结果是否为零。
+- SF（Sign Flag）符号标志：用于指示运算结果的符号（正或负）。
+- TF（Trap Flag）陷阱标志：用于启用单步调试模式。
+- IF（Interrupt Enable Flag）中断允许标志：用于控制外部中断的允许或禁止。
+- DF（Direction Flag）方向标志：用于控制字符串操作的方向，比如向上或向下。
+- OF（Overflow Flag）溢出标志：用于指示有符号整数运算是否发生了溢出。
+
+下面的代码显式地将任务0的tss加载到寄存器tr中， 显式地将任务0的ldt加载到ldtr中。
+
+```c
+	ltr(0);
+	lldt(0);
+```
+
+ltr和lldt的定义如下所示：
+
+```c
+#define ltr(n) __asm__("ltr %%ax"::"a" (_TSS(n)))
+#define lldt(n) __asm__("lldt %%ax"::"a" (_LDT(n)))
+```
+
+```ltr(n)``` 宏：
+
+这个宏用于加载任务状态段（TSS）的选择子，从而切换到新的任务上下文。
+
+```"ltr %%ax"``` 是汇编指令，它将 AX 寄存器中的值加载到任务寄存器（Task Register，TR）中，从而指定新的 ```TSS```。
+
+```::"a" (_TSS(n))``` 是输入限定符，指定了 AX 寄存器的值为 ```_TSS(n)```，```_TSS(n)``` 可能是一个宏，用于生成 TSS 的选择子值。
+
+```lldt(n)``` 宏：
+
+这个宏用于加载局部描述符表（LDT）的选择子，从而切换到新的 LDT。
+
+```"lldt %%ax"``` 是汇编指令，它将 AX 寄存器中的值加载到局部描述符表寄存器（Local Descriptor Table Register, LDTR）中，从而指定新的 LDT。
+
+```::"a" (_LDT(n))``` 是输入限定符，指定了 AX 寄存器的值为 ```_LDT(n)```，```_LDT(n)``` 可能是一个宏，用于生成 LDT 的选择子值。
 
 下面的代码用于初始化8253定时器。通道0，选择工作方式3，二进制计数方式。
+
 ```c
+// PC机8253定时芯片的输入时钟频率约为1.193180MHz. Linux内核希望定时器发出中断的频率是
+// 100Hz，也即没10ms发出一次时钟中断。因此这里的LATCH是设置8253芯片的初值。
+#define LATCH (1193180/HZ)
 outb_p(0x36,0x43);		/* binary, mode 3, LSB/MSB, ch 0 */
 outb_p(LATCH & 0xff , 0x40);	/* LSB */
 outb(LATCH >> 8 , 0x40);	/* MSB */
 ```
 
-设置时钟中断处理程序的处理函数， 设置系统调用的中断处理函数。
+```outb_p(0x36,0x43)```：
+
+这一行向 I/O 端口地址 ```0x43``` 发送字节 ```0x36```。在 PC 架构中，```0x43``` 是 PIT 的控制寄存器端口，```0x36``` 是控制字节，用于配置 PIT 的工作模式。
+0x36 中的不同位用于设置 PIT 的工作模式、计数值的读取方式（LSB/MSB）等。在这里，0x36 设置了二进制计数模式（binary mode）、工作模式 3（mode 3）、以及将计数值作为 LSB/MSB 分别写入的方式。
+
+```outb_p(LATCH & 0xff , 0x40)```：
+
+- 这一行向 I/O 端口地址 0x40 发送了 LATCH 的低字节（LSB）。
+- LATCH 可能是一个宏或者变量，代表了 PIT 的计数值（定时器的计数器初始值）。在这里，& 0xff 用于确保只发送 LATCH 的低 8 位。
+
+```outb(LATCH >> 8 , 0x40)```：
+
+这一行向 I/O 端口地址 0x40 发送了 LATCH 的高字节（MSB）。```LATCH >> 8``` 是将 LATCH 向右移动 8 位，以获取其高字节部分。
+
+综合起来，这段代码配置了 PIT 为二进制计数模式，工作模式 3，然后向 PIT 发送了计数器的初始值（分为低字节和高字节），从而开始了一个间隔定时器的计数。(PIT 是 Programmable Interval Timer 的缩写，中文意为可编程间隔定时器)
+
+
+最后设置时钟中断处理程序的处理函数， 设置系统调用的中断处理函数。
+
 ```c
 set_intr_gate(0x20,&timer_interrupt);
 outb(inb_p(0x21)&~0x01,0x21);
