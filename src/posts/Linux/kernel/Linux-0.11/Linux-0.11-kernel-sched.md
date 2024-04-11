@@ -285,11 +285,20 @@ if (tmp)			// 若还存在等待的任务，则也将其置为就绪状态（唤
 void interruptible_sleep_on (struct task_struct **p)
 ```
 
-该函数与```sleep_on```类似，但是该函数会将任务的状态修改为**可中断的等待状态**， 而sleep_on则是将任务修改为**不可中断的等待状态**。因此通过interruptible_sleep_on而等待的task是可以被信号唤醒的。 而通过sleep_on而等待的task是**不会被信号唤醒的**，只能通过wake_up函数唤醒。
+该函数与```sleep_on```类似，但是该函数会将任务的状态修改为**可中断的等待状态**， 而```sleep_on```则是将任务修改为**不可中断的等待状态**。因此通过```interruptible_sleep_on```而等待的task是可以被信号唤醒的。 而通过```sleep_on```而等待的task是**不会被信号唤醒的**，只能通过```wake_up```函数唤醒。
+
+这个点在```schedule```方法中也可以看出，当进程状态是```TASK_INTERRUPTIBLE```，可以被信号唤醒。
+
+```c
+	if (((*p)->signal & ~(_BLOCKABLE & (*p)->blocked)) &&
+	(*p)->state==TASK_INTERRUPTIBLE)
+		(*p)->state=TASK_RUNNING;
+```
+
 
 ![interruptible_sleep_on示意图](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/sched/interruptible_sleep_on.png)
 
-下面这段代码与sleep_on并无太大区别， 只是将进程的状态修改为可中断的等待状态。
+下面这段代码与```sleep_on```并无太大区别， 只是将进程的状态修改为可中断的等待状态。
 
 ```c
 	struct task_struct *tmp;
@@ -330,8 +339,7 @@ if (tmp)
 void wake_up(struct task_struct **p)
 ```
 
-该函数的作用就是唤醒某一个任务。其用于唤醒p指向的等待队列中的任务。
-
+该函数的作用就是唤醒某一个任务。*p是任务等待队列的头指针。由于新的等待任务是插入在等待队列头指针处，因此唤醒的是最后进入等待队列的任务。
 
 ```c
 if (p && *p)
@@ -348,6 +356,73 @@ int ticks_to_floppy_on(unsigned int nr)
 ```
 
 该函数指定软盘到正常运转状态所需延迟滴答数（时间）。
+
+入参nr代表软驱号，其范围是（0-3）。因此程序的开始先进行参数的判断。
+
+```c
+    // 系统最多4个软驱。
+	if (nr>3)
+		panic("floppy_on: nr>3");
+```
+
+// 下面数组分别存放各软驱在马达停转之前需维持的时间。程序中设定为10000个滴答，1个滴答=1/100秒，因此是100秒。
+```c
+static int moff_timer[4]={0,0,0,0};
+moff_timer[nr]=10000;		/* 100 s = very big :-) */
+```
+
+然后取当前DOR寄存器值到临时变量mask中，并把指定软驱的马达启动标志置位。
+
+```c
+	cli();				/* use floppy_off to turn it off */
+	mask |= current_DOR;
+    // 如果当前没有选择软驱，则首先复位其他软驱的选择位，然后置指定软驱选择位。
+	if (!selected) {
+		mask &= 0xFC;
+		mask |= nr;
+```
+
+
+current_DOR定义如下所示：
+```c
+unsigned char current_DOR = 0x0C;       // 允许DMA中断请求、启动FDC
+```
+
+该寄存器每位的定义如下：
+- 位7-4：分别控制驱动器D-A马达的启动。1-启动；0-关闭。
+- 位3：1 - 允许DMA和中断请求；0 - 禁止DMA和中断请求。
+- 位2：1 - 允许软盘控制器；0 - 复位软盘控制器。
+- 位1-0：00-11，用于选择控制的软驱A-D。
+
+```shell
++---------------+------+------+-------+
++   reg[7：4]   |reg[3]|reg[2]|reg[1:0|
++---------------+------+------+-------+
++    0000       +  1   +  1   +  00   +
++-------------------------------------+
+```
+
+因此current_DOR的含义是允许DMA中断请求、启动软盘控制器。
+
+mask设置的1代表运行A马达的启动。
+
+```c
+unsigned char mask = 0x10 << nr;
+```
+
+
+
+```c
+	if (mask != current_DOR) {
+		outb(mask,FD_DOR);
+		if ((mask ^ current_DOR) & 0xf0)
+			mon_timer[nr] = HZ/2;
+		else if (mon_timer[nr] < 2)
+			mon_timer[nr] = 2;
+		current_DOR = mask;
+	}
+```
+
 
 ### floppy_on
 ```c
