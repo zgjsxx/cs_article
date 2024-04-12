@@ -197,6 +197,7 @@ void do_signal(long signr,long eax, long ebx, long ecx, long edx,
 ![do_signal1](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/signal/signal_raw.png)
 
 在该函数中，首先根据信号的id，取出对应的sigaction结构。
+
 ```c
 unsigned long sa_handler;
 long old_eip=eip;
@@ -205,9 +206,9 @@ int longs;
 unsigned long * tmp_esp;
 ```
 
-从sigaction结构体中取出sa_handler， 如果该handler的值为1， 代表是SIG_IGN，即忽略该信号， 则直接返回。
+从sigaction结构体中取出```sa_handler```， 如果该```handler```的值为1， 代表是```SIG_IGN```，即忽略该信号， 则直接返回。
 
-如果sa_handler的值是0，即SIG_DFL，即使用默认的信号处理方式，如果信号是SIGCHILD,则直接返回， 如果不是，则程序直接退出。
+如果```sa_handler```的值是0，即SIG_DFL，即使用默认的信号处理方式，如果信号是```SIGCHILD```,则直接返回， 如果不是，则程序直接退出。
 
 ```c
 sa_handler = (unsigned long) sa->sa_handler;
@@ -221,7 +222,8 @@ if (!sa_handler) {
 }
 ```
 
-接下来， 如果sa_flags含有SA_ONESHOT标记， 代表本次信号处理函数执行之后，就恢复默认处理方式。
+接下来， 如果sa_flags含有```SA_ONESHOT```标记， 代表本次信号处理函数执行之后，就恢复默认处理方式。
+
 ```c
 if (sa->sa_flags & SA_ONESHOT)
 	sa->sa_handler = NULL;
@@ -229,9 +231,11 @@ if (sa->sa_flags & SA_ONESHOT)
 
 下面的代码就是设置让系统调用返回时去执行信号处理函数。
 
-首先将eip设置为信号处理函数的地址，当中断处理函数调用结束之后通过iret返回之后， 就会去执行中断处理函数。 同时也会将原来通过INT压栈的一些寄存器的值保存在用户栈中。
+首先将```eip```设置为信号处理函数的地址，当中断处理函数调用结束之后通过```iret```返回之后， 就会去执行中断处理函数。 同时也会将原来通过INT压栈的一些寄存器的值保存在用户栈中。
 
-```*(&eip) = sa_handler```就设置了新的eip值，这种做法，如果是c语言中的函数调用是不起作用的，因为在函数调用结束后，会因为esp指针的上移而丢弃掉， 而do_signal是在汇编程序中被调用，因此调用完毕之后，不会丢弃掉这些参数。
+```*(&eip) = sa_handler```就设置了新的```eip```值，这种做法，如果是c语言中的函数调用是不起作用的，因为在函数调用结束后，会因为```esp```指针的上移而丢弃掉， 而```do_signal```是在汇编程序中被调用，因此调用完毕之后，不会丢弃掉这些参数。
+
+随后将一些寄存器的值保存在用户栈下，在执行完信号处理函数之后，将使用```sa_restorer```进行恢复。如果设置了```SA_NOMASK```，则代表不会修改进程PCB中的blocked参数，因此只需要放7个参数到栈上。而当设置了```sa->sa_flags```之后，会修改进程PCB中的blocked参数，需要在信号处理函数执行完毕之后还原为原来的blocked参数，因此也需要入栈，即入栈8个参数。
 
 ```c
 *(&eip) = sa_handler;
@@ -255,18 +259,17 @@ current->blocked |= sa->sa_mask;
 
 ![do_after](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/signal/signal_after.png)
 
-
-当信号处理函数执行完毕，通过return返回时，就会去执行sa_restorer处的代码。
+当信号处理函数执行完毕，通过```return```返回时，就会去执行```sa_restorer```处的代码。
 
 ![sa_restore](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/signal/sa_restore.png)
 
-下面就将解答之前在sys_signal中抛出的问题，sa_restorer是干什么的？ 
+下面就将解答之前在```sys_signal```中抛出的问题，```sa_restorer```是干什么的？ 
 
-sa_restorer实际就是用于**恢复用户栈**，并且让程序**恢复到系统调用之前的上下文**。 
+```sa_restorer```实际就是用于**恢复用户栈**，并且让程序**恢复到系统调用之前的上下文**。 
 
-编译器会在编译程序中调用libc库中信号系统调用函数把sa_restorer作为参数传递给sys_signal或者sigaction。
+编译器会在编译程序中调用libc库中信号系统调用函数把```sa_restorer```作为参数传递给```sys_signal```或者```sigaction```。
 
-signal入参没有sa_flag，因此传入__sig_restore
+signal入参没有```sa_flag```，因此传入```__sig_restore```。
 
 ```c
 void (*signal(int sig, __sighandler_t func))(int)
@@ -278,8 +281,7 @@ void (*signal(int sig, __sighandler_t func))(int)
 }
 ```
 
-
-sigaction有sa_flag参数，因此可以sa_flag参数决定传入__sig_restore或者是__masksig_restore。
+sigaction有```sa_flag```参数，因此可以```sa_flag```参数决定传入```__sig_restore```或者是```__masksig_restore```。
 
 ```c
 int sigaction(int sig, struct sigaction *sa, struct sigaction *old)
@@ -298,7 +300,7 @@ int sigaction(int sig, struct sigaction *sa, struct sigaction *old)
 }
 ```
 
-__sig_restore和__masksig_restore的定义如下所示:
+```__sig_restore```和```__masksig_restore```的定义如下所示:
 
 其二者区别就在于栈中的参数是7个还是8个。
 
@@ -323,9 +325,12 @@ __masksig_restore:
 	popf
 	ret
 ```
-到此为止， 梳理起来do_signal的处理流程如下：
 
+到此为止， 梳理起来```do_signal```的处理流程如下：
+
+```shell
 ret_from_sys_call->do_signal->iret->handler->return->sa_restorer->return->origin eip
+```
 
 如下图所示:
 
