@@ -44,11 +44,13 @@ https://github.com/yuan-xy/Linux-0.11.git( AT&T 汇编格式)
 
 [Linux-0.11 kernel目录mktime.c/printk.c/panic.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-mktime-printk-panic.html)
 
-[Linux-0.11 kernel目录fork.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-fork.html)
-
 [Linux-0.11 kernel目录sched.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-sched.html)
 
 [Linux-0.11 kernel目录signal.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-signal.html)
+
+[Linux-0.11 kernel目录exit.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-exit.html)
+
+[Linux-0.11 kernel目录fork.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-fork.html)
 
 [Linux-0.11 kernel目录hd.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-hd.html)
 
@@ -60,14 +62,11 @@ https://github.com/yuan-xy/Linux-0.11.git( AT&T 汇编格式)
 
 [Linux-0.11 kernel目录tty_ioctl.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-tty_ioctl.html)
 
-[Linux-0.11 kernel目录exit.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-exit.html)
-
 ## 内存管理
 
 [Linux-0.11 mm 目录memory.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-mm-memory.html)
 
 [Linux-0.11 mm 目录page.s详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-mm-page.html)
-
 
 ## 文件系统
 
