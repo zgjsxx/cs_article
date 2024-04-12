@@ -12,24 +12,31 @@ tag:
 
 signal.c主要涉及的是进程的信号处理。该章节中最难理解的是**do_signal**函数。
 
+在unix系统中，信号是一种"软件中断"处理机制。有许多较为复杂的程序会使用到信号。信号机制提供了一种处理异步时间的方法。例如用户在终端键盘上键入ctrl-C组合来终止一个程序的执行。该操作就会产生一个SIGINT信号，并被发送到当前的前台执行的进程中。
+
 ## 函数详解
 
 ### sys_sgetmask
+
 ```c
 int sys_sgetmask()
 ```
+
 该函数的作用是获取进程的**信号的屏蔽图**，即进程对哪些信号可以不做处理。
 
-代码很简单，就是返回进程PCB中的**blocked**字段。
+代码很简单，就是返回进程PCB中的**blocked**字段，```blocked```字段是一个long类型的数据，有32个bit。
+
 ```c
-return current->blocked;
+	return current->blocked;
 ```
 
 ### sys_ssetmask
+
 ```c
 int sys_ssetmask(int newmask)
 ```
-用于设置**新的信号屏蔽位图**。其中SIGKILL是不可以被屏蔽的。
+
+用于设置**新的信号屏蔽位图**。其中```SIGKILL```是不可以被屏蔽的。
 
 ``` ~(1<<(SIGKILL-1))``` 保证了SIGKILL的屏蔽位为0。
 
@@ -39,17 +46,27 @@ int old=current->blocked;//保存旧的信号屏蔽位
 current->blocked = newmask & ~(1<<(SIGKILL-1));//设置新的信号屏蔽位
 return old;
 ```
+
 ### save_old
+
 ```c
 static inline void save_old(char * from,char * to)
 ```
-该函数在**sys_sigaction**中被调用，其作用是将旧的sigaction对象拷贝到用户地址空间。
 
-其中调用了put_fs_byte函数，其定义在segment.h文件中，其作用是把内核态一个字节的数据拷贝到由 fs:addr 指向的用户态内存地址空间。
+该函数在**sys_sigaction**中被调用，其作用是将旧的```sigaction```对象拷贝到用户地址空间。该方法的调用关系如下：
+
+```shell
+├── int 0x80
+  └── sys_sigaction
+	└── save_old
+```
 
 下面分析该函数的代码。
 
-首先对to所在的内存进行校验，接着进行遍历，将from的内容拷贝到to的位置，实际就是拷贝了from位置的sigaction对象到to位置。
+首先对```to```所在的内存调用```verify_area```(fork.c中)进行校验。
+
+接着进行遍历，将```from```的内容拷贝到```to```的位置，实际就是拷贝了```from```位置的```sigaction```对象到```to```位置。
+
 ```c
 verify_area(to, sizeof(struct sigaction));//对内存区域进行校验
 for (i=0 ; i< sizeof(struct sigaction) ; i++) {
@@ -58,14 +75,20 @@ for (i=0 ; i< sizeof(struct sigaction) ; i++) {
 	to++;
 }
 ```
+
+其中调用了```put_fs_byte```函数，其定义在```segment.h```文件中，其作用是把内核态一个字节的数据拷贝到由 ```fs:addr``` 指向的用户态内存地址空间。
+
+```*from```指向内核空间， ```*to```指向用户空间，由于二者的段描述符不相同，因此拷贝时，不能直接复制，需要使用```put_fs_byte```。
+
 ### get_new
+
 ```c
 static inline void get_new(char * from,char * to)
 ```
-该函数在**sys_sigaction**中被调用，其作用是将用户设置的sigaction传递到内核中。
 
-其中调用了get_fs_byte函数， 其定义在segment.h文件中， 其作用是把fs:from 指向的用户态内存的一个字节拷贝到内核态to的地址中。该函数借助了fs寄存器，在system_call函数中，将fs寄存器设置为了0x17，指向了用户的数据段。
+该函数在**sys_sigaction**中被调用，其作用是将用户设置的```sigaction```传递到内核中。
 
+其中调用了```get_fs_byte```函数， 其定义在segment.h文件中， 其作用是把```fs:from``` 指向的用户态内存的一个字节拷贝到内核态to的地址中。该函数借助了```fs```寄存器，在```system_call```函数中，将```fs```寄存器设置为了```0x17```，指向了用户的数据段。
 
 ```c
 int i;
@@ -74,20 +97,25 @@ for (i=0 ; i< sizeof(struct sigaction) ; i++)
 	*(to++) = get_fs_byte(from++);//拷贝用户空间的一个字节
 ```
 
+学习完```save_old```/```get_new```要有一个概念，内核态与用户态进行数据传输时，要借助于```fs```寄存器。
+
 ### sys_signal
+
 ```c
 int sys_signal(int signum, long handler, long restorer)
 ```
-该函数用于设置信号的处理函数。
 
-sys_signal有三个入参， 而signal函数只有两个入参(如下所示)，这第三个参数restorer是在编译的过程中由编译器加入的，其作用将在do_signal中阐述。
+该函数是```signal()```的系统调用，其用于设置信号的处理函数。
+
+```sys_signal```有三个入参， 而```signal```函数只有两个入参(如下所示)，这第三个参数```restorer```是在编译的过程中由编译器加入的，其作用将在```do_signal```中阐述。
 
 ```c
-typedef void sigfunc(int);
-sigfunc *signal(int signr, sigfunc *handler);
+	typedef void sigfunc(int);
+	sigfunc *signal(int signr, sigfunc *handler);
 ```
 
-程序首先对入参signum做校验，其大小必须在区间[1，32]中，并且其值不得为SIGKILL（9）。
+程序首先对入参```signum```做校验，其大小必须在区间```[1，32]```中，并且其值不得为SIGKILL（9）。
+
 ```c
 struct sigaction tmp;
 
@@ -95,34 +123,46 @@ if (signum<1 || signum>32 || signum==SIGKILL)//对signum做检查
 	return -1;
 ```
 
-接下来设置信号处理函数以及对应的一些标志。例如SA_ONESHOT代表将只执行一次就会将信号处理函数恢复为之前的处理函数。
+```sa_restorer```保存的是恢复处理函数，会在```do_signal```函数中再次被提到， 其作用就是在信号处理函数结束之后，恢复现场。
 
-sa_restorer保存的是恢复处理函数，会在do_signal函数中再次被提到， 其作用就是在信号处理函数结束之后，恢复现场。
+接下来设置信号处理函数以及对应的一些标志。根据提供的参数组建```sigaction```结构内容。```sa_handler```是指定的信号处理句柄(函数)。```sa_mask```是执行信号处理句柄时的信号屏蔽码。```sa_flags```是执行时的一些标志组合。这里设定该信号处理句柄只使用1次后就恢复到默认值，并允许信号在自己的处理句柄中收到。
+
+```SA_ONESHOT``` 和 ```SA_NOMASK``` 都是信号处理器的标志（flags）。它们的作用如下：
+
+- SA_ONESHOT 表示信号处理器只会被执行一次。也就是说，当信号发生时，处理器被调用后，它会自动被系统设置为默认行为（通常是终止进程）。
+- SA_NOMASK标志通常是指定在信号处理函数执行期间不阻塞其他信号。在信号处理函数执行期间，内核通常会阻塞同一信号类型的其他实例，以避免竞态条件和递归调用。但是，如果设置了SA_NOMASK标志，则处理函数的执行期间不会阻塞相同类型的信号。
+
 ```c
-tmp.sa_handler = (void (*)(int)) handler;//设置信号的handler
-tmp.sa_mask = 0;//设置信号的屏蔽码
-tmp.sa_flags = SA_ONESHOT | SA_NOMASK;
-tmp.sa_restorer = (void (*)(void)) restorer;
+	tmp.sa_handler = (void (*)(int)) handler;//设置信号的handler
+	tmp.sa_mask = 0;//设置信号的屏蔽码
+	tmp.sa_flags = SA_ONESHOT | SA_NOMASK;
+	tmp.sa_restorer = (void (*)(void)) restorer;
 ```
 
-接着取出该信号的旧的处理函数作为返回值返回。然后将上面构建好的sigaction类型的tmp对象放置于进程的sigaction数组的对应位置。
+接着取出该信号的旧的处理函数作为返回值返回。然后将上面构建好的```sigaction```类型的tmp对象放置于进程的```sigaction```数组的对应位置。
+
 ```c
-handler = (long) current->sigaction[signum-1].sa_handler;
-current->sigaction[signum-1] = tmp;
+	handler = (long) current->sigaction[signum-1].sa_handler;
+	current->sigaction[signum-1] = tmp;
 ```
 
 ### sys_sigaction
+
 ```c
 int sys_sigaction(int signum, const struct sigaction * action,
 	struct sigaction * oldaction)
 ```
-该函数是sigaction的系统调用。
+
+该函数是```sigaction()```的系统调用。
 
 程序首先对入参signum做校验，其大小必须在区间[1，32]中，并且其值不得为SIGKILL（9）。
+
 ```c
 if (signum < 1 || signum > 32 || signum == SIGKILL)
 	return -1;
 ```
+
+接下来进行设置新的```action```并且返回了之前设置的```oldaction```。这里使用到了之前提到的```get_new```和```save_old```方法。
 
 ```c
 tmp = current->sigaction[signum - 1];
@@ -131,7 +171,9 @@ if (oldaction)
 	save_old ((char *) &tmp, (char *) oldaction);
 ```
 
-如果允许信号在自己的信号句柄中收到，则令屏蔽码位0， 否则设置屏蔽本信号。
+
+如果设置了```SA_NOMASK```标志，则代表在信号处理函数执行期间不阻塞其他信号，允许信号在自己的信号句柄中收到信号，令屏蔽码位0，否则设置屏蔽本信号。
+
 ```c
 if (current->sigaction[signum-1].sa_flags & SA_NOMASK)
 	current->sigaction[signum-1].sa_mask = 0;
@@ -140,12 +182,14 @@ else
 ```
 
 ### do_signal
+
 ```c
 void do_signal(long signr,long eax, long ebx, long ecx, long edx,
 	long fs, long es, long ds,
 	long eip, long cs, long eflags,
 	unsigned long * esp, long ss)
 ```
+
 该函数是进程接收到信号执行信号处理方法的主体。其在**ret_from_sys_call**中被调用，即从系统调用返回的过程中被调用。
 
 在系统调用过程中，内核栈的情况如下图所示：
