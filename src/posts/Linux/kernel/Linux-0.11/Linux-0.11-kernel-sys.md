@@ -5,64 +5,48 @@ tag:
   - Linux-0.11代码解读系列
 ---
 
+- [Linux-0.11 kernel目录进程管理sys.c详解](#linux-011-kernel目录进程管理sysc详解)
+  - [模块简介](#模块简介)
+  - [函数详解](#函数详解)
+    - [sys\_setregid](#sys_setregid)
+    - [sys\_time](#sys_time)
+    - [sys\_setreuid](#sys_setreuid)
+    - [sys\_setuid](#sys_setuid)
+    - [sys\_stime](#sys_stime)
+    - [sys\_times](#sys_times)
+    - [sys\_brk](#sys_brk)
+    - [sys\_setpgid](#sys_setpgid)
+    - [sys\_getpgrp](#sys_getpgrp)
+    - [sys\_setsid](#sys_setsid)
+    - [sys\_uname](#sys_uname)
+    - [sys\_umask](#sys_umask)
+    - [sys\_setgid](#sys_setgid)
+  - [未实现方法](#未实现方法)
+    - [sys\_ftime](#sys_ftime)
+    - [sys\_break](#sys_break)
+    - [sys\_ptrace](#sys_ptrace)
+    - [sys\_stty](#sys_stty)
+    - [sys\_gtty](#sys_gtty)
+    - [sys\_rename](#sys_rename)
+    - [sys\_prof](#sys_prof)
+    - [sys\_acct](#sys_acct)
+    - [sys\_phys](#sys_phys)
+    - [sys\_lock](#sys_lock)
+    - [sys\_mpx](#sys_mpx)
+    - [sys\_ulimit](#sys_ulimit)
+
+
 # Linux-0.11 kernel目录进程管理sys.c详解
 
 ## 模块简介
 
-在sys.c模块中，有很多关于进程id、进程组id、用户id、用户组id的系统调用。 另外在该文件，诸如sys_ftime，sys_break等函数在Linux-0.11版本中尚未实现。
+在sys.c模块中，有很多关于进程id、进程组id、用户id、用户组id的系统调用。 另外在该文件，诸如```sys_ftime```，```sys_break```等函数在Linux-0.11版本中尚未实现。
+
+该程序中含有许多进程ID(pid)，进程组ID(pgrp或pgid)，用户ID(uid)、用户组ID(gid)、实际用户ID(ruid)、有效用户ID(euid)以及会话ID(session)等的操作函数。
+
+一个用户有用户ID(uid)和用户组ID(gid)。这两个ID是passwd文件中对用户设置的，通常被称之为实际用户ID(ruid)和实际组ID(rgid)。而在每个文件的i节点信息中都保存着宿主的用户ID和组ID，主要用于访问或者执行文件时的权限判断操作。
 
 ## 函数详解
-
-### sys_ftime
-```c
-int sys_ftime()
-```
-
-未实现。
-
-### sys_break
-```c
-int sys_break()
-```
-
-未实现。
-
-### sys_ptrace
-```c
-int sys_ptrace()
-```
-
-用于当前进程对子进程进行调试。
-
-### sys_stty
-```c
-int sys_stty()
-```
-
-改变并打印终端设置。
-
-未实现。
-
-### sys_gtty
-```c
-int sys_gtty()
-```
-获取进程终端信息。
-
-未实现。
-### sys_rename
-```c
-int sys_rename()
-```
-修改文件名。
-
-未实现。
-
-### sys_prof
-```c
-int sys_prof()
-```
-未实现。
 
 ### sys_setregid
 ```c
@@ -89,65 +73,36 @@ int sys_setregid(int rgid, int egid)
 	return 0;
 ```
 
-### sys_setgid
-```c
-int sys_setgid(int gid)
-```
-该函数用于设置进程组号。
-```c
-return(sys_setregid(gid, gid));
-```
-
-### sys_acct
-```c
-int sys_acct()
-```
-
-未实现。
-
-### sys_phys
-```c
-int sys_phys()
-```
-
-未实现。
-
-### sys_lock
-```c
-int sys_lock()
-```
-
-未实现。
-
-### sys_mpx
-```c
-int sys_mpx()
-```
-
-未实现。
-
-### sys_ulimit
-```c
-int sys_ulimit()
-```
-
-未实现。
-
 ### sys_time
 ```c
 int sys_time(long * tloc)
 ```
 
-返回从1970年1月1日 00：00：00开始到此刻的秒数。
-```c
-int i;
+该函数的作用是返回从1970年1月1日 00：00：00开始到此刻的秒数。该方法是```time```的系统调用， 入参是一个```time_t```类型的数据。
 
-i = CURRENT_TIME;
-if (tloc) {
-    verify_area(tloc,4);
-    put_fs_long(i,(unsigned long *)tloc);
-}
-return i;
+```c
+#include <time.h>
+
+time_t time(time_t *timer);
+```
+
+由于参数是一个指针，而其所指位置在用户空间，因此需要使用函数```put_fs_long```来访问该值。在进入内核中运行时，段寄存器fs被默认地指向当前用户数据空间。因此该函数就可利用```fs```来访问用户空间中的值。
+
+```c
+    int i;
+
+    i = CURRENT_TIME;
+    if (tloc) {
+        verify_area(tloc,4);
+        put_fs_long(i,(unsigned long *)tloc);
+    }
+    return i;
+```
+
+CURRENT_TIME的定义如下所示， 等于系统的开机时间加上目前的滴答数/100。这里除以100的原因是定时器发出中断的频率是100Hz，也即没10ms发出一次时钟中断。
+
+```c
+    CURRENT_TIME (startup_time+jiffies/HZ)
 ```
 
 ### sys_setreuid
@@ -256,19 +211,25 @@ return -ESRCH;
 ```
 
 ### sys_getpgrp
+
 ```c
 int sys_getpgrp(void)
 ```
+
 该函数用于返回当前进程的进程组号。
 
 ```c
-return current->pgrp;
+    return current->pgrp;
 ```
+
 ### sys_setsid
+
 ```c
 int sys_setsid(void)
 ```
+
 该函数用于创建一个session，并设置进程为会话首领。
+
 ```c
 if (current->leader && !suser())//该进程已经是leader，但是不是超级用户，则返回-EPERM。
     return -EPERM;
@@ -277,7 +238,9 @@ current->session = current->pgrp = current->pid;//设置进程会话号
 current->tty = -1;//设置进程没有控制中断
 return current->pgrp;
 ```
+
 ### sys_uname
+
 ```c
 int sys_uname(struct utsname * name)
 ```
@@ -298,9 +261,11 @@ return 0;
 ```
 
 ### sys_umask
+
 ```c
 int sys_umask(int mask)
 ```
+
 设置当前进程创建文件的属性屏蔽码为```(mask & 0777)```。
 
 ```0777```代表数字是一个八进制数字，即000111111111。
@@ -312,5 +277,103 @@ current->umask = mask & 0777;
 return (old);
 ```
 
+### sys_setgid
 
-## Q & A
+```c
+int sys_setgid(int gid)
+```
+
+该函数用于设置进程组号。
+
+```c
+return(sys_setregid(gid, gid));
+```
+
+## 未实现方法
+
+### sys_ftime
+```c
+int sys_ftime()
+```
+
+未实现。
+
+### sys_break
+```c
+int sys_break()
+```
+
+未实现。
+
+### sys_ptrace
+```c
+int sys_ptrace()
+```
+
+用于当前进程对子进程进行调试。
+
+### sys_stty
+```c
+int sys_stty()
+```
+
+改变并打印终端设置。
+
+未实现。
+
+### sys_gtty
+```c
+int sys_gtty()
+```
+获取进程终端信息。
+
+未实现。
+### sys_rename
+```c
+int sys_rename()
+```
+修改文件名。
+
+未实现。
+
+### sys_prof
+```c
+int sys_prof()
+```
+未实现。
+
+
+### sys_acct
+```c
+int sys_acct()
+```
+
+未实现。
+
+### sys_phys
+```c
+int sys_phys()
+```
+
+未实现。
+
+### sys_lock
+```c
+int sys_lock()
+```
+
+未实现。
+
+### sys_mpx
+```c
+int sys_mpx()
+```
+
+未实现。
+
+### sys_ulimit
+```c
+int sys_ulimit()
+```
+
+未实现。
