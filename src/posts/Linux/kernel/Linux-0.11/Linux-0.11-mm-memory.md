@@ -132,9 +132,11 @@ for ( ; size-->0 ; dir++) {//遍历dir
 ```c
 int copy_page_tables(unsigned long from,unsigned long to,long size)
 ```
+
 该函数的作用是进行页表的复制。
 
 这里首先定义了一些参数，并校验了from和to是否是4M的倍数。
+
 ```c
 unsigned long * from_page_table;
 unsigned long * to_page_table;
@@ -147,6 +149,7 @@ if ((from&0x3fffff) || (to&0x3fffff))
 ```
 
 下面的代码是不是很熟悉？ 在上面的free_page_tables中就有提到过，其作用是取出from和to所在的页目录项的起始地址。
+
 ```c
 from_dir = (unsigned long *) ((from>>20) & 0xffc); /* _pg_dir = 0 */
 to_dir = (unsigned long *) ((to>>20) & 0xffc);
