@@ -58,10 +58,25 @@ tag:
 ## 函数详解
 
 ### sys_setregid
+
 ```c
 int sys_setregid(int rgid, int egid)
 ```
+
 该函数用于设置进程的实际组id或者有效组id。
+
+首先看第一个if分支。有两种条件会修改rgid：
+- current->gid 等于 rgid，等于啥都没有做，无效代码。
+- 超级用户。
+
+首先看第一个if分支。有四种条件会修改rgid：
+- current->gid 等于 egid ，rgid等于要设置的egid，可以设置。
+- current->egid 等于 egid，等于啥都没有做，无效代码。
+- current->sgid等于 egid，sgid等于要设置的egid，可以设置。
+- 超级用户。
+
+这里的逻辑和现代系统一致。```sys_setreuid```似乎和现代系统有略微区别。
+
 ```c
 	if (rgid>0) {
 		if ((current->gid == rgid) || 
@@ -83,6 +98,7 @@ int sys_setregid(int rgid, int egid)
 ```
 
 ### sys_time
+
 ```c
 int sys_time(long * tloc)
 ```
@@ -108,7 +124,7 @@ time_t time(time_t *timer);
     return i;
 ```
 
-CURRENT_TIME的定义如下所示， 等于系统的开机时间加上目前的滴答数/100。这里除以100的原因是定时器发出中断的频率是100Hz，也即没10ms发出一次时钟中断。
+```CURRENT_TIME```的定义如下所示， 等于系统的开机时间加上目前的滴答数/100。这里除以100的原因是定时器发出中断的频率是100Hz，也即没10ms发出一次时钟中断。
 
 ```c
     CURRENT_TIME (startup_time+jiffies/HZ)
@@ -186,11 +202,13 @@ int sys_stime()
 
 该函数的作用是获取开机时间的秒数。
 
+调用进程必须具有超级用户权限。其中HZ=100,是内核系统运行频率。由于参数是一个指针，而其所指位置在用户空间，因此需要使用函数```get_fs_long```来访问该值。在进入内核中运行时，段寄存器```fs```被默认地指向用户数据空间。因此该函数就可利用```fs```来访问用户空间中的值。函数参数提供的当前时间值减去系统已经运行的时间秒值```(jeffies/HZ)```即是开机时间秒值。
+
 ```c
-if (!suser())
-    return -EPERM;
-startup_time = get_fs_long((unsigned long *)tptr) - jiffies/HZ;
-return 0;
+    if (!suser())
+        return -EPERM;
+    startup_time = get_fs_long((unsigned long *)tptr) - jiffies/HZ;
+    return 0;
 ```
 
 ### sys_times
@@ -201,16 +219,17 @@ int sys_times(struct tms * tbuf)
 
 该函数的作用是获取当前进程的时间统计值。
 
-其通过put_fs_long将pcb中和时间相关的数据拷贝到tbuf中。utime代表用户态运行时间，stime代表内核态运行时间，cutime代表子进程用户运行时间，cstime代表子进程内核态运行时间。
+其通过```put_fs_long```将PCB中和时间相关的数据拷贝到```tbuf```中。```utime```代表用户态运行时间，```stime```代表内核态运行时间，```cutime```代表子进程用户运行时间，```cstime```代表子进程内核态运行时间。
+
 ```c
-if (tbuf) {
-    verify_area(tbuf,sizeof *tbuf);
-    put_fs_long(current->utime,(unsigned long *)&tbuf->tms_utime);
-    put_fs_long(current->stime,(unsigned long *)&tbuf->tms_stime);
-    put_fs_long(current->cutime,(unsigned long *)&tbuf->tms_cutime);
-    put_fs_long(current->cstime,(unsigned long *)&tbuf->tms_cstime);
-}
-return jiffies;
+    if (tbuf) {
+        verify_area(tbuf,sizeof *tbuf);
+        put_fs_long(current->utime,(unsigned long *)&tbuf->tms_utime);
+        put_fs_long(current->stime,(unsigned long *)&tbuf->tms_stime);
+        put_fs_long(current->cutime,(unsigned long *)&tbuf->tms_cutime);
+        put_fs_long(current->cstime,(unsigned long *)&tbuf->tms_cstime);
+    }
+    return jiffies;
 ```
 
 ### sys_brk
@@ -220,6 +239,9 @@ int sys_brk(unsigned long end_data_seg)
 ```
 
 该函数的作用用于设置堆区的指针brk的值。
+
+当参数```end_data_seg```数值合理，并且系统确实有足够的内存，而且进程没有超越其最大数据段大小时，该函数设置数据段末尾为```end_data_seg```指定的值。该值必须大于代码结尾并且要小于堆栈结尾16KB.返回值是数据段的新结尾值(如果返回值与要求值不同，则表明有错误发生)。该函数并不被用户直接调用，而由libc库函数进行包装，并且返回值也不一样。
+
 ```c
 if (end_data_seg >= current->end_code &&
     end_data_seg < current->start_stack - 16384)
@@ -233,7 +255,7 @@ return current->brk;
 int sys_setpgid(int pid, int pgid)
 ```
 
-该函数的作用是将进程号等于pid的进程的组号设置为pgid。
+该函数的作用是设置指定进程pid的进程组号为pgid。
 
 ```c
 int i;
@@ -275,12 +297,12 @@ int sys_setsid(void)
 该函数用于创建一个session，并设置进程为会话首领。
 
 ```c
-if (current->leader && !suser())//该进程已经是leader，但是不是超级用户，则返回-EPERM。
-    return -EPERM;
-current->leader = 1;//设置leader = 1
-current->session = current->pgrp = current->pid;//设置进程会话号
-current->tty = -1;//设置进程没有控制中断
-return current->pgrp;
+    if (current->leader && !suser())//该进程已经是leader，但是不是超级用户，则返回-EPERM。
+        return -EPERM;
+    current->leader = 1;//设置leader = 1
+    current->session = current->pgrp = current->pid;//设置进程会话号
+    current->tty = -1;//设置进程没有控制中断
+    return current->pgrp;
 ```
 
 ### sys_uname
@@ -312,7 +334,7 @@ int sys_umask(int mask)
 
 设置当前进程创建文件的属性屏蔽码为```(mask & 0777)```。
 
-```0777```代表数字是一个八进制数字，即000111111111。
+```0777```代表数字是一个八进制数字，即```000111111111```。
 
 ```c
 int old = current->umask;
@@ -327,10 +349,10 @@ return (old);
 int sys_setgid(int gid)
 ```
 
-该函数用于设置进程组号。
+该函数用于设置进程组号。内部调用```sys_setregid```实现。
 
 ```c
-return(sys_setregid(gid, gid));
+    return(sys_setregid(gid, gid));
 ```
 
 ## 未实现方法
