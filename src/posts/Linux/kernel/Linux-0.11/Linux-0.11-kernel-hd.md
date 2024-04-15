@@ -263,21 +263,32 @@ for (drive=0 ; drive<NR_HD ; drive++) {
 static int controller_ready(void)
 ```
 
-该函数的作用就是循环等待硬盘控制器就绪。
+该函数的作用就是循环等待硬盘控制器就绪。如果返回值retires为0，代表等待控制器空闲的时间已经超时发生错误。若返回值不为0，则说明等待时间内控制器已经回到了空闲状态。
 
-硬盘控制器状态寄存器端口是0x1f7, 从该端口中读取一个字节的数据，并检查其最高位是否为0，如果为0，就代表已经就绪，如果为1， 则代表尚未就绪。
+硬盘控制器状态寄存器端口是```0x1f7```, 循环检测其中的驱动器就绪比特位(位6)是否被置位并且控制器忙位(位7)是否被复位。
 
 ```c
 int retries=100000;
 
-while (--retries && (inb_p(HD_STATUS)&0x80));//检查状态寄存器busy位（第7位）
+while (--retries && (inb_p(HD_STATUS)&0xc0)!=0x40);
+return (retries);
+```
+
+实际上，我们仅需要检测状态寄存器忙位(位7)是否位1来判断控制器是否处于忙状态。如果为0，就代表已经就绪，如果为1， 则代表尚未就绪。改写后的代码如下所示：
+
+```c
+int retries=100000;
+
+while (--retries && (inb_p(HD_STATUS)&0x80));
 return (retries);
 ```
 
 ### win_result
+
 ```c
 static int win_result(void)
 ```
+
 该函数的作用是检查硬盘执行命令后的结果。0为正常， 1为错误。
 
 首先使用inb_p去读取HD_STATUS的值，如果控制器忙， 读写错误或命令执行错误， 则返回1。如果没有错误，则返回0.
@@ -292,14 +303,17 @@ return (1);
 ```
 
 ### hd_out
+
 ```c
 static void hd_out(unsigned int drive,unsigned int nsect,unsigned int sect,
 		unsigned int head,unsigned int cyl,unsigned int cmd,
 		void (*intr_addr)(void))
 ```
+
 该函数的作用是向硬盘控制器发送命令。
 
 该函数的开头对参数进行校验，如果不合法则抛出内核错误。
+
 ```c
 register int port asm("dx");//定义局部变量，并放入寄存器dx中。
 
@@ -340,9 +354,11 @@ outb(cmd,++port);      //命令：硬盘控制命令 0x1f7
 ```
 
 ### drive_busy
+
 ```c
 static int drive_busy(void)
 ```
+
 该函数的作用是**等待硬盘就绪**。
 
 该函数循环检查硬盘的状态寄存器的忙标志位。如果busy位复位，则返回0。如果没有复位，则返回1。
@@ -362,9 +378,11 @@ return(1);
 ```
 
 ### reset_controller
+
 ```c
 static void reset_controller(void)
 ```
+
 该函数用于重新校正硬盘控制器。
 
 ```c
@@ -380,9 +398,11 @@ if ((i = inb(HD_ERROR)) != 1)
 ```
 
 ### reset_hd
+
 ```c
 static void reset_hd(int nr)
 ```
+
 该函数的作用是复位硬盘。
 
 ```c
@@ -392,9 +412,11 @@ hd_out(nr,hd_info[nr].sect,hd_info[nr].sect,hd_info[nr].head-1,
 ```
 
 ### unexpected_hd_interrupt
+
 ```c
 void unexpected_hd_interrupt(void)
 ```
+
 该函数仅仅用于在出现意外硬盘中断的时候打印一行日志。
 
 ```c
@@ -402,9 +424,11 @@ printk("Unexpected HD interrupt\n\r");
 ```
 
 ### bad_rw_intr
+
 ```c
 static void bad_rw_intr(void)
 ```
+
 该函数是读写硬盘失败的处理函数。如果读写扇区出错次数大于等于7次时，结束当前请求项，并唤醒等待该请求的进程。
 
 如果读写扇区的时候，出错次数超过了3次，则对硬盘控制器进行复位。
@@ -417,9 +441,11 @@ if (CURRENT->errors > MAX_ERRORS/2)
 ```
 
 ### read_intr
+
 ```c
 static void read_intr(void)
 ```
+
 该函数是磁盘的**读中断调用函数**。
 
 硬盘的中断处理函数是hd_interrupt，这个是在hd_init函数中设置的。当硬盘中断发生的时候，将调用do_hd指向的函数， 而do_hd则是在do_hd_request函数中通过hd_out进行设置的。
@@ -456,9 +482,11 @@ do_hd_request();//再次调用do_hd_request去处理其他硬盘请求项
 ```
 
 ### write_intr
+
 ```c
 static void write_intr(void)
 ```
+
 该函数是磁盘的写中断调用函数。
 
 首先检查硬盘控制器是否返回错误信息。
