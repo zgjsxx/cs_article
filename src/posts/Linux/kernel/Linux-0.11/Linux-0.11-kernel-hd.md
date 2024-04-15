@@ -4,17 +4,44 @@ category:
 tag:
   - Linux-0.11代码解读系列
 ---
+
+- [Linux-0.11 kernel目录hd.c详解](#linux-011-kernel目录hdc详解)
+	- [模块简介](#模块简介)
+	- [函数详解](#函数详解)
+		- [sys\_setup](#sys_setup)
+	- [controller\_ready](#controller_ready)
+		- [win\_result](#win_result)
+		- [hd\_out](#hd_out)
+		- [drive\_busy](#drive_busy)
+		- [reset\_controller](#reset_controller)
+		- [reset\_hd](#reset_hd)
+		- [unexpected\_hd\_interrupt](#unexpected_hd_interrupt)
+		- [bad\_rw\_intr](#bad_rw_intr)
+		- [read\_intr](#read_intr)
+		- [write\_intr](#write_intr)
+		- [recal\_intr](#recal_intr)
+		- [do\_hd\_request](#do_hd_request)
+		- [hd\_init](#hd_init)
+
+
 # Linux-0.11 kernel目录hd.c详解
 
 ## 模块简介
 
-在讲解hd.c的函数之前，需要先介绍一些宏定义，inb, inb_p, outb, outb_p。
+hd.c程序是硬盘控制器驱动程序，提供对硬盘控制器块设备的读写驱动和硬盘初始化处理。程序中所有函数按照功能的不同可分为5类：
+- 初始化硬盘和设置硬盘所用数据结构信息的函数，如sys_setup和hd_init；
+- 向硬盘控制器发送命令的函数hd_out；
+- 处理硬盘当前请求项的函数do_hd_request();
+- 硬盘终端处理过程中调用的c函数，如read_intr()、write_intr()、bad_rw_intr()和recal_intr()。
+- 硬盘控制器操作辅助函数，如controler_ready()、drive_busy()、win_result()、hd_out和reset_controller等等。
+
+在讲解hd.c的函数之前，需要先介绍一些宏定义，```inb```, ```inb_p```, ```outb```, ```outb_p```。这些宏定义来源于```io.h```。
 
 **inb**宏的作用是去IO端口读取一个byte的数据。
 
 在内嵌汇编中， ```:"d" (port))```是输入，将port值写入了edx。 ```:"=a" (_v)```是输出，即将AL的值写入_v中。
 
-而汇编指令```inb %%dx,%%al```的作用是从端口dx中读取一个字节放入al中。
+而汇编指令```inb %%dx,%%al```的作用是从端口```dx```中读取一个字节放入```al```中。
 
 ```c
 #define inb(port) ({ \
@@ -26,7 +53,7 @@ _v; \
 })
 ```
 
-**inb_p**宏的作用也是去IO端口读取一个字节的数据，但是其使用两个jmp 1f进行延迟。
+**inb_p**宏的作用也是去IO端口读取一个字节的数据，但是其使用两个```jmp 1f```进行延迟。
 ```c
 #define inb_p(port) ({ \
 unsigned char _v; \
@@ -41,7 +68,9 @@ _v; \
 ```
 
 **outb**宏的作用是向IO端口写入一个字节的数据。
-将value写入al中，将port写入edx中，最后使用汇编指令outb向port写入数据内容。
+
+将```value```写入```al```中，将```port```写入```edx```中，最后使用汇编指令```outb```向```port```写入数据内容。
+
 ```c
 #define outb(value,port) \
 __asm__ ("outb %%al,%%dx"
@@ -49,7 +78,8 @@ __asm__ ("outb %%al,%%dx"
 			:"a" (value),"d" (port))
 ```
 
-**outb_p**宏的作用与outb作用类似，只不过使用了jmp进行延时。
+**outb_p**宏的作用与```outb```作用类似，只不过使用了```jmp```进行延时。
+
 ```c
 #define outb_p(value,port) \
 __asm__ ("outb %%al,%%dx\n" \
@@ -63,10 +93,12 @@ __asm__ ("outb %%al,%%dx\n" \
 ## 函数详解
 
 ### sys_setup
+
 ```c
 int sys_setup(void * BIOS)
 ```
-该函数在main.c文件中的init方法中被调用。
+
+该函数在```main.c```文件中的```init```方法中被调用。
 
 ```c
 void init(void)
@@ -76,9 +108,24 @@ void init(void)
 	...
 }
 ```
-从调用关系可以得出， 入参BIOS指针指向drive_info。
 
-该方法的最先定义了一些变量，其中利用static变量callable控制该方法只会被调用一次。
+从调用关系可以得出， 入参BIOS指针指向```drive_info```。```drive_info```的定义如下所示:
+
+```c
+#define DRIVE_INFO (*(struct drive_info *)0x90080)
+```
+
+这里可以回顾一下setup.s的中加载的一些数据的分布：
+
+|内存地址|长度(字节)|名称|描述|
+|--|--|--|--|
+|0x90080|16|硬盘参数表|第1个硬盘的参数表|
+|0x90090|16|硬盘参数表|第2个硬盘的参数表|
+
+```0x90080```正好是第1个硬盘的参数表的地址。
+
+接下来看```sys_setup```的主体，该方法的最先定义了一些变量，其中利用```static```变量```callable```控制该方法只会被调用一次。
+
 ```c
 static int callable = 1;
 int i,drive;
@@ -91,7 +138,16 @@ if (!callable)
 callable = 0;
 ```
 
-接下来如果定义了HD_TYPE，则一次去BIOS内存地址出去读取数据拷贝到hd_info变量中。
+```hd_info```的类型是```hd_i_struct```，其中各个字段分别是磁头数，每磁道扇区数据，柱面数，写前预补偿柱面号、磁头着陆区柱面号、控制字节。
+
+```c
+struct hd_i_struct {
+	int head,sect,cyl,wpcom,lzone,ctl;
+	};
+```
+
+接下来如果定义了```HD_TYPE```，则一次去BIOS内存地址出去读取数据拷贝到```hd_info```变量中。如果```hd_info[1].cyl```有数据，则代表有两块硬盘，否则代表只有一块硬盘。
+
 ```c
 #ifndef HD_TYPE
 	for (drive=0 ; drive<2 ; drive++) {
@@ -110,16 +166,35 @@ callable = 0;
 #endif
 ```
 
-接下来设置硬盘分区数据
+接下来设置硬盘分区数据:
+
 ```c
 	for (i=0 ; i<NR_HD ; i++) {
-		hd[i*5].start_sect = 0;
+		hd[i*5].start_sect = 0;//起始扇区
 		hd[i*5].nr_sects = hd_info[i].head*
-				hd_info[i].sect*hd_info[i].cyl;
+				hd_info[i].sect*hd_info[i].cyl;//硬盘总扇区数
 	}
 ```
 
-NR_HD=0， 两个硬盘都不是AT控制器兼容的。
+接下来的操作涉及对```CMOS```的操作，这里简单减少一下CMOS。
+
+**CMOS（互补金属氧化物半导体）内存**是计算机系统中的一种特殊内存，通常用于存储系统配置信息和实时时钟数据。它通常位于主板上，并且保持在通电和断电状态下数据的持久性。在通电状态下，CMOS电池提供电源以保持存储的数据不受影响。
+
+CMOS内存中存储了诸如以下信息：
+
+- 实时时钟数据：包括年、月、日、小时、分钟和秒等时间信息。
+- BIOS设置：存储了系统的基本输入/输出系统（BIOS）配置，例如启动设备顺序、硬盘参数等。
+- 硬件配置：可能包括与硬件相关的配置信息，例如中断分配、硬盘类型等。
+- 密码：某些系统可能会将密码或安全密钥存储在CMOS中，以进行访问控制。
+
+CMOS内存可以通过特定的端口访问，例如在x86架构的计算机中，使用端口```0x70```来选择CMOS内存的地址，使用端口```0x71```来读取或写入数据。在这段代码中，通过使用端口```0x70```选择地址，并使用端口```0x71```读取数据，实现了从CMOS内存中读取数据的操作。
+
+有了CMOS的概念，再来理解下面的代码。下面的代码Linus做了如下解释：
+
+> 我们对CMOS有关硬盘的信息有些怀疑： 可能会出现这样的情况，我们有一块SCSI/ESDI等的控制器，它是以ST-506方式与BIOS相兼容的，因而会出现在我们的BIOS参数表中，但却又不是寄存器兼容的，因此这些参数在CMOS中又不存在。第一个驱动器的参数存放在CMOS字节0x12的高半字节中，第2个存放在低半字节中。该4位字节信息可以是驱动器类型。也可能是0xf。0xf表示使用CMOS中0x19字节作为驱动器1的8位类型字节，使用CMOS中的0x1A字节作为驱动器2的类型字节。
+
+总之，这里的代码就是用来检测两个硬盘都是不是AT控制器兼容的。
+
 ```c
 if ((cmos_disks = CMOS_READ(0x12)) & 0xf0)
 	if (cmos_disks & 0x0f)
@@ -130,7 +205,8 @@ else
 	NR_HD = 0;
 ```
 
-如果NR_HD=0，则将两个硬盘的结构全部清零。如果NR_HD=1，则将第二块硬盘结构清零。
+如果```NR_HD=0```，则两个硬盘都不是AT控制器兼容的，则将两个硬盘的结构全部清零。如果```NR_HD=1```，则将第二块硬盘结构清零。
+
 ```c
 for (i = NR_HD ; i < 2 ; i++) {
 	hd[i*5].start_sect = 0;
@@ -138,10 +214,22 @@ for (i = NR_HD ; i < 2 ; i++) {
 }
 ```
 
-接下来就是获取硬盘的分区表信息。
+接下来就是获取硬盘的分区表信息。硬盘上的第一个扇区存放的是引导块。这里需要了解一下MBR分区的，引导扇区的分布情况。
+
+**MBR（Master Boot Record）**引导扇区的布局如下：
+
+- 1.引导代码区域（446字节）：MBR的前446字节用于存储引导代码，这是一段特定的机器码程序，用于引导操作系统。这段代码会被计算机启动时加载到内存中执行，以启动操作系统。
+
+- 2.分区表（64字节）：接下来的64字节用于存储分区表，其中包含4个16字节的分区表项，每个分区表项用于描述硬盘上的一个分区。每个分区表项包含以下信息：
+  - 起始扇区地址（4字节）：描述分区在硬盘上的起始位置。
+  - 分区大小（4字节）：描述分区的大小。
+  - 分区类型（1字节）：描述分区的类型，指示分区的用途或内容。
+  - 标志（1字节）：用于标识分区的活动状态（启动分区）。
+- 3.结束标志（2字节）：MBR的最后两个字节通常是0x55AA，用于指示这是一个有效的MBR扇区。
+
 ```c
 for (drive=0 ; drive<NR_HD ; drive++) {
-	if (!(bh = bread(0x300 + drive*5,0))) {//300 305是设别号
+	if (!(bh = bread(0x300 + drive*5,0))) {//300 305是设备号
 		printk("Unable to read partition table of drive %d\n\r",
 			drive);
 		panic("");
@@ -151,7 +239,7 @@ for (drive=0 ; drive<NR_HD ; drive++) {
 		printk("Bad partition table on drive %d\n\r",drive);
 		panic("");
 	}
-	p = 0x1BE + (void *)bh->b_data;
+	p = 0x1BE + (void *)bh->b_data; // 0x1BE=446
 	for (i=1;i<5;i++,p++) {
 		hd[i+5*drive].start_sect = p->start_sect;
 		hd[i+5*drive].nr_sects = p->nr_sects;
@@ -160,17 +248,21 @@ for (drive=0 ; drive<NR_HD ; drive++) {
 }
 ```
 
-最后将加载虚拟盘和挂载根文件系统。
+程序的最后将加载虚拟盘和挂载根文件系统。
+
 ```c
-if (NR_HD)
-	printk("Partition table%s ok.\n\r",(NR_HD>1)?"s":"");
-rd_load();//加载虚拟盘
-mount_root();//挂载根文件系统。
+	if (NR_HD)
+		printk("Partition table%s ok.\n\r",(NR_HD>1)?"s":"");
+	rd_load();//加载虚拟盘
+	mount_root();//挂载根文件系统。
 ```
+
 ## controller_ready
+
 ```c
 static int controller_ready(void)
 ```
+
 该函数的作用就是循环等待硬盘控制器就绪。
 
 硬盘控制器状态寄存器端口是0x1f7, 从该端口中读取一个字节的数据，并检查其最高位是否为0，如果为0，就代表已经就绪，如果为1， 则代表尚未就绪。

@@ -425,4 +425,3 @@ void mount_root(void)
 			free++;
 	printk("%d/%d free inodes\n\r",free,p->s_ninodes);
 ```
-## Q & A
