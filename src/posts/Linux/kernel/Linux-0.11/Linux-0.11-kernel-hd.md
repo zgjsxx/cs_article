@@ -9,7 +9,7 @@ tag:
 	- [模块简介](#模块简介)
 	- [函数详解](#函数详解)
 		- [sys\_setup](#sys_setup)
-	- [controller\_ready](#controller_ready)
+		- [controller\_ready](#controller_ready)
 		- [win\_result](#win_result)
 		- [hd\_out](#hd_out)
 		- [drive\_busy](#drive_busy)
@@ -257,7 +257,7 @@ for (drive=0 ; drive<NR_HD ; drive++) {
 	mount_root();//挂载根文件系统。
 ```
 
-## controller_ready
+### controller_ready
 
 ```c
 static int controller_ready(void)
@@ -291,7 +291,8 @@ static int win_result(void)
 
 该函数的作用是检查硬盘执行命令后的结果。0为正常， 1为错误。
 
-首先使用inb_p去读取HD_STATUS的值，如果控制器忙， 读写错误或命令执行错误， 则返回1。如果没有错误，则返回0.
+首先使用```inb_p```去读取```HD_STATUS```的值，如果控制器忙， 读写错误或命令执行错误， 则返回1。如果没有错误，则返回0。
+
 ```c
 int i=inb_p(HD_STATUS);//取出硬盘控制器的状态信息。
 
@@ -312,6 +313,15 @@ static void hd_out(unsigned int drive,unsigned int nsect,unsigned int sect,
 
 该函数的作用是向硬盘控制器发送命令。
 
+函数的参数的含义如下：
+- drive 硬盘号(0-1)
+- nsect 读写扇区数
+- sect  起始扇区
+- head  磁头号
+- cyl   柱面号
+- cmd   命令码
+- intr  硬盘中断处理程序中将调用的c处理函数指针
+
 该函数的开头对参数进行校验，如果不合法则抛出内核错误。
 
 ```c
@@ -327,18 +337,18 @@ if (!controller_ready())//控制器没有准备好
 
 |端口|名称|读操作|写操作|
 |--|--|--|--|
-|0x1f0|HD_DATA|数据寄存器||
-|0x1f1|HD_ERROR|错误寄存器||
-|0x1f2|HD_NSECTOR|扇区数寄存器  总扇区数||
-|0x1f3|HD_SECTOR|扇区号寄存器 起始扇区 ||
-|0x1f4|HD_LCYL|柱面号寄存器 柱面号低字节 ||
-|0x1f5|HD_HCYL|柱面号寄存器 柱面号高字节 ||
-|0x1f6|HD_CURRENT|磁头寄存器 磁头号 ||
+|0x1f0|HD_DATA|数据寄存器|数据寄存器|
+|0x1f1|HD_ERROR|错误寄存器(HD_ERROR)|写前预补偿寄存器(HD_PRECOMP)|
+|0x1f2|HD_NSECTOR|扇区数寄存器  总扇区数|扇区数寄存器  总扇区数|
+|0x1f3|HD_SECTOR|扇区号寄存器 起始扇区 |扇区号寄存器 起始扇区|
+|0x1f4|HD_LCYL|柱面号寄存器 柱面号低字节 |柱面号寄存器 柱面号低字节|
+|0x1f5|HD_HCYL|柱面号寄存器 柱面号高字节 |柱面号寄存器 柱面号高字节|
+|0x1f6|HD_CURRENT|磁头寄存器 磁头号 |磁头寄存器 磁头号|
 |0x1f7|HD_STATUS|主状态寄存器 |命令寄存器|
-|0x3f6|HD_CMD| |硬盘控制寄存器|
+|0x3f6|HD_CMD|... |硬盘控制寄存器|
 |0x3f7||数字输入寄存器 ||
 
-hd_out接下来的过程就是向这些端口依次写入数据。
+```hd_out```接下来的过程就是向这些端口依次写入数据。
 
 ```c
 do_hd = intr_addr; // do_hd 函数指针将在硬盘中断程序中被调用
@@ -352,6 +362,46 @@ outb_p(cyl>>8,++port); //参数：柱面号高8 位  0x1f5
 outb_p(0xA0|(drive<<4)|head,++port);  //参数：驱动器号+磁头号 0x1f6
 outb(cmd,++port);      //命令：硬盘控制命令 0x1f7
 ```
+
+cmd的取值与主状态寄存器(读)/命令寄存器(写) ```0x1f7```的设计相关。
+
+```hd_out```涉及对```0x1f7```的写操作，其含义如下：
+
+|命令|含义|高4位|D3|D2|D1|D0|默认值|命令执行结束形式|
+|--|--|--|--|--|--|--|--|--|
+|WIN_RESTORE|驱动器重新校正(复位)|0x1|R|R|R|R|0x10|中断|
+|WIN_READ|读扇区|0x2|0|0|L|T|0x20|中断|
+|WIN_WRITE|写扇区|0x3|0|0|L|T|0x30|中断|
+|WIN_VERIFY|扇区检验|0x4|0|0|0|T|0x40|中断|
+|WIN_FORMAT|格式化磁道|0x5|0|0|0|0|0x50|中断|
+|WIN_INIT|控制器初始化|0x6|0|0|0|0|0x60|中断|
+|WIN_SEEK|寻道|0x7|R|R|R|R|0x70|中断|
+|WIN_DIAGNOSE|控制器诊断|0x9|0|0|0|0|0x90|中断或空闲|
+|WIN_SPECIFY|建立驱动器参数|0x9|0|0|0|1|0x91|中断|
+
+表中命令码字节的低4位是附加参数，其含义为：
+- R是步进速率。R=0，则步进速率为35us；R=1为0.5ms，以此量递增。程序中默认R=0。
+- L是数据模式。L=0表示读/写扇区为512字节，L=1表示读/写扇区为512加4字节的ECC码。程序中默认值是L=0。
+- T是重试模式。T=0表示允许充实；T=1则禁止充实。程序中取T=0。
+
+命令码的高四位和低四位组合形成了最终的含义，这里给出常用的cmd的详细解释：
+- 0x1X  WIN_RESTORE 驱动器重新校正(Recalibrate)
+
+	该命令把读/写磁头从磁盘上的任何位置移动到0柱面。当收到命令时，驱动器会设置BUSY_STAT标志并且发出一个0柱面寻道指令。然后驱动器等待寻道操作结束，更新状态，复位BUSY_STAT标志并且产生一个中断。
+
+- 0x20 WIN_READ:
+
+	读扇区命令可以从指定扇区开始读取1-256个扇区。若所指定的命令块中的扇区计数为0，则表示读256个扇区。当驱动器接受了该命令时，将会设置BUSY_STAT标志并且发出并开始执行该指令。对于单个扇区的读取操作，若磁头的磁道位置不对，则驱动器会隐含地执行一次寻道操作。
+
+- 0x30 WIN_WRITE:
+
+	写扇区命令可以从指定扇区开始写入1-256个扇区。若所指定的命令块中的扇区计数为0，则表示写256个扇区。当驱动器接受了该命令时，将会设置DRQ_STAT标志并且等待扇区缓冲区被填满数据。
+
+- 0x91 WIN_SPECIFY:
+
+	该命令用于让主机设置多扇区操作时磁头交换和扇区计数循环值。在收到该命令驱动器会设置BUSY_STAT比特位并产生一个中断。该命令仅使用两个寄存器的值。一个是扇区计数寄存器，用于指定扇区数，另一个是驱动器/磁头寄存器，用于指定磁头数-1。
+	
+
 
 ### drive_busy
 
@@ -623,10 +673,13 @@ if (CURRENT->cmd == WRITE) {//如果是写请求
 ```
 
 ### hd_init
+
 ```c
 void hd_init(void)
 ```
+
 该函数用于硬盘系统的初始化。
+
 ```c
 blk_dev[MAJOR_NR].request_fn = DEVICE_REQUEST;//设置硬盘的请求处理方法
 set_intr_gate(0x2E,&hd_interrupt);//设置硬盘的中断，中断号是0x2E（46）
