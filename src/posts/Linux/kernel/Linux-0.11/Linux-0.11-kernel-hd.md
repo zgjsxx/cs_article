@@ -401,8 +401,6 @@ cmd的取值与主状态寄存器(读)/命令寄存器(写) ```0x1f7```的设计
 
 	该命令用于让主机设置多扇区操作时磁头交换和扇区计数循环值。在收到该命令驱动器会设置BUSY_STAT比特位并产生一个中断。该命令仅使用两个寄存器的值。一个是扇区计数寄存器，用于指定扇区数，另一个是驱动器/磁头寄存器，用于指定磁头数-1。
 	
-
-
 ### drive_busy
 
 ```c
@@ -436,16 +434,22 @@ static void reset_controller(void)
 该函数用于重新校正硬盘控制器。
 
 ```c
-int	i;
+	int	i;
 
-outb(4,HD_CMD);//向硬盘控制寄存器端口发送复位控制
-for(i = 0; i < 100; i++) nop();//循环等待一段时间
-outb(hd_info[0].ctl & 0x0f ,HD_CMD);//发送正常的控制字节
-if (drive_busy())//检查控制器是否还是处于忙的状态
-	printk("HD-controller still busy\n\r");
-if ((i = inb(HD_ERROR)) != 1)
-	printk("HD-controller reset failed: %02x\n\r",i);
+	outb(4,HD_CMD);//向硬盘控制寄存器端口发送复位控制
+	for(i = 0; i < 100; i++) nop();//循环等待一段时间
+	outb(hd_info[0].ctl & 0x0f ,HD_CMD);//发送正常的控制字节
+	if (drive_busy())//检查控制器是否还是处于忙的状态
+		printk("HD-controller still busy\n\r");
+	if ((i = inb(HD_ERROR)) != 1)
+		printk("HD-controller reset failed: %02x\n\r",i);
 ```
+
+首先使用```outb(4,HD_CMD)```向硬盘控制寄存器端口发送允许复位控制字节。然后循环空操作等待一段时间让控制器执行复位操作。
+
+接着使用```outb(hd_info[0].ctl & 0x0f ,HD_CMD);```发送正常的控制字节。
+
+如果等待硬盘就绪超时，则显示警告信息。然后读取错误寄存器内容，若其不等于1，则显示硬盘控制器复位失败信息。
 
 ### reset_hd
 
@@ -455,10 +459,12 @@ static void reset_hd(int nr)
 
 该函数的作用是复位硬盘。
 
+首先调用了复位硬盘控制器的方法，接着发送硬盘控制器命令"建立驱动器参数"。
+
 ```c
-reset_controller();//复位硬盘控制器
-hd_out(nr,hd_info[nr].sect,hd_info[nr].sect,hd_info[nr].head-1,
-	hd_info[nr].cyl,WIN_SPECIFY,&recal_intr);//发送硬盘控制命令， recal_intr是硬盘中断处理函数中调用的函数
+	reset_controller();//复位硬盘控制器
+	hd_out(nr,hd_info[nr].sect,hd_info[nr].sect,hd_info[nr].head-1,
+		hd_info[nr].cyl,WIN_SPECIFY,&recal_intr);//发送硬盘控制命令， recal_intr是硬盘中断处理函数中调用的函数
 ```
 
 ### unexpected_hd_interrupt
@@ -498,9 +504,9 @@ static void read_intr(void)
 
 该函数是磁盘的**读中断调用函数**。
 
-硬盘的中断处理函数是hd_interrupt，这个是在hd_init函数中设置的。当硬盘中断发生的时候，将调用do_hd指向的函数， 而do_hd则是在do_hd_request函数中通过hd_out进行设置的。
+硬盘的中断处理函数是```hd_interrupt```，这个是在```hd_init```函数中设置的。当硬盘中断发生的时候，将调用```do_hd```指向的函数， 而```do_hd```则是在```do_hd_request```函数中通过```hd_out```进行设置的。
 
-因此当do_hd_request要去读扇区时，就会设置do_hd为read_intr，这样当硬盘中断到来时，就会调用read_intr进行处理。器处理流程如下图所示：
+因此当```do_hd_request```要去读扇区时，就会设置```do_hd```为```read_intr```，这样当硬盘中断到来时，就会调用```read_intr```进行处理。器处理流程如下图所示：
 
 ![read_intr](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/block/read_intr_flow.png)
 
@@ -514,11 +520,14 @@ if (win_result()) {
 }
 ```
 
-将HD_DATA端口依次读取256个字（512字节）到buffer中。
+将```HD_DATA```端口依次读取256个字（512字节）到```buffer```中。
+
 ```c
-port_read(HD_DATA,CURRENT->buffer,256);
+	port_read(HD_DATA,CURRENT->buffer,256);
 ```
+
 接着对请求中的一些标记进行修改。
+
 ```c
 CURRENT->errors = 0;//清除出错次数
 CURRENT->buffer += 512;//调整buffer指针
@@ -527,8 +536,10 @@ if (--CURRENT->nr_sectors) {
   do_hd = &read_intr;//尚有数据还未读完，因此设置下一次的中断处理函数还是read_intr
   return;
 }
+
 end_request(1);
 do_hd_request();//再次调用do_hd_request去处理其他硬盘请求项
+
 ```
 
 ### write_intr
@@ -562,9 +573,11 @@ do_hd_request();
 ```
 
 ### recal_intr
+
 ```c
 static void recal_intr(void)
 ```
+
 该函数的作用是重新复位中断调用函数。
 
 ```c
@@ -573,61 +586,72 @@ if (win_result())
 do_hd_request();
 ```
 
-
 ### do_hd_request
+
 ```c
 void do_hd_request(void)
 ```
+
 该函数是硬盘设备的读写函数。
 
 首先对读写请求进行校验。如果请求队列中没有硬盘的读写任务，则退出。
 
-请求的起始扇区+至少读写2扇区(1K)不能大于磁盘分区的最后一个扇区。
 ```c
-block+2 > hd[dev].nr_sects
+#define INIT_REQUEST \
+repeat: \
+	if (!CURRENT) \
+		return; \
+	if (MAJOR(CURRENT->dev) != MAJOR_NR) \
+		panic(DEVICE_NAME ": request list destroyed"); \
+	if (CURRENT->bh) { \
+		if (!CURRENT->bh->b_lock) \
+			panic(DEVICE_NAME ": block not locked"); \
+	}
+
+#endif
 ```
+	
+使用```dev = MINOR(CURRENT->dev);```取出次设备号，即硬盘各分区，次设备号不能大于```5*NR_HD```。
+
+设备号不能大于请求的起始扇区+至少读写2扇区(1K)不能大于磁盘分区的最后一个扇区。
 
 ```c
-int i,r = 0;
-unsigned int block,dev;
-unsigned int sec,head,cyl;
-unsigned int nsect;
-
-INIT_REQUEST;
-dev = MINOR(CURRENT->dev);
-block = CURRENT->sector;//请求的起始扇区
-if (dev >= 5*NR_HD || block+2 > hd[dev].nr_sects) {
-	end_request(0);
-	goto repeat;
-}
+	if (dev >= 5*NR_HD || block+2 > hd[dev].nr_sects) {
+		end_request(0);
+		goto repeat;
+	}
 ```
 
 下面是本函数的一个难点，将绝对的块号转换为磁盘的(柱面C， 磁头H ，扇区S)。
 
-其中， block与(C，H，S)的换算公式如下所示:
+其中， ```block```与```(C，H，S)```的换算公式如下所示:
 
+```shell
+	block=C*总磁头数*每磁道扇区数+H*每磁道扇区数+S
 ```
-block=C*总磁头数*每磁道扇区数+H*每磁道扇区数+S
-```
 
-可以看出前两项都是每磁道扇区数的倍数， 因此使用block除以每磁道扇区数，其余数就是扇区号S，
-其商如下所示:
+这里可以回顾一下磁盘的结构：
 
-```c
+![rp_read](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-boot/bootsect/boot_ok_read.png)
+
+可以看出前两项都是每磁道扇区数的倍数， 因此使用```block```除以每磁道扇区数，其余数就是扇区号S，其商如下所示:
+
+```shell
 block = block/每磁道扇区数 = C*总磁头数 + H
 ```
-使用除数除以总磁头数， 那么其余数就是H， 商就是C。
 
-下面看代码，
-输入eax = block， edx = 0， ```divl %4```中的%4就是```hd_info[dev].sect```， 代表每磁道扇区数，结果将余数赋值给变量sec， 商赋值给block。 这与我们上面的步骤是一致的。
+使用中间值```block```除以总磁头数， 那么其余数就是H， 商就是C。
+
+下面看代码，输入```eax = block```， ```edx = 0```， ```divl %4```中的```%4```就是```hd_info[dev].sect```， 代表每磁道扇区数，结果将余数赋值给变量```sec```， 商赋值给```block```。 这与我们上面的步骤是一致的。
+
 ```c
 __asm__("divl %4"
 		:"=a" (block),"=d" (sec)
 		:"0" (block),"1" (0),"r" (hd_info[dev].sect));
 ```
 
+接下来输入```edx = block```， ```eax = 0```， ```divl %4```中的```%4```就是```hd_info[dev].head```， 代表系统中的总磁头数，结果将余数赋值给```head```， 商赋值给```cyl```，这与我们的分析也一致。
 
-接下来输入edx = block， eax = 0， ```divl %4```中的%4就是hd_info[dev].head， 代表系统中的总磁头数，结果将余数赋值给head， 商赋值给cyl，这与我们的分析也一致。
 ```c
 __asm__("divl %4"
 	:"=a" (cyl),"=d" (head)
@@ -635,7 +659,8 @@ __asm__("divl %4"
 	"r" (hd_info[dev].head));
 ```
 
-如果此时的复位标志是1， 那么就调用reset_hd进行硬盘的复位。
+如果此时的复位标志是1， 那么就调用```reset_hd```进行硬盘的复位。
+
 ```c
 if (reset) {
 	reset = 0;
@@ -646,6 +671,7 @@ if (reset) {
 ```
 
 如果此时重新校正标志是置位的， 则首先复位该标志， 然后向硬盘控制器发送重新校正的命令。
+
 ```c
 if (recalibrate) {
 	recalibrate = 0;
@@ -655,6 +681,7 @@ if (recalibrate) {
 }	
 ```
 
+命令只能是读或者是写。
 
 ```c
 if (CURRENT->cmd == WRITE) {//如果是写请求
@@ -681,21 +708,20 @@ void hd_init(void)
 该函数用于硬盘系统的初始化。
 
 ```c
-blk_dev[MAJOR_NR].request_fn = DEVICE_REQUEST;//设置硬盘的请求处理方法
-set_intr_gate(0x2E,&hd_interrupt);//设置硬盘的中断，中断号是0x2E（46）
-outb_p(inb_p(0x21)&0xfb,0x21);//允许从片发出中断
-outb(inb_p(0xA1)&0xbf,0xA1);//允许硬盘的中断
+	blk_dev[MAJOR_NR].request_fn = DEVICE_REQUEST;//设置硬盘的请求处理方法
+	set_intr_gate(0x2E,&hd_interrupt);//设置硬盘的中断，中断号是0x2E（46）
+	outb_p(inb_p(0x21)&0xfb,0x21);//允许从片发出中断
+	outb(inb_p(0xA1)&0xbf,0xA1);//允许硬盘的中断
 ```
 
 ```outb_p(inb_p(0x21)&0xfb,0x21)```:
 
-0x21是主片命令字OCW1的端口地址， 0xfb = 11111011， 即将主片IR2的位置复位， 主片的IR2用于级联从片, 因此该语句的作用是**允许从片发出中断**。
+```0x21```是主片命令字```OCW1```的端口地址， ```0xfb = 11111011```， 即将主片IR2的位置复位， 主片的IR2用于级联从片, 因此该语句的作用是**允许从片发出中断**。
 
 ```outb(inb_p(0xA1)&0xbf,0xA1)```:
 
-0xA1是从片命令字OCW1的端口地址，0xbf = 10111111, 即将从片IR6的位置复位，从片的IR6用于接受硬盘的中断，因此该语句的作用是**允许硬盘的中断**。
+```0xA1```是从片命令字OCW1的端口地址，```0xbf = 10111111```, 即将从片IR6的位置复位，从片的IR6用于接受硬盘的中断，因此该语句的作用是**允许硬盘的中断**。
 
 因此以上两句的作用就是**允许了来自硬盘的中断**。
-
 
 有关更多8259A中断控制器， 可以阅读 [详解8259A](https://blog.csdn.net/longintchar/article/details/79439466)
