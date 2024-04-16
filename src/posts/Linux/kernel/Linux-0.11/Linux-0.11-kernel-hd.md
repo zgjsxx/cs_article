@@ -688,7 +688,7 @@ if (CURRENT->cmd == WRITE) {//如果是写请求
 	hd_out(dev,nsect,sec,head,cyl,WIN_WRITE,&write_intr);//向控制器发送写请求
 	for(i=0 ; i<3000 && !(r=inb_p(HD_STATUS)&DRQ_STAT) ; i++)//循环等待
 		/* nothing */ ;
-	if (!r) {
+	if (!r) {s
 		bad_rw_intr();
 		goto repeat;
 	}
@@ -698,6 +698,34 @@ if (CURRENT->cmd == WRITE) {//如果是写请求
 } else
 	panic("unknown hd-command");
 ```
+
+读和写的流程略有不同。
+
+如果是是写操作，则首先设置硬盘控制器调用的c函数为```write_intr```，向控制器发送写操作的命令参数块，并循环查询控制器的状态寄存器，以判断请求服务标志(DRQ)是否置位。若该标志置位，表示控制器同意接受数据，于是接着就把请求项所指缓冲区中的数据写入控制器的数据缓冲区中。随后```do_hd_request```返回。当硬盘控制器写盘完毕之后会立刻向CPU发送中断请求，中断处理程序会调用```write_intr```写完剩下的数据。
+
+因此我们看到，对于写操作而言，```do_hd_request```会首先执行一次```port_write```。
+
+```c
+	port_write(HD_DATA,CURRENT->buffer,256);
+```
+
+在```write_intr```中，由于```do_hd_request```已经写过一个扇区，因此这里会先增加请求扇区号和buffer指针。
+
+```c
+if (--CURRENT->nr_sectors) {//如果还有扇区要写
+    CURRENT->sector++;//当前请求扇区号+1
+    CURRENT->buffer += 512;//当前请求缓冲区指针增加512
+    do_hd = &write_intr; //设置函数指针位write_intr
+    port_write(HD_DATA,CURRENT->buffer,256);//向数据端口写256字（512字节）
+    return;
+}
+```
+
+梳理起来就是，写操作会写一个扇区，随后通过中断写完剩下的所有扇区。
+
+而读操作则完全通过中断进行实现。首先会设置硬盘控制器调用的c函数为```read_intr()```，并向控制器发送读盘操作命令。控制器接到读命令之后就执行从硬盘读数据到控制器缓冲区的过程。操作完之后就触发中断。中断函数```read_intr```读取一个扇区数据到高速缓冲区中。随后循环往复，直到读完所有数据。
+
+
 
 ### hd_init
 
