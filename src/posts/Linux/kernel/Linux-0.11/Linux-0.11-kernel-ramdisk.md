@@ -20,6 +20,29 @@ ramdisk.c是内存虚拟盘的驱动程序。虚拟盘设备是一种利用物�
 
 ### rd_init
 
+```c
+long rd_init(long mem_start, int length)
+```
+
+该方法的作用是返回内存虚拟盘ramdisk所需要的内存量。
+
+首先设置设备的```request_fn```为```do_rd_request```。进而设置了虚拟判断起始地址和长度。参数在main.c中传递。对于16M系统，起始地址是4MB。
+
+```c
+	blk_dev[MAJOR_NR].request_fn = DEVICE_REQUEST;
+	rd_start = (char *) mem_start;
+	rd_length = length;
+	cp = rd_start;
+```
+
+接下来将虚拟盘的区域进行清零。
+
+```c
+	for (i=0; i < length; i++)
+		*cp++ = '\0';
+	return(length);
+```
+
 ### do_rd_request
 
 ### rd_load

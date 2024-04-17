@@ -19,23 +19,62 @@ tag:
 
 ## 模块简介
 
-## 函数详解
-
 该模块的作用是处理块设备的读写，其中最重要的函数就是电梯算法**add_request**函数和**ll_rw_block**函数。
 
+**ll_rw_block**函数的主要功能是为块设备创建块设备读写请求项，并插入到指定块设备请求队列中。实际的读写操作则是由设备的请求项处理函数```request_fn()```完成。对于硬盘操作，该函数是```do_hd_request()```， 对于软盘操作，该函数是```do_fd_request()```，对于虚拟盘，则是```do_rd_request()```。如果```ll_rw_block()```为一个块设备建立起一个请求项，并通过测试块设备的当前请求项指针为空而确定设备空闲时，就会设置该新建的请求项为当前请求项，并直接调用```request_fn()```对该请求项进行操作。否则就会使用电梯算法将新建的请求项插入到该设备的请求项链表中等待处理。
+
+## 函数详解
+
 ### add_request
+
 ```c
 static void add_request(struct blk_dev_struct * dev, struct request * req)
 ```
-该函数的作用是将块设备读写请求**插入到电梯队列**中。
 
-首先将数据的脏数据标志置为0。
-```c
-if (req->bh)
-	req->bh->b_dirt = 0;
+该函数的作用是将块设备读写请求**插入到电梯队列**中。调用关系如下：
+
+```shell
+├── ll_rw_block
+  └── make_request
+    └── add_request
 ```
 
-如果当前设备的请求为空，就将入参中的请求作为设备电梯队列的头节点。并且立即调用request_fn。request_fn对于不同的设备对应不同的回调函数，对于硬盘设备而言，request_fn指的是do_hd_request，关于do_hd_request,将在hd.c中进行讲解。
+这里首先熟悉一下两个入参的定义：
+
+```c
+struct blk_dev_struct {
+	void (*request_fn)(void);
+	struct request * current_request;
+};
+```
+
+```c
+struct request {
+	int dev;		/* -1 if no request */
+	int cmd;		/* READ or WRITE */
+	int errors;
+	unsigned long sector;
+	unsigned long nr_sectors;
+	char * buffer;
+	struct task_struct * waiting;
+	struct buffer_head * bh;
+	struct request * next;
+};
+```
+
+```dev```是指定块设备结构指针，该结构中有处理请求项的函数指针和当前正在请求项指针。```req```为设置好内容的请求项结构指针。函数的目的就是将```req```添加到指定设备的请求项链表中。
+
+首先将```req```的 ```next```指针设置为空，将数据的脏数据标志置为0。
+
+```c
+	req->next = NULL;
+	cli();
+	if (req->bh)
+		req->bh->b_dirt = 0;
+```
+
+如果当前设备的请求为空，就将入参中的请求作为设备电梯队列的头节点。并且立即调用```request_fn```。```request_fn```对于不同的设备对应不同的回调函数，对于硬盘设备而言，```request_fn```指的是```do_hd_request```，关于```do_hd_request```,将在```hd.c```中进行讲解。
+
 ```c
 if (!(tmp = dev->current_request)) {
     dev->current_request = req;
@@ -45,15 +84,16 @@ if (!(tmp = dev->current_request)) {
 }
 ```
 
-上面的部分处理了请求队列只有一个请求的场景，接下来便是当请求队列有多个请求时，如何处理优先级顺序的逻辑，也就是电梯算法部分，其中最难理解的便是宏定义IN_ORDER。IN_ORDER的定义如下所示。
+上面的部分处理了请求队列只有一个请求的场景，接下来便是当请求队列有多个请求时，如何处理优先级顺序的逻辑，也就是电梯算法部分，其中最难理解的便是宏定义```IN_ORDER```。```IN_ORDER```的定义如下所示。
 
 ```c
-#define IN_ORDER(s1,s2) \
-((s1)->cmd<(s2)->cmd || ((s1)->cmd==(s2)->cmd && \
-((s1)->dev < (s2)->dev || ((s1)->dev == (s2)->dev && \
-(s1)->sector < (s2)->sector))))
+	#define IN_ORDER(s1,s2) \
+	((s1)->cmd<(s2)->cmd || ((s1)->cmd==(s2)->cmd && \
+	((s1)->dev < (s2)->dev || ((s1)->dev == (s2)->dev && \
+	(s1)->sector < (s2)->sector))))
 ```
-上述代码是比较难懂的，可以使用if-else来帮助理解
+
+上述代码是比较难懂的，可以使用```if-else```来帮助理解
 
 ```c
 bool inorder(request &s1, request &s2)
@@ -77,7 +117,7 @@ bool inorder(request &s1, request &s2)
 }
 ```
 
-展开上面的if-else结构逻辑就清晰了很多，IN_ORDER实际上就是依次对操作类型，设备号， 扇区号作比较，并且操作类型优先级大于设备号，设备号优先级大于扇区号。
+展开上面的```if-else```结构逻辑就清晰了很多，```IN_ORDER```实际上就是依次对操作类型，设备号， 扇区号作比较，并且操作类型优先级大于设备号，设备号优先级大于扇区号。
 
 对于操作类型而言，读操作优先级大于写操作。对于设备号而言，设备号小的设备优先级大于设备号大的设备的优先级。对于扇区而言，扇区序号小的扇区优先级高于扇区序号大的扇区。
 
@@ -94,6 +134,7 @@ tmp->next=req;
 ```
 
 下面的这一段代码可以用两个if语句进行替代，即**定向扫描**和**折返扫描**两个场景。
+
 ```c
 if ((IN_ORDER(tmp,req) || 
 	!IN_ORDER(tmp,tmp->next)) &&
@@ -111,6 +152,7 @@ if(tmp > req && req > tmp->next)
 ```
 
 条件2: 折返扫描，req在下一轮扫描的方向上
+
 ```c
 if(tmp < tmp->next && req > tmp->next)
 {
@@ -119,11 +161,18 @@ if(tmp < tmp->next && req > tmp->next)
 }
 ```
 
+条件2在下面的例子中插入```(0，0，20)```时有体现。
+
+```shell
+(0,0,50),(0,0,60),(0,0,80),(0,0,30),
+(0,0,50),(0,0,60),(0,0,80),(0,0,20),(0,0,30),
+```
+
 这里需要阐明的是，Linux-0.11实际使用的磁盘扫描算法是**C-SCAN算法**，也是**电梯算法**（可戏称为**跳楼机**）。
 
 其思路就是只**单向寻道**，到头后**直接复位**再次沿同方向寻道，这样对于所有磁盘位置的请求都是公平的。
 
-我们通过下面的代码实际感受一下这个过程，我们固定cmd和dev， 只让sector号有区别，依次插入50， 80， 60， 30， 20 ，看看最后的结果如何。
+我们通过下面的代码实际感受一下这个过程，我们固定```cmd```和```dev```， 只让```sector```号有区别，依次插入```50， 80， 60， 30， 20 ```，看看最后的结果如何。
 
 ```c
 #include <stdio.h>
@@ -252,24 +301,33 @@ int main(int argc,char ** argv)
 ```
 
 上述代码的执行结果如下所示:
-```text
+
+```shell
 (0,0,50),
 (0,0,50),(0,0,80),
 (0,0,50),(0,0,60),(0,0,80),
 (0,0,50),(0,0,60),(0,0,80),(0,0,30),
 (0,0,50),(0,0,60),(0,0,80),(0,0,20),(0,0,30),
 ```
+
 可以看出最后的顺序是50->60->80->20->30， 实际上效果就是单方向移动到最后一个位置，再复位进行扫描，再次沿同方向扫描。
 
 ![c-san算法示意图](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/block/c-scan.png)
 
 ### make_request
+
 ```c
 static void make_request(int major,int rw, struct buffer_head * bh)
 ```
-该函数的作用是创建请求项并插入请求队列中。
 
-首先判断命令是否READA或者是WRITEA。READA代表预读取，WRITEA代表预写入。所以当命令是**预读取**或者是**预写入**，如果bh块被锁，那么就放弃，直接返回。如果bh块没有被锁，那么就当作普通的READ和WRITE。
+该函数的作用是创建请求项并插入请求队列中。其调用关系如下所示：
+
+```shell
+├── ll_rw_block
+  └── make_request
+```
+
+首先判断命令是否```READA```或者是```WRITEA```。```READA```代表预读取，```WRITEA```代表预写入。所以当命令是**预读取**或者是**预写入**，如果```bh```块被锁，那么就放弃，直接返回。如果```bh```块没有被锁，那么就当作普通的```READ```和```WRITE```。
 
 ```c
 	struct request * req;
@@ -287,7 +345,8 @@ static void make_request(int major,int rw, struct buffer_head * bh)
 	}
 ```
 
-如果命令不是读或者写，那么就是一个致命错误，直接通过panic抛出错误。对命令校验之后，就去锁定该数据块。如果命令是写操作，但是该数据块并没有脏数据，则没有必要去写块设备，就可以对bh块进行解锁。除此以外，如果命令是读操作，但是该bh块中的内容已经是最新的，也没有必要去读块设备，就可以对bh块进行解锁。
+如果命令不是读或者写，那么就是一个致命错误，直接通过```panic```抛出错误。对命令校验之后，就去锁定该数据块。如果命令是写操作，但是该数据块并没有脏数据，则没有必要去写块设备，就可以对```bh```块进行解锁。除此以外，如果命令是读操作，但是该```bh```块中的内容已经是最新的，也没有必要去读块设备，就可以对```bh```块进行解锁。
+
 ```c
 if (rw!=READ && rw!=WRITE)
     panic("Bad block dev command, must be R/W/RA/WA");
@@ -298,7 +357,8 @@ if ((rw == WRITE && !bh->b_dirt) || (rw == READ && bh->b_uptodate)) {
 }
 ```
 
-下面需要从request数组中寻找一个位置来创建该请求。对于读请求而言，将会从数组的尾部开始搜索。对于写请求而言，将会从数组的2/3处开始搜索。 如果找到了位置，那么就开始进行创建，如果没有找到位置，就sleep_on进行等待。
+下面需要从```request```数组中寻找一个位置来创建该请求。对于读请求而言，将会从数组的尾部开始搜索。对于写请求而言，将会从数组的2/3处开始搜索。 如果找到了位置，那么就开始进行创建，如果没有找到位置，就```sleep_on```进行等待。
+
 ```c
 	if (rw == READ)
 		req = request+NR_REQUEST;
@@ -319,13 +379,14 @@ if ((rw == WRITE && !bh->b_dirt) || (rw == READ && bh->b_uptodate)) {
 	}
 ```
 
-当找到该位置时，就在该位置上进行构建请求。构建完之后，调用add_request插入到电梯队列中。
+当找到该位置时，就在该位置上进行构建请求。构建完之后，调用```add_request```插入到电梯队列中。
+
 ```c
 /* fill up the request-info, and add it to the queue */
 	req->dev = bh->b_dev;
 	req->cmd = rw;
 	req->errors=0;
-	req->sector = bh->b_blocknr<<1;
+	req->sector = bh->b_blocknr<<1; //起始扇区，块号转换成扇区(1块= 2扇区)
 	req->nr_sectors = 2;
 	req->buffer = bh->b_data;
 	req->waiting = NULL;
@@ -333,13 +394,17 @@ if ((rw == WRITE && !bh->b_dirt) || (rw == READ && bh->b_uptodate)) {
 	req->next = NULL;
 	add_request(major+blk_dev,req);
 ```
+
 ### ll_rw_block
+
 ```c
 void ll_rw_block(int rw, struct buffer_head * bh)
 ```
+
 该函数的作用就是读写数据块。
 
 下面一段代码用于对bh块对应的设备做相应的校验。如果主设备号不存在，或者该设备对应的请求操作函数不存在，就显示出错信息。
+
 ```c
 if ((major=MAJOR(bh->b_dev)) >= NR_BLK_DEV ||
 !(blk_dev[major].request_fn)) {
@@ -348,18 +413,22 @@ if ((major=MAJOR(bh->b_dev)) >= NR_BLK_DEV ||
 }
 ```
 
-如果校验没有问题就调用make_request建立块设备读写请求。
+如果校验没有问题就调用```make_request```建立块设备读写请求。
+
 ```c
 make_request(major,rw,bh);
 ```
 
 ### blk_dev_init
+
 ```c
 void blk_dev_init(void)
 ```
+
 该函数的作用是**初始化块设备**。
 
-遍历request数组，对request数组中每一项的dev设置为-1， 对next指针设置为NULL。
+遍历```request```数组，对```request```数组中每一项的dev设置为-1， 对```next```指针设置为```NULL```。
+
 ```c
 for (i=0 ; i<NR_REQUEST ; i++) {
     request[i].dev = -1;
@@ -368,10 +437,13 @@ for (i=0 ; i<NR_REQUEST ; i++) {
 ```
 
 ### lock_buffer
+
 ```c
 static inline void lock_buffer(struct buffer_head * bh)
 ```
+
 该函数的作用是锁定指定的缓冲块。
+
 ```c
 cli();//关中断
 while (bh->b_lock)//如果缓冲区已被锁定就睡眠，一直到缓冲区解锁
@@ -381,10 +453,13 @@ sti();//开中断
 ```
 
 ### unlock_buffer
+
 ```c
 static inline void unlock_buffer(struct buffer_head * bh)
 ```
+
 该函数的作用是解锁指定的缓冲块。
+
 ```c
 if (!bh->b_lock)//如果该缓冲区没有加锁，则打印出错信息
     printk("ll_rw_block.c: buffer not locked\n\r");
