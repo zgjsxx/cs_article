@@ -721,7 +721,11 @@ if (--CURRENT->nr_sectors) {//如果还有扇区要写
 }
 ```
 
-梳理起来就是，写操作会写一个扇区，随后通过中断写完剩下的所有扇区。
+梳理起来就是，写操作会写一个扇区，随后通过中断写完剩下的所有扇区。流程下图所示：
+
+
+![write_intr](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/block/write_intr_flow.png)
+
 
 而读操作则完全通过中断进行实现。首先会设置硬盘控制器调用的c函数为```read_intr()```，并向控制器发送读盘操作命令。控制器接到读命令之后就执行从硬盘读数据到控制器缓冲区的过程。操作完之后就触发中断。中断函数```read_intr```读取一个扇区数据到高速缓冲区中。随后循环往复，直到读完所有数据。
 
