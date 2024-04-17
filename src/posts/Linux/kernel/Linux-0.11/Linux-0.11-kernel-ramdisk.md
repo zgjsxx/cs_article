@@ -46,3 +46,97 @@ long rd_init(long mem_start, int length)
 ### do_rd_request
 
 ### rd_load
+
+```c
+void rd_load(void)
+```
+
+该函数的作用是尝试把根文件系统加载到虚拟盘中。其调用关系如下：
+
+```shell
+├── sys_setup
+  └── rd_load
+```
+
+如果在编译Linux-0.11内核源代码时，在配置文件中定义了RAMDISK的大小值，则内核代码在引导并初始化RAMDISK区域后就会首先尝试检测启动盘上的第256磁盘块，开始处是否存在一个根文件系统。
+
+首先，检查系统中是否存在虚拟盘，如果```rd_length```长度为0，则返回。如果根文件系统不是软盘，则也退出。
+
+```c
+	if (!rd_length)
+		return;
+	printk("Ram disk: %d bytes, starting at 0x%x\n", rd_length,
+		(int) rd_start);
+	if (MAJOR(ROOT_DEV) != 2)
+		return;
+```
+
+接下来读根文件系统的基本参数。即读软盘块256+1，256和256+2。 这里block+1指定的是超级块。检查其魔数是否是期望的，如果不是，则代表软盘上没有跟文件系统。
+
+```c
+	bh = breada(ROOT_DEV,block+1,block,block+2,-1);
+	if (!bh) {
+		printk("Disk error while looking for ramdisk!\n");
+		return;
+	}
+	*((struct d_super_block *) &s) = *((struct d_super_block *) bh->b_data);
+	brelse(bh);
+	if (s.s_magic != SUPER_MAGIC)
+		/* No ram disk image present, assume normal floppy boot */
+		return;
+```
+
+我们试图把整个根文件系统读入到内存虚拟盘中。对于一个文件系统而言，其超级块结构的```s_nzones```字段中保存者总逻辑块数。一个逻辑块中含有的数据块由字段```s_log_zone_size```指定。
+
+这里主要判断文件系统中的数据块总数是否大于内存虚拟盘所能容纳的块数的情况，如果是，则不能执行加载操作。
+
+```c
+	nblocks = s.s_nzones << s.s_log_zone_size;
+	if (nblocks > (rd_length >> BLOCK_SIZE_BITS)) {
+		printk("Ram disk image too big!  (%d blocks, %d avail)\n", 
+			nblocks, rd_length >> BLOCK_SIZE_BITS);
+		return;
+	}
+```
+
+如果虚拟盘可以容纳的下文件系统的总的数据块。则循环将磁盘上的跟文件系统映像文件加载到虚拟盘上。
+
+如果需要加载的盘块数大于2块，则使用```breada```进行预读取。这里的读取过程并不复杂，就是一个循环的过程。
+
+```c
+	cp = rd_start;
+	while (nblocks) {
+		if (nblocks > 2) 
+			bh = breada(ROOT_DEV, block, block+1, block+2, -1);
+		else
+			bh = bread(ROOT_DEV, block);
+		if (!bh) {
+			printk("I/O error on block %d, aborting load\n", 
+				block);
+			return;
+		}
+		(void) memcpy(cp, bh->b_data, BLOCK_SIZE);
+		brelse(bh);
+		printk("\010\010\010\010\010%4dk",i);
+		cp += BLOCK_SIZE;
+		block++;
+		nblocks--;
+		i++;
+	}
+```
+
+下面这里打印时用到了退格```\010```，因为前面的打印中使用了占位符```0000k```。
+
+```c
+printk("Loading %d bytes into ram disk... 0000k", 
+		nblocks << BLOCK_SIZE_BITS);
+...
+printk("\010\010\010\010\010%4dk",i);
+```
+
+当boot盘中从256盘块开始的整个根文件系统加载完毕之后，我们显示done，并将目前的根文件系统设备号修改为```0x0101```。
+
+```c
+	printk("\010\010\010\010\010done \n");
+	ROOT_DEV=0x0101;
+```
