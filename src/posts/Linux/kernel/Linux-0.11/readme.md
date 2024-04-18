@@ -56,6 +56,8 @@ https://github.com/yuan-xy/Linux-0.11.git( AT&T 汇编格式)
 
 [Linux-0.11 kernel目录ll-rw-blk.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-ll-rw-blk.html)
 
+[Linux-0.11 kernel目录ramdisk.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-ramdisk.html)
+
 [Linux-0.11 kernel目录sys.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-sys.html)
 
 [Linux-0.11 kernel目录tty_io.c详解](https://zgjsxx.github.io/posts/Linux/kernel/Linux-0.11/Linux-0.11-kernel-tty-io.html)
