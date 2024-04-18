@@ -6,10 +6,10 @@ tag:
 ---
 
 - [Linux-0.11 kernel目录进程管理ramdisk.c详解](#linux-011-kernel目录进程管理ramdiskc详解)
-  - [函数详解](#函数详解)
-    - [rd\_init](#rd_init)
-    - [do\_rd\_request](#do_rd_request)
-    - [rd\_load](#rd_load)
+	- [函数详解](#函数详解)
+		- [rd\_init](#rd_init)
+		- [do\_rd\_request](#do_rd_request)
+		- [rd\_load](#rd_load)
 
 
 # Linux-0.11 kernel目录进程管理ramdisk.c详解
@@ -44,6 +44,48 @@ long rd_init(long mem_start, int length)
 ```
 
 ### do_rd_request
+
+```c
+void do_rd_request(void)
+```
+
+该函数的作用是处理当前的虚拟盘的请求。
+
+首先检查请求项的合法性，若已没有请求项则退出。然后计算请求项目处理的虚拟盘中起始扇区在物理内存中对应的地址addr和占用的内存字节长度值len。如果当前请求项中的子设备号不为1或者对应内存起始位置大于虚拟盘末尾，则结束该请求项，并跳转到repeat处。
+
+```c
+	int	len;
+	char	*addr;
+
+	INIT_REQUEST;
+	addr = rd_start + (CURRENT->sector << 9); // CURRENT->sector * 512
+	len = CURRENT->nr_sectors << 9;           // CURRENT->nr_sector * 512
+	// 检查参数的合法性
+	if ((MINOR(CURRENT->dev) != 1) || (addr+len > rd_start+rd_length)) {
+		end_request(0);
+		goto repeat;
+	}
+```
+
+接下来进行实际的读取操作。由于是对内存进行操作，不涉及和外设进行交互，其代码相对比较简单。
+
+- 如果是写命令(WRITE)，则将请求项缓冲区的内容复制到地址addr处，长度为len字节。
+- 如果是读命令(READ)，则将addr开始的内存内容复制到请求项缓冲区中，长度为len字节。否则显示命令不存在，死机。
+
+```c
+	if (CURRENT-> cmd == WRITE) {
+		(void ) memcpy(addr,
+			      CURRENT->buffer,
+			      len);
+	} else if (CURRENT->cmd == READ) {
+		(void) memcpy(CURRENT->buffer, 
+			      addr,
+			      len);
+	} else
+		panic("unknown ramdisk-command");
+	end_request(1);
+	goto repeat;
+```
 
 ### rd_load
 
