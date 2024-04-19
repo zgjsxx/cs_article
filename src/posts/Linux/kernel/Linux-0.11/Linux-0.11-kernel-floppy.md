@@ -93,6 +93,47 @@ unsigned char current_DOR = 0x0C;       // 允许DMA中断请求、启动FDC
 
 ### floppy_change
 
+```c
+int floppy_change(unsigned int nr)
+```
+
+该方法用于检测指定软驱中软盘的更换情况。
+
+```c
+repeat:
+	floppy_on(nr);
+	while ((current_DOR & 3) != nr && selected)
+		interruptible_sleep_on(&wait_on_floppy_select);
+	if ((current_DOR & 3) != nr)
+		goto repeat;
+	if (inb(FD_DIR) & 0x80) {
+		floppy_off(nr);
+		return 1;
+	}
+	floppy_off(nr);
+	return 0;
+```
+
+首先启动软驱，```floppy_on```会进一步调用```ticks_to_floppy_on```。
+
+```shell
+├── floppy_on
+  └── ticks_to_floppy_on
+```
+
+```ticks_to_floppy_on```会设置指定驱动其进行开启。
+
+```c
+unsigned char mask = 0x10 << nr;
+```
+
+在时钟中断函数```do_timer```，会根据```current_DOR```的情况调用```do_floppy_timer```。
+
+```c
+	if (current_DOR & 0xf0)
+		do_floppy_timer();
+```
+
 ### setup_DMA
 
 ### output_byte
