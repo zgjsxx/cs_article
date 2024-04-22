@@ -57,6 +57,19 @@ static struct floppy_struct {
 };
 ```
 
+这对应了不同类型的软驱类型，常用软驱类型如下所示：
+
+|类型|说明|
+|--|--|
+|0|不用|
+|1|360KB PC 软驱|
+|2|1.2MB AT软驱|
+|3|360KB 在720KB 驱动器中使用|
+|4|3.5 720KB 软盘|
+|5|360KB在1.2MB驱动器中使用|
+|6|720kb在1.2MB驱动器中使用|
+|7|1.44MB软驱|
+
 软盘控制器的编程相对繁琐，在编程时需要访问4个端口，分别对应一个或多个寄存器。对于1.2MB的软盘控制器有以下一些端口：
 
 |I/O端口|读写性|寄存器名称|
@@ -67,7 +80,19 @@ static struct floppy_struct {
 |0x3f7|只读|数字输入寄存器DIR|
 |0x3f7|只写|磁盘控制寄存器DCR(传输率控制)|
 
-FDC主状态寄存器定义：
+数字输出端口DOR是一个8位寄存器，它控制驱动器马达开启、驱动器选择、启动/复位FDC以及允许/禁止DMA及中断请求。该寄存器各比特位的含义如下所示：
+
+|位|名称|说明|
+|--|--|--|
+|7|MOT_EN3|启动软驱D马达： 1-启动； 0-启动|
+|6|MOT_EN2|启动软驱C马达： 1-启动； 0-启动|
+|5|MOT_EN1|启动软驱B马达： 1-启动； 0-启动|
+|4|MOT_EN0|启动软驱A马达： 1-启动； 0-启动|
+|3|DMA_INT|允许DMA和中断请求；0-禁止DMA和中断请求|
+|2|RESET|允许软盘控制器FDC工作；0-复位FDC|
+|0-1|DRV_SEL|用于选择驱动器A-D|
+
+FDC主状态寄存器也是一个8位寄存器，用于反应软盘控制器FDC和软盘驱动器FDD的基本状态。通常，在CPU向FDC发送命令之前或从FDC获取操作结果之前，都要读取主状态寄存器的状态位，以判断当前FDC数据寄存器是否就绪，以及确定数据传输的方向，其定义如下：
 
 |位|名称|说明|
 |--|--|--|
@@ -79,6 +104,10 @@ FDC主状态寄存器定义：
 |2|DCB|软驱C忙|
 |1|DBB|软驱B忙|
 |0|DAB|软驱A忙|
+
+数据输入寄存器DIR只有位7对软盘有效，用来表示盘片的更换状态。其余7位用于硬盘控制器接口。
+
+磁盘控制器DCR用于选择盘片在不同类型驱动器上使用的数据传输率。仅使用低2位D1D0，00表示500kbps，01表示300kbps，10表示250kbps。
 
 ## 函数详解
 
@@ -147,7 +176,6 @@ repeat:
 	floppy_off(nr);
 	return 0;
 ```
-
 
 ### setup_DMA
 
@@ -241,7 +269,7 @@ static void output_byte(char byte)
 static int result(void)
 ```
 
-读取FDC的执行的结果信息。
+读取FDC的执行的结果信息。结果最多为7个字节，存放在```reply_buffer```数组中。返回读入的结果字节数，若返回值=-1，则表示出错。
 
 ```c
 	int i = 0, counter, status;
@@ -250,9 +278,9 @@ static int result(void)
 		return -1;
 	for (counter = 0 ; counter < 10000 ; counter++) {
 		status = inb_p(FD_STATUS)&(STATUS_DIR|STATUS_READY|STATUS_BUSY);
-		if (status == STATUS_READY)
+		if (status == STATUS_READY) // 控制器状态是READY， 表示没有数据可取
 			return i;
-		if (status == (STATUS_DIR|STATUS_READY|STATUS_BUSY)) {
+		if (status == (STATUS_DIR|STATUS_READY|STATUS_BUSY)) { //控制器状态是已经准备好，方向是CPU<-FDC，忙，表示有数据可读
 			if (i >= MAX_REPLIES)
 				break;
 			reply_buffer[i++] = inb_p(FD_DATA);
@@ -332,6 +360,20 @@ inline void setup_rw_floppy(void)
 
 ### seek_interrupt
 
+```c
+static void seek_interrupt(void)
+```
+
+```c
+	output_byte(FD_SENSEI);
+	if (result() != 2 || (ST0 & 0xF8) != 0x20 || ST1 != seek_track) {
+		bad_flp_intr();
+		do_fd_request();
+		return;
+	}
+	current_track = ST1;
+	setup_rw_floppy();
+```
 ### transfer
 
 ```c
@@ -345,9 +387,9 @@ static void transfer(void)
 ```c
 	if (cur_spec1 != floppy->spec1) {
 		cur_spec1 = floppy->spec1;
-		output_byte(FD_SPECIFY);
-		output_byte(cur_spec1);		/* hut etc */
-		output_byte(6);			/* Head load time =6ms, DMA */
+		output_byte(FD_SPECIFY);     // 设置驱动器参数命令
+		output_byte(cur_spec1);		// 设置参数， 马达步进速率，磁头卸载方式
+		output_byte(6);			    // 磁头加载时间，非DMA
 	}
 	if (cur_rate != floppy->rate)
 		outb_p(cur_rate = floppy->rate,FD_DCR);
@@ -373,13 +415,16 @@ static void transfer(void)
 
 否则就执行寻道处理。
 
+寻道时，使用到了寻道命令```0x0f```，将磁头移动到指定的磁道。如果seek_track为0，则将磁头移动到0磁道。
+
 ```c
 	do_floppy = seek_interrupt;
-	if (seek_track) {//起始磁道号不为0
-		output_byte(FD_SEEK);
+	if (seek_track) {			// 起始磁道号不为0
+		output_byte(FD_SEEK);   // 寻道命令，0x0f
 		output_byte(head<<2 | current_drive);
 		output_byte(seek_track);
-	} else {//起始磁道号为0
+	} else {
+		// 否则移动到0
 		output_byte(FD_RECALIBRATE);//发送重新校正命令
 		output_byte(head<<2 | current_drive);
 	}
@@ -390,33 +435,51 @@ static void transfer(void)
 ### recal_interrupt
 
 ```c
-	output_byte(FD_SENSEI);
-	if (result()!=2 || (ST0 & 0xE0) == 0x60)
+static void recal_interrupt(void)
+```
+
+该函数重新校正中断调用函数。
+
+```c
+	output_byte(FD_SENSEI); // 检测中断状态命令
+	if (result()!=2 || (ST0 & 0xE0) == 0x60) // 返回结果数量不为2，或者命令异常结束，则进行复位。
 		reset = 1;
 	else
-		recalibrate = 0;
+		recalibrate = 0; //否则进行复位校正
 	do_fd_request();
 ```
 
 ### unexpected_floppy_interrupt
 
 ```c
-	output_byte(FD_SENSEI);
-	if (result()!=2 || (ST0 & 0xE0) == 0x60)
+void unexpected_floppy_interrupt(void)
+```
+
+意外软盘中断请求引发的软盘中断处理程序中调用的函数。
+
+```c
+	output_byte(FD_SENSEI); // 检测中断状态命令
+	if (result()!=2 || (ST0 & 0xE0) == 0x60)  // 返回结果数量不为2，或者命令异常结束，则进行复位。
 		reset = 1;
 	else
-		recalibrate = 1;
+		recalibrate = 1; //否则进行复位校正
 ```
 
 ### recalibrate_floppy
 
 ```c
+static void recalibrate_floppy(void)
+```
+
+该方法用于软盘重新校正, 即将指定的磁头退回到0磁道。
+
+```c
 	recalibrate = 0;
 	current_track = 0;
 	do_floppy = recal_interrupt;
-	output_byte(FD_RECALIBRATE);
-	output_byte(head<<2 | current_drive);
-	if (reset)
+	output_byte(FD_RECALIBRATE); // 命令号 0x7 重新校正
+	output_byte(head<<2 | current_drive); // 磁头号+当前驱动器号
+	if (reset) // output_byte执行出错，则复位标志reset就会被置位。这里需要重新检查。
 		do_fd_request();
 ```
 
@@ -443,8 +506,7 @@ static void reset_floppy(void)
 
 该方法的作用是复位软盘控制器。
 
-该函数首先设置参数和标志，把复位标志清0，然后把软驱变量cur_spec1和cur_rate设置为无效。因为复位后，这两个参数就需要重新设置。接着设置重新校正标志。
-
+该函数首先设置参数和标志，把复位标志清0，然后把软驱变量```cur_spec1```和```cur_rate```设置为无效。因为复位后，这两个参数就需要重新设置。接着设置重新校正标志。
 
 ```c
 	int i;
@@ -455,7 +517,7 @@ static void reset_floppy(void)
 	recalibrate = 1;
 ```
 
-接下来设置软盘中断处理函数为reset_interrupt，并设置FDC执行复位操作。
+接下来设置软盘中断处理函数为```reset_interrupt```，并设置FDC执行复位操作。
 
 ```c
 	printk("Reset-floppy called\n\r");
