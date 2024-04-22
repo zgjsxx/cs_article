@@ -57,6 +57,29 @@ static struct floppy_struct {
 };
 ```
 
+软盘控制器的编程相对繁琐，在编程时需要访问4个端口，分别对应一个或多个寄存器。对于1.2MB的软盘控制器有以下一些端口：
+
+|I/O端口|读写性|寄存器名称|
+|--|--|--|
+|0x3f2|只写|数字输出寄存器DOR，数字控制寄存器|
+|0x3f4|只读|FDC主状态寄存器STATUS|
+|0x3f5|读/写|FDC数据寄存器DATA|
+|0x3f7|只读|数字输入寄存器DIR|
+|0x3f7|只写|磁盘控制寄存器DCR(传输率控制)|
+
+FDC主状态寄存器定义：
+
+|位|名称|说明|
+|--|--|--|
+|7|RQM|数据口就绪：控制器FDC数据寄存器已准备就绪|
+|6|DIO|传输方向：1： FDC CPU；0： CPU FDC|
+|5|NDM|非DMA方式：1： 非DMA方式   0： DMA方式|
+|4|CB|控制器忙： FDC处于命令执行忙碌状态|
+|3|DDB|软驱D忙|
+|2|DCB|软驱C忙|
+|1|DBB|软驱B忙|
+|0|DAB|软驱A忙|
+
 ## 函数详解
 
 ### floppy_deselect
@@ -128,14 +151,118 @@ repeat:
 
 ### setup_DMA
 
+```c
+static void setup_DMA(void)
+```
+
+该函数的作用是设置软盘的DMA通道。其调用关系如下所示：
+
 ```shell
 ├── setup_rw_floppy
   └── setup_DMA
 ```
 
+软盘中数据读写操作是使用DMA进行的。因此，在每次进行数据传输之前需要设置DMA芯片上专门用于软驱的通道2。
+
+首先检测请求项的缓冲区所在位置。如果缓冲区处于内存1MB以上的某个地方，则需要将DMA缓冲区设在临时缓冲区与tmp_floppy_area处。因为8237A芯片只能在1MB地址范围内寻址。
+
+```c
+	long addr = (long) CURRENT->buffer;
+
+	cli();
+	if (addr >= 0x100000) {
+		addr = (long) tmp_floppy_area;
+		if (command == FD_WRITE)
+			copy_buffer(CURRENT->buffer,tmp_floppy_area);
+	}
+```
+
+接下俩开始设置DMA通道2。在开始设置之前需要先屏蔽该通道。单通道屏蔽寄存器端口为0x0A。位0-1指定DMA通道，位2：1表示屏蔽，0表示允许请求。
+
+然后向DMA控制器端口12和11写入方式字，读盘是0x46，写盘则是0x4A。
+
+再写入传输使用的缓冲区地址add如何需要传输的字节数0x3ff。最后复位对DMA通道2的屏蔽。开始DMA2请求DREQ信号。
+
+```c
+/* mask DMA 2 */
+	immoutb_p(4|2,10); //0x0A端口写入0000_0110
+/* output command byte. I don't know why, but everyone (minix, */
+/* sanches & canton) output this twice, first to 12 then to 11 */
+ 	__asm__("outb %%al,$12\n\tjmp 1f\n1:\tjmp 1f\n1:\t"
+	"outb %%al,$11\n\tjmp 1f\n1:\tjmp 1f\n1:"::
+	"a" ((char) ((command == FD_READ)?DMA_READ:DMA_WRITE))); // 向0xb 0xc写入方式字，读盘是0x46，写盘是0x4A。
+/* 8 low bits of addr */
+	immoutb_p(addr,4);// 写地址0-7位
+	addr >>= 8;
+/* bits 8-15 of addr */
+	immoutb_p(addr,4);// 写地址8-15位
+	addr >>= 8;
+/* bits 16-19 of addr */
+	immoutb_p(addr,0x81);// 地址16-19位放入页面寄存器0x81
+/* low 8 bits of count-1 (1024-1=0x3ff) */
+	immoutb_p(0xff,5);// 向DMA通道2写入当前计数器值
+/* high 8 bits of count-1 */
+	immoutb_p(3,5); 
+/* activate DMA 2 */
+	immoutb_p(0|2,10);//开启DMA通道2的请求
+	sti();
+```
+
 ### output_byte
 
+```c
+static void output_byte(char byte)
+```
+
+该方法的作用是向软驱控制器输出一个字节命令或参数。
+
+这里循环读取主状态控制端口0x3f4的状态。如果所读状态是```10xx_xxxx```，即```STATUS_READY```为1，并且方向位```STATUS_DIR```为0(CPU->FDC) ，则向数据端口输出指定字节。
+
+```c
+	for(counter = 0 ; counter < 10000 ; counter++) {
+		status = inb_p(FD_STATUS) & (STATUS_READY | STATUS_DIR);
+		if (status == STATUS_READY) {
+			outb(byte,FD_DATA);
+			return;
+		}
+	}
+```
+
+如果循环1万次结束，还不能发送，则置复位标志，并打印出错信息。
+
+```c
+	reset = 1;
+	printk("Unable to send byte to FDC\n\r");
+```
+
 ### result
+
+```c
+static int result(void)
+```
+
+读取FDC的执行的结果信息。
+
+```c
+	int i = 0, counter, status;
+
+	if (reset)
+		return -1;
+	for (counter = 0 ; counter < 10000 ; counter++) {
+		status = inb_p(FD_STATUS)&(STATUS_DIR|STATUS_READY|STATUS_BUSY);
+		if (status == STATUS_READY)
+			return i;
+		if (status == (STATUS_DIR|STATUS_READY|STATUS_BUSY)) {
+			if (i >= MAX_REPLIES)
+				break;
+			reply_buffer[i++] = inb_p(FD_DATA);
+		}
+	}
+	reset = 1;
+	printk("Getstatus times out\n\r");
+	return -1;
+}
+```
 
 ### bad_flp_intr
 
@@ -262,11 +389,51 @@ static void transfer(void)
 
 ### recal_interrupt
 
+```c
+	output_byte(FD_SENSEI);
+	if (result()!=2 || (ST0 & 0xE0) == 0x60)
+		reset = 1;
+	else
+		recalibrate = 0;
+	do_fd_request();
+```
+
 ### unexpected_floppy_interrupt
+
+```c
+	output_byte(FD_SENSEI);
+	if (result()!=2 || (ST0 & 0xE0) == 0x60)
+		reset = 1;
+	else
+		recalibrate = 1;
+```
 
 ### recalibrate_floppy
 
+```c
+	recalibrate = 0;
+	current_track = 0;
+	do_floppy = recal_interrupt;
+	output_byte(FD_RECALIBRATE);
+	output_byte(head<<2 | current_drive);
+	if (reset)
+		do_fd_request();
+```
+
 ### reset_interrupt
+
+```c
+static void reset_interrupt(void)
+```
+
+```c
+	output_byte(FD_SENSEI);
+	(void) result();
+	output_byte(FD_SPECIFY);
+	output_byte(cur_spec1);		/* hut etc */
+	output_byte(6);			/* Head load time =6ms, DMA */
+	do_fd_request();
+```
 
 ### reset_floppy
 
