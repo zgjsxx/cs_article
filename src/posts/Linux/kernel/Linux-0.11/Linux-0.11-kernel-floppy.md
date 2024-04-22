@@ -317,6 +317,14 @@ static void bad_flp_intr(void)
 ### rw_interrupt
 
 ```c
+static void rw_interrupt(void)
+```
+
+软盘读写操作中断调用函数。
+
+首先读取FDC的执行结果。如果返回结果字节数不是7，或者存在出错标志，则需要相应进行处理。
+
+```c
 	if (result() != 7 || (ST0 & 0xf8) || (ST1 & 0xbf) || (ST2 & 0x73)) {
 		if (ST1 & 0x02) {
 			printk("Drive %d is write protected\n\r",current_drive);
@@ -327,6 +335,11 @@ static void bad_flp_intr(void)
 		do_fd_request();
 		return;
 	}
+```
+
+如果当前请求项的缓冲区在1MB地址以上，则需要复制```temp_floppy_area```临时存放的内容到buffer中。
+
+```c
 	if (command == FD_READ && (unsigned long)(CURRENT->buffer) >= 0x100000)
 		copy_buffer(tmp_floppy_area,CURRENT->buffer);
 	floppy_deselect(current_drive);
@@ -364,6 +377,8 @@ inline void setup_rw_floppy(void)
 static void seek_interrupt(void)
 ```
 
+寻道处理结束后，中断过程中调用的c函数。
+
 ```c
 	output_byte(FD_SENSEI);
 	if (result() != 2 || (ST0 & 0xF8) != 0x20 || ST1 != seek_track) {
@@ -374,6 +389,7 @@ static void seek_interrupt(void)
 	current_track = ST1;
 	setup_rw_floppy();
 ```
+
 ### transfer
 
 ```c
@@ -488,6 +504,8 @@ static void recalibrate_floppy(void)
 ```c
 static void reset_interrupt(void)
 ```
+
+软盘控制器FDC复位中断调用函数。
 
 ```c
 	output_byte(FD_SENSEI);
