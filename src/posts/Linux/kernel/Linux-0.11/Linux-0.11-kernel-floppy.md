@@ -6,26 +6,26 @@ tag:
 ---
 
 - [Linux-0.11 kernel目录floppy.c详解](#linux-011-kernel目录floppyc详解)
-  - [模块简介](#模块简介)
-  - [函数详解](#函数详解)
-    - [floppy\_deselect](#floppy_deselect)
-    - [floppy\_change](#floppy_change)
-    - [setup\_DMA](#setup_dma)
-    - [output\_byte](#output_byte)
-    - [result](#result)
-    - [bad\_flp\_intr](#bad_flp_intr)
-    - [rw\_interrupt](#rw_interrupt)
-    - [setup\_rw\_floppy](#setup_rw_floppy)
-    - [seek\_interrupt](#seek_interrupt)
-    - [transfer](#transfer)
-    - [recal\_interrupt](#recal_interrupt)
-    - [unexpected\_floppy\_interrupt](#unexpected_floppy_interrupt)
-    - [recalibrate\_floppy](#recalibrate_floppy)
-    - [reset\_interrupt](#reset_interrupt)
-    - [reset\_floppy](#reset_floppy)
-    - [floppy\_on\_interrupt](#floppy_on_interrupt)
-    - [do\_fd\_request](#do_fd_request)
-  - [floppy\_init](#floppy_init)
+	- [模块简介](#模块简介)
+	- [函数详解](#函数详解)
+		- [floppy\_deselect](#floppy_deselect)
+		- [floppy\_change](#floppy_change)
+		- [setup\_DMA](#setup_dma)
+		- [output\_byte](#output_byte)
+		- [result](#result)
+		- [bad\_flp\_intr](#bad_flp_intr)
+		- [rw\_interrupt](#rw_interrupt)
+		- [setup\_rw\_floppy](#setup_rw_floppy)
+		- [seek\_interrupt](#seek_interrupt)
+		- [transfer](#transfer)
+		- [recal\_interrupt](#recal_interrupt)
+		- [unexpected\_floppy\_interrupt](#unexpected_floppy_interrupt)
+		- [recalibrate\_floppy](#recalibrate_floppy)
+		- [reset\_interrupt](#reset_interrupt)
+		- [reset\_floppy](#reset_floppy)
+		- [floppy\_on\_interrupt](#floppy_on_interrupt)
+		- [do\_fd\_request](#do_fd_request)
+	- [floppy\_init](#floppy_init)
 
 # Linux-0.11 kernel目录floppy.c详解
 
@@ -99,6 +99,12 @@ int floppy_change(unsigned int nr)
 
 该方法用于检测指定软驱中软盘的更换情况。
 
+首先启动等待指定软驱nr。
+
+在软盘启动之后，我们来查看一下当前选择的软驱是不是函数参数指定的软驱nr，并且已经选定了其他软驱，则让当前任务进入可中断等待状态。
+
+如果当前没有选择其他软驱或者其他软驱被取消选定而使当前任务被唤醒时，当前软驱仍然不是指定的软驱nr，则跳转到函数开始处重新循环等待。
+
 ```c
 repeat:
 	floppy_on(nr);
@@ -106,6 +112,11 @@ repeat:
 		interruptible_sleep_on(&wait_on_floppy_select);
 	if ((current_DOR & 3) != nr)
 		goto repeat;
+```
+
+选择软盘控制器已选定我们指定的软驱nr。于是取数字输入寄存器DIR的值。如果其最高位7置位，则表示软盘已经更换。
+
+```c
 	if (inb(FD_DIR) & 0x80) {
 		floppy_off(nr);
 		return 1;
@@ -114,27 +125,13 @@ repeat:
 	return 0;
 ```
 
-首先启动软驱，```floppy_on```会进一步调用```ticks_to_floppy_on```。
-
-```shell
-├── floppy_on
-  └── ticks_to_floppy_on
-```
-
-```ticks_to_floppy_on```会设置指定驱动其进行开启。
-
-```c
-unsigned char mask = 0x10 << nr;
-```
-
-在时钟中断函数```do_timer```，会根据```current_DOR```的情况调用```do_floppy_timer```。
-
-```c
-	if (current_DOR & 0xf0)
-		do_floppy_timer();
-```
 
 ### setup_DMA
+
+```shell
+├── setup_rw_floppy
+  └── setup_DMA
+```
 
 ### output_byte
 
@@ -142,13 +139,126 @@ unsigned char mask = 0x10 << nr;
 
 ### bad_flp_intr
 
+```c
+static void bad_flp_intr(void)
+```
+
+软盘读写出错处理函数。
+
+如果出错次数大于最大出错次数(8次)，则不再对当前请求项作进一步的操作尝试。如果读写出错次数超过MAX_ERRORS/2，则需要对软驱作复位处理，于是设置复位标志。否则只需要校正一下磁头位置。
+
+```c
+	CURRENT->errors++;
+	if (CURRENT->errors > MAX_ERRORS) {
+		floppy_deselect(current_drive);
+		end_request(0);
+	}
+	if (CURRENT->errors > MAX_ERRORS/2)
+		reset = 1;
+	else
+		recalibrate = 1;
+```
+
 ### rw_interrupt
 
+```c
+	if (result() != 7 || (ST0 & 0xf8) || (ST1 & 0xbf) || (ST2 & 0x73)) {
+		if (ST1 & 0x02) {
+			printk("Drive %d is write protected\n\r",current_drive);
+			floppy_deselect(current_drive);
+			end_request(0);
+		} else
+			bad_flp_intr();
+		do_fd_request();
+		return;
+	}
+	if (command == FD_READ && (unsigned long)(CURRENT->buffer) >= 0x100000)
+		copy_buffer(tmp_floppy_area,CURRENT->buffer);
+	floppy_deselect(current_drive);
+	end_request(1);
+	do_fd_request();
+```
+
 ### setup_rw_floppy
+
+```c
+inline void setup_rw_floppy(void)
+```
+
+该方法用于设置DMA通道2并向软盘控制器输出命令和参数。
+
+```c
+	setup_DMA();
+	do_floppy = rw_interrupt;
+	output_byte(command);
+	output_byte(head<<2 | current_drive);
+	output_byte(track);
+	output_byte(head);
+	output_byte(sector);
+	output_byte(2);		/* sector size = 512 */
+	output_byte(floppy->sect);
+	output_byte(floppy->gap);
+	output_byte(0xFF);	/* sector size (0xff when n!=0 ?) */
+	if (reset)
+		do_fd_request();
+```
 
 ### seek_interrupt
 
 ### transfer
+
+```c
+static void transfer(void)
+```
+
+该方法是读写数据传输函数。
+
+如果当前驱动器参数不是指定的驱动器的参数，发送设置驱动器参数命令。然后判断当前数据传输速率是否与指定驱动器一致，若不是就发送指定软驱的速率到数据传输速率控制器```FD_DCR```。
+
+```c
+	if (cur_spec1 != floppy->spec1) {
+		cur_spec1 = floppy->spec1;
+		output_byte(FD_SPECIFY);
+		output_byte(cur_spec1);		/* hut etc */
+		output_byte(6);			/* Head load time =6ms, DMA */
+	}
+	if (cur_rate != floppy->rate)
+		outb_p(cur_rate = floppy->rate,FD_DCR);
+```
+
+若上面任何一个```output_byte```操作执行错误，则复位标志reset就会被置位。因此我们需要检测一下reset标志。
+
+```c
+	if (reset) {
+		do_fd_request();
+		return;
+	}
+```
+
+如果不需要寻道，则设置DMA并向软盘控制器发送相应的操作命令。
+
+```c
+	if (!seek) {
+		setup_rw_floppy();
+		return;
+	}
+```
+
+否则就执行寻道处理。
+
+```c
+	do_floppy = seek_interrupt;
+	if (seek_track) {//起始磁道号不为0
+		output_byte(FD_SEEK);
+		output_byte(head<<2 | current_drive);
+		output_byte(seek_track);
+	} else {//起始磁道号为0
+		output_byte(FD_RECALIBRATE);//发送重新校正命令
+		output_byte(head<<2 | current_drive);
+	}
+	if (reset)
+		do_fd_request();
+```
 
 ### recal_interrupt
 
@@ -192,6 +302,25 @@ static void reset_floppy(void)
 ```
 
 ### floppy_on_interrupt
+
+```c
+static void floppy_on_interrupt(void)
+```
+
+软驱启动定时中断调用函数。
+
+如果当前驱动器号与数字输出寄存器中断DOR中的不同，则需要重新设置DOR。否则直接调用读写软盘传输函数```transfer```。
+
+```c
+	selected = 1; //设置已经选定当前驱动器标志
+	if (current_drive != (current_DOR & 3)) { 
+		current_DOR &= 0xFC;
+		current_DOR |= current_drive;
+		outb(current_DOR,FD_DOR);
+		add_timer(2,&transfer);
+	} else
+		transfer();
+```
 
 ### do_fd_request
 

@@ -451,6 +451,10 @@ void floppy_on(unsigned int nr)
 	sti();                                  // 开中断
 ```
 
+floppy_on的执行过程如下图所示：
+
+![floppy_on的执行过程](https://github.com/zgjsxx/static-img-repo/raw/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/sched/floppy_on.png)
+
 ### floppy_off
 
 ```c

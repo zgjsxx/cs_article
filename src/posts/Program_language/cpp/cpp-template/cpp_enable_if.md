@@ -117,3 +117,82 @@ int main()
   return 0;
 }
 ```
+
+
+```c
+#include <iostream>
+#include <queue>
+
+template<typename T, template<typename, typename...> class Container = std::queue>
+class MyQueue {
+private:
+    Container<T> container;
+
+public:
+    void push(const T& value) {
+        container.push(value);
+    }
+
+    void pop() {
+        container.pop();
+    }
+
+    // front() 函数的模板版本
+    template<typename U = Container<T>>
+    typename std::enable_if_t<std::is_same_v<U, std::queue<T>>, T>& front() {
+        return container.front();
+    }
+
+    // template<typename U = Container<T>>
+    // typename std::enable_if_t<std::is_same_v<U, std::priority_queue<T>>, T>& front() {
+    //     return container.top();
+    // }
+
+    // 常量重载版本
+    template<typename U = Container<T>>
+    typename std::enable_if_t<std::is_same_v<U, std::queue<T>>, const T&> front() const {
+        return container.front();
+    }
+
+    template<typename U = Container<T>>
+    typename std::enable_if_t<std::is_same_v<U, std::priority_queue<T>>, const T&> front() const {
+        return container.top();
+    }
+
+    bool empty() const {
+        return container.empty();
+    }
+
+    size_t size() const {
+        return container.size();
+    }
+};
+
+int main() {
+    // 使用 MyQueue 作为普通队列
+    MyQueue<int> myQueue;
+    myQueue.push(1);
+    myQueue.push(2);
+    myQueue.push(3);
+
+    while (!myQueue.empty()) {
+        std::cout << myQueue.front() << " ";
+        myQueue.pop();
+    }
+    std::cout << std::endl;
+
+    // 使用 MyQueue 作为优先级队列
+    MyQueue<int, std::priority_queue> myPriorityQueue;
+    myPriorityQueue.push(3);
+    myPriorityQueue.push(1);
+    myPriorityQueue.push(2);
+
+    while (!myPriorityQueue.empty()) {
+        std::cout << myPriorityQueue.front() << " ";
+        myPriorityQueue.pop();
+    }
+    std::cout << std::endl;
+
+    return 0;
+}
+```
