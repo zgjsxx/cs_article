@@ -461,8 +461,8 @@ static void recal_interrupt(void)
 	if (result()!=2 || (ST0 & 0xE0) == 0x60) // 返回结果数量不为2，或者命令异常结束，则进行复位。
 		reset = 1;
 	else
-		recalibrate = 0; //否则进行复位校正
-	do_fd_request();
+		recalibrate = 0; //否则将recalibrate置为0
+	do_fd_request(); //处理软盘的请求。
 ```
 
 ### unexpected_floppy_interrupt
@@ -498,6 +498,8 @@ static void recalibrate_floppy(void)
 	if (reset) // output_byte执行出错，则复位标志reset就会被置位。这里需要重新检查。
 		do_fd_request();
 ```
+
+当软盘控制器执行完重新校正命令，会设置软盘中断处理函数```do_floppy```为```recal_interrupt```。当软盘中断触发时，就会执行```recal_interrupt```。
 
 ### reset_interrupt
 
