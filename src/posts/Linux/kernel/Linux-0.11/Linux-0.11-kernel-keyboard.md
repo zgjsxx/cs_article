@@ -6,13 +6,49 @@ tag:
 ---
 
 - [Linux-0.11 kernel目录keyboard.S详解](#linux-011-kernel目录keyboards详解)
-  - [](#)
-  - [方法详解](#方法详解)
-    - [keyboard\_interrupt:](#keyboard_interrupt)
+	- [模块简介](#模块简介)
+	- [方法详解](#方法详解)
+		- [keyboard\_interrupt:](#keyboard_interrupt)
+		- [do\_self](#do_self)
 
 # Linux-0.11 kernel目录keyboard.S详解
 
-## 
+## 模块简介
+
+该键盘驱动汇编程序主要包括键盘中断处理程序。
+
+该程序首先根据键盘特殊键(例如Alt，Shift, Ctrl, Caps键)的状态设置程序后面要用到的状态标志变量mode的值。然后根据引起键盘中断的按键扫描码，调用已经编排成跳转表的相应扫描码处理子程序，把扫描码对应的字符放入读字符队列(```read_q```)中。接下来调用c处理函数```do_tty_interrupt```,该函数仅包含一个对行规程函数```copy_to_cooked```的调用。
+
+这个行规程函数的主要作用就是把```read_q```读缓冲队列中的字符经过适当处理后放入规范模式队列(```secondary```)，并且在处理过程中，若相应终端设备设置了回显标志，还会把字符直接放入写队列```write_q```中，从而终端屏幕上会显示出刚刚键入的字符。
+
+程序中使用mode表示特殊键的按下状态标志：
+
+```x86asm
+mode:	.byte 0		/* caps, alt, ctrl and shift mode */
+```
+
+|比特位|含义|
+|--|--|
+|7|caps键被按下|
+|6|caps键的状态|
+|5|右alt键按下|
+|4|左alt键按下|
+|3|右ctrl按下|
+|2|左ctrl按下|
+|1|右shift键按下|
+|0|左shift键按下|
+
+使用```leds```来表示键盘指示灯的状态标志。
+
+```x86asm
+leds:	.byte 2		/* num-lock, caps, scroll-lock mode (nom-lock on) */
+```
+
+|比特位|含义|
+|--|--|
+|2|caps-lock|
+|1|num-lock 初始置1|
+|0|scroll-lock|
 
 ## 方法详解
 
@@ -20,7 +56,7 @@ tag:
 
 当键盘控制器接收到用户的一个按键操作时，就会向中断控制器发出一个键盘中断请求信号IRQ1。当CPU响应该请求时就会执行键盘中断处理程序。
 
-该程序首先会从0x60端口读取当前按键的扫描码，判断是否是```0xe0```或者```0xe1```。如果是，则立即对键盘控制器做出应答，并向中断控制器发送终端结束EOI信号，以允许键盘控制器能继续产生中断信号。
+该程序首先会从```0x60```端口读取当前按键的扫描码，判断是否是```0xe0```或者```0xe1```。如果是，则立即对键盘控制器做出应答，并向中断控制器发送终端结束EOI信号，以允许键盘控制器能继续产生中断信号。
 
 程序的开始和其他中断处理函数类似，是一段保存寄存器上下文的操作。
 
@@ -87,13 +123,13 @@ set_e1:	movb $2,e0
 
 如果收到的不是扫描码，则调用响应按键的处理程序。
 
-```c
+```x86asm
 	je set_e1
 	call key_table(,%eax,4)
 	movb $0,e0
 ```
 
-key_table的定义如下：
+```key_table```的定义如下：
 
 ```c
 key_table:
@@ -162,3 +198,46 @@ key_table:
 	.long none,none,none,none		/* F8-FB ? ? ? ? */
 	.long none,none,none,none		/* FC-FF ? ? ? ? */
 ```
+
+
+### do_self
+
+```do_self```用于处理普通按键，即含义没有任何变化并且只有一个字符返回的键。
+
+
+
+```x86asm
+do_self:
+	lea alt_map,%ebx
+	testb $0x20,mode		// 是否右边的alt被按下了
+	jne 1f
+	lea shift_map,%ebx     
+	testb $0x03,mode        // 是否shift键同时按下了
+	jne 1f
+	lea key_map,%ebx
+1:	movb (%ebx,%eax),%al
+	orb %al,%al
+	je none
+	testb $0x4c,mode		/* ctrl or caps */
+	je 2f
+	cmpb $'a,%al
+	jb 2f
+	cmpb $'},%al
+	ja 2f
+	subb $32,%al
+2:	testb $0x0c,mode		/* ctrl */
+	je 3f
+	cmpb $64,%al
+	jb 3f
+	cmpb $64+32,%al
+	jae 3f
+	subb $64,%al
+3:	testb $0x10,mode		/* left alt */
+	je 4f
+	orb $0x80,%al
+4:	andl $0xff,%eax
+	xorl %ebx,%ebx
+	call put_queue
+```
+
+
