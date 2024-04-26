@@ -10,6 +10,7 @@ tag:
 	- [方法详解](#方法详解)
 		- [keyboard\_interrupt:](#keyboard_interrupt)
 		- [do\_self](#do_self)
+	- [参考文章](#参考文章)
 
 # Linux-0.11 kernel目录keyboard.S详解
 
@@ -49,6 +50,17 @@ leds:	.byte 2		/* num-lock, caps, scroll-lock mode (nom-lock on) */
 |2|caps-lock|
 |1|num-lock 初始置1|
 |0|scroll-lock|
+
+对于AT键盘的扫描码，当键被按下时，则键的扫描码被送出，当键松开时，将会发送两个字节，第一个是0xf0，第2个还是按下时的扫描码。为了向下的兼容性，设计人员将AT键盘发出的扫描码转成了老式的PC/XT标准键盘的扫描码。因此ketboard.S中仅对PC/XT的扫描码进行了处理。
+
+PC/XT标准键盘的样子是这样的，和现在大家使用的键盘的格局不太一样。
+
+![IBM_Model_F_XT_kbd](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/keyboard/IBM_Model_F_XT_kbd.jpg)
+
+其扫描码如下所示:
+
+![scan-code.png](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/keyboard/scan-code.png)
+
 
 ## 方法详解
 
@@ -204,40 +216,49 @@ key_table:
 
 ```do_self```用于处理普通按键，即含义没有任何变化并且只有一个字符返回的键。
 
-
+程序的开始，判断是否同时按下了alt键或者shift键，并取出对应的映射表。
 
 ```x86asm
 do_self:
-	lea alt_map,%ebx
-	testb $0x20,mode		// 是否右边的alt被按下了
-	jne 1f
-	lea shift_map,%ebx     
+	lea alt_map,%ebx        // 取alt键同时按下时的映射表基址alt_map
+	testb $0x20,mode		// 右边的alt是否同时被按下了
+	jne 1f                  // 如果是，则testb $0x20 mode结果不为0，向前跳转到标号1。
+	lea shift_map,%ebx      // 取shift键同时按下时的映射表shift_map
 	testb $0x03,mode        // 是否shift键同时按下了
-	jne 1f
-	lea key_map,%ebx
-1:	movb (%ebx,%eax),%al
-	orb %al,%al
+	jne 1f                  // 如果是， 向前跳转到标号1。
+	lea key_map,%ebx        // 否则使用普通映射表key_map
+```
+
+接下俩根据扫描码映射表对应的ASCII字符。若没有对应字符，则返回none。
+
+```x86asm
+1:	movb (%ebx,%eax),%al    // 将扫描码作为索引值， 取出对应的ASCII码，放入al中。
+	orb %al,%al             // 检测al中是否为0，如果为0， 则跳转到none。
 	je none
-	testb $0x4c,mode		/* ctrl or caps */
+	testb $0x4c,mode		// 如果ctrl键已经按下，或者caps键被锁定，
 	je 2f
-	cmpb $'a,%al
+	cmpb $'a,%al            // 并且字符在0x61-0x7D范围内，则将其转成大写字符，0x41-0x5D
 	jb 2f
 	cmpb $'},%al
 	ja 2f
-	subb $32,%al
-2:	testb $0x0c,mode		/* ctrl */
+	subb $32,%al          
+2:	testb $0x0c,mode		// 如果ctrl被按下，并且字符在0x40- 0x5f之间，将其转换为控制字符
 	je 3f
 	cmpb $64,%al
 	jb 3f
 	cmpb $64+32,%al
 	jae 3f
 	subb $64,%al
-3:	testb $0x10,mode		/* left alt */
+3:	testb $0x10,mode		// 如果左alt键同时被按下，则将字符的位8置位。即此时生成值大于0x7f扩展字符集中的字符
 	je 4f
 	orb $0x80,%al
 4:	andl $0xff,%eax
 	xorl %ebx,%ebx
 	call put_queue
+none:	ret
 ```
 
 
+## 参考文章
+
+https://dosdays.co.uk/topics/xt_vs_at_keyboards.php
