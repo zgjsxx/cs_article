@@ -141,7 +141,7 @@ set_e1:	movb $2,e0
 	movb $0,e0
 ```
 
-```key_table```的定义如下：
+```key_table```是将扫描码作为index的函数指针数组。
 
 ```c
 key_table:
@@ -228,6 +228,7 @@ do_self:
 	jne 1f                  // 如果是， 向前跳转到标号1。
 	lea key_map,%ebx        // 否则使用普通映射表key_map
 ```
+
 
 接下俩根据扫描码映射表对应的ASCII字符。若没有对应字符，则返回none。
 
