@@ -9,7 +9,13 @@ tag:
 	- [模块简介](#模块简介)
 	- [方法详解](#方法详解)
 		- [keyboard\_interrupt:](#keyboard_interrupt)
+		- [lshift](#lshift)
+		- [unlshift](#unlshift)
+		- [rshift](#rshift)
+		- [unrshift](#unrshift)
+		- [caps](#caps)
 		- [do\_self](#do_self)
+		- [minus](#minus)
 	- [参考文章](#参考文章)
 
 # Linux-0.11 kernel目录keyboard.S详解
@@ -61,6 +67,17 @@ PC/XT标准键盘的样子是这样的，和现在大家使用的键盘的格局
 
 ![scan-code.png](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/Linux/kernel/Linux-0.11/Linux-0.11-kernel/keyboard/scan-code.png)
 
+键盘上每一个键都有一个包含在字节低7位中相应的扫描码。在高位7表示是按下按键还是松开按键。位7=0表示刚将键按下的扫描码，位7=1表示键松开的扫描码。例如ESC按下时传输给系统的扫描码是1，当该键释放时将产生```1 + 0x80 = 129```扫描码。
+
+对于PC/XT标准83键键盘而言，按下按键的扫描码用1个字节可以完全表示。 而对于像AT机使用的84/101/102扩展键盘而言，其存在一些扩展键。当一个扩展键被按下时，将产生一个中断并且键盘端口将输出一个扩展的扫描码0xe0,而在下一个中断中则会给出真是的扫描码。例如，对于PC/XT标准键盘， 左边的控制键ctrl的扫描码是29(```0x1d```), 而右边的扩展的控制键ctrl则具有一个扩展的扫描码序列```0xe0,0x1d```。这个规则同样适合于alt和箭头键。
+
+PrtScn键和Pause/Break键的处理也比较特别。
+
+按下PrtScn键将会向键盘中断程序发送2个扩展字符，42(0x2a)和55(0x37)。所以实际的序列将会是```0xe0,0x2a,0xe0,0x37```。在键重复产生时还会发送扩展字符0xaa， 即产生序列```0xe0,0x2a,0xe0,0x37,0xe0,0xaa```。当键松开时，又重新发送两个扩展的加上0x80的码(```0xe0,0xb7,0xe0,0xaa```)。当prtcan按下时，如果shift或者ctrl也按下了，则仅发送0xe0，0x37，并且松开时，仅发送0xe0,0xb7。如果按下了alt键，那么按下了alt键，那么Prtscn键就如同一个具有扫描码0x54的普通键。
+
+对于Pause/Break键。如果你在按下该键的同时也按下了任意一个控制键ctrl，则将类似于扩展键70(0x46)。而在其他情况下，它将发送字符序列```0xe1，0x1d, 0x45, 0xe1, 0x9d, 0xc5```。将键盘一直按下并不会产生重复的扫描码，而松开键也并不会产生任何扫描码。
+
+因此梳理起来两种特殊情况，扫描码```0xe0```表示后面还会跟随一个字符，扫描码```0xe1```表示后面还会跟随两个字符。
 
 ## 方法详解
 
@@ -211,6 +228,56 @@ key_table:
 	.long none,none,none,none		/* FC-FF ? ? ? ? */
 ```
 
+### lshift
+
+左shift键被按下，设置mode中的位0。
+
+```x86asm
+	orb $0x01,mode
+	ret
+```
+
+### unlshift
+
+左边shift键松开，复位mode中位0。
+
+```x86asm
+unlshift:
+	andb $0xfe,mode
+	ret
+```
+
+### rshift
+
+右边的shift键被按下，设置mode中位1。
+
+```x86asm
+rshift:
+	orb $0x02,mode
+	ret
+```
+
+### unrshift
+
+右边的shift键被按下，复位mode中位1。
+
+```x86asm
+unrshift:
+	andb $0xfd,mode
+	ret
+```
+
+### caps
+
+这段代码对收到caps键扫描码进行处理。
+
+```x86asm
+caps:	testb $0x80,mode // 测试mode中位7是否已经被按下
+	jne 1f               // 如果是，则跳转至1f。
+	xorb $4,leds         // 翻转leds标志中caps-lock比特位(位2)
+	xorb $0x40,mode      // 翻转mode标志中caps键按下的比特位
+	orb $0x80,mode       // 设置mode标志中caps键已按下标志位
+```
 
 ### do_self
 
@@ -229,8 +296,7 @@ do_self:
 	lea key_map,%ebx        // 否则使用普通映射表key_map
 ```
 
-
-接下俩根据扫描码映射表对应的ASCII字符。若没有对应字符，则返回none。
+接下来根据扫描码映射表对应的ASCII字符。若没有对应字符，则返回none。
 
 ```x86asm
 1:	movb (%ebx,%eax),%al    // 将扫描码作为索引值， 取出对应的ASCII码，放入al中。
@@ -253,12 +319,21 @@ do_self:
 3:	testb $0x10,mode		// 如果左alt键同时被按下，则将字符的位8置位。即此时生成值大于0x7f扩展字符集中的字符
 	je 4f
 	orb $0x80,%al
-4:	andl $0xff,%eax
-	xorl %ebx,%ebx
-	call put_queue
+4:	andl $0xff,%eax         // 清楚eax的高位(ah和高word)
+	xorl %ebx,%ebx          // 由于放入队列字符数<=4，因此需把ebx清零。
+	call put_queue          // 将字符放入缓冲队列中
 none:	ret
 ```
 
+### minus
+
+```x86asm
+minus:	cmpb $1,e0     // e0 标志置位了码
+	jne do_self        // 没有，调用do_self进行普通处理
+	movl $'/,%eax      // 否则用'/'替换减号'-'
+	xorl %ebx,%ebx     // 由于放入队列字符数<=4，因此需把ebx清零。
+	jmp put_queue      // 将字符放入缓冲队列中
+```
 
 ## 参考文章
 
