@@ -9,6 +9,7 @@ tag:
   - [模块简介](#模块简介)
   - [函数详解](#函数详解)
     - [gotoxy](#gotoxy)
+  - [set\_origin](#set_origin)
     - [con\_write](#con_write)
     - [con\_init](#con_init)
 
@@ -40,6 +41,23 @@ static inline void gotoxy(unsigned int new_x,unsigned int new_y)
 	x=new_x;
 	y=new_y;
 	pos=origin + y*video_size_row + (x<<1);     // 1列用2个字节表示，x<<1.
+```
+
+## set_origin
+
+```c
+static inline void set_origin(void)
+```
+
+设置滚屏起始显示内存地址。
+
+```c
+	cli();
+	outb_p(12, video_port_reg);
+	outb_p(0xff&((origin-video_mem_start)>>9), video_port_val);
+	outb_p(13, video_port_reg);
+	outb_p(0xff&((origin-video_mem_start)>>1), video_port_val);
+	sti();
 ```
 
 ### con_write
@@ -226,8 +244,6 @@ state的状态机如下图所示：
                 break;
         }
 ```
-
-
 
 ### con_init
 
