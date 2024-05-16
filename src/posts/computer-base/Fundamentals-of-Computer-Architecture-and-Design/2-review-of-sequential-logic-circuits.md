@@ -43,6 +43,13 @@ tag:
 
 ## 移位寄存器
 
+移位寄存器是普通寄存器的特定版本，它可以根据设计需求专门用于向右或向左移动数据。
+
+下图显示了一个四位移位寄存器的电路原理图，它在每个时钟上升沿将串行数据从IN端口向左移动。
+
+![4-bit-shift-register](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/4-bit-shift-register.png)
+
+
 ## 计数器
 
 ## 摩尔状态机
