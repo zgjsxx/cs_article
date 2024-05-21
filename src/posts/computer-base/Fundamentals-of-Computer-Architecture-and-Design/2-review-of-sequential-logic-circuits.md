@@ -11,7 +11,7 @@ tag:
   - [寄存器](#寄存器)
   - [移位寄存器](#移位寄存器)
   - [计数器](#计数器)
-  - [摩尔状态机](#摩尔状态机)
+  - [摩尔状态机(Moore machine)](#摩尔状态机moore-machine)
   - [米利状态机](#米利状态机)
   - [内存](#内存)
 
@@ -19,6 +19,17 @@ tag:
 # 计算机基本架构-时序逻辑电路回顾
 
 ## D锁存器(D-Latch)
+
+D锁存器(D-Latch)是逻辑设计中最基本的存储元件。它具有数据输入D、时钟输入clock和数据输出Q，如图2.1所示，它包含一个三态反相器作为输入级，后面连接着两个背靠背的反相器，构成了一个环形配置，用于存储数据。
+
+连接到三态反相器使能输入端的时钟信号可以设置为高电平使能或低电平使能。在下图中，输入的变化通过存储元件传输，并在时钟的低电平期间成为输出。相反，在时钟的高电平期间，输入的变化被屏蔽，不会传输到输出端。一旦数据存储在背靠背的反相器环路中，它就变得稳定，并且直到在输入引入不同的数据之前都不会改变。锁存器的输出级缓冲器用于驱动多个逻辑门输入。
+
+![D锁存器的逻辑图和电路图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/2-1.png)
+
+D锁存器的操作下图所示。在时钟的低电平期间，三态反相器被使能。新数据通过三态反相器传输，覆盖了背靠背反相器阶段的旧数据，并到达输出。当时钟切换到高相位时，输入输出数据传输停止，因为三态缓冲器被禁用并阻止任何新数据传输。因此，如果需要在锁存器中保留某些数据，需要在时钟上升沿之前的某个时间存储。这个时间间隔称为建立时间tS，大致等于通过三态反相器和存储元件中反相器的延迟之和。在时钟的高相位，存储在锁存器中的数据不再改变，如图2.2所示。
+
+![D锁存器的操作](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/2-2.png)
+
 
 ## D触发器(D-Flip-Flop)
 
@@ -65,7 +76,16 @@ tag:
 
 ![timing-of-counter](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/timing-of-counter.png)
 
-## 摩尔状态机
+## 摩尔状态机(Moore machine)
+
+状态机主要用于数字设计中以控制数据流的正确性。它们的拓扑结构主要由一个或者多个触发器和连接触发器输出到触发器输入的反馈回路组成。状态机有两种类型： 摩尔型(Moore)和米利型(mearly)。
+
+下图显示了一个由触发器和反馈回路组成的摩尔型状态机的拓扑结构。在这种配置中, 反馈回路包含一个组合逻辑模块，该模块接受触发器输出和外部输入。如果有多个触发器，则所有触发器输出的组合构成状态机的当前状态。所有触发器输入构成状态机的下一个状态，因为在时钟的上升沿，这些输入会成为触发器的输出，并形成当前状态。触发器输出通过一个附加的组合逻辑模块进一步处理，以形成当前状态输出。
+
+![block-diagram-moore-machine](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/block-diagram-moore-machine.png)
+
+摩尔状态机的状态切换由当前状态和当前状态的输入共同决定，而摩尔状态机的输出完全由当前状态决定，与当前状态输入无关。
+
 
 ## 米利状态机
 
