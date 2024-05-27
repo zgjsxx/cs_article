@@ -21,11 +21,11 @@ tag:
 
 ## D锁存器(D-Latch)
 
-D锁存器(D-Latch)是逻辑设计中最基本的存储元件。它具有数据输入D、时钟输入clock和数据输出Q，如图2.1所示，它包含一个三态反相器作为输入级，后面连接着两个背靠背的反相器，构成了一个环形配置，用于存储数据。
+D锁存器(D-Latch)是逻辑设计中最基本的存储元件。它具有数据输入D、时钟输入clock和数据输出Q，如下图所示，它包含一个三态反相器作为输入级，后面连接着两个背靠背的反相器，构成了一个环形配置，用于存储数据。
 
 连接到三态反相器使能输入端的时钟信号可以设置为高电平使能或低电平使能。在下图中，输入的变化通过存储元件传输，并在时钟的低电平期间成为输出。相反，在时钟的高电平期间，输入的变化被屏蔽，不会传输到输出端。一旦数据存储在背靠背的反相器环路中，它就变得稳定，并且直到在输入引入不同的数据之前都不会改变。锁存器的输出级缓冲器用于驱动多个逻辑门输入。
 
-![D-Latch-circuit](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/D-Latch-circuit.png)
+![D-锁存器的电路原理图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/D-Latch-circuit.png)
 
 D锁存器的操作下图所示。在时钟的低电平期间，三态反相器被使能。新数据通过三态反相器传输，覆盖了背靠背反相器阶段的旧数据，并到达输出。当时钟切换到高相位时，输入输出数据传输停止，因为三态缓冲器被禁用并阻止任何新数据传输。因此，如果需要在锁存器中保留某些数据，需要在时钟上升沿之前的某个时间存储。这个时间间隔称为建立时间tS，大致等于通过三态反相器和存储元件中反相器的延迟之和。在时钟的高相位，存储在锁存器中的数据不再改变，如下图所示。
 
@@ -41,6 +41,10 @@ D触发器是逻辑设计中另一个重要元件，可以用于保存数据。�
 下图显示了触发器的时序特性，建立时间${t}_{S}$是指有效数据在时钟上升沿之前到达并稳定在主锁存器中的时间间隔。保持时间${t}_{H}$是指时钟上升沿之后，有效数据需要保持稳定且不变的时间间隔。存储在主锁存器中的数据会在时钟上升沿之后通过从锁存器传播，并在一段时间后成为触发器的输出，这个时间成为时钟到Q的延迟(${t}_{CLKQ}$)。
 
 ![D触发器的时序](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/timing-of-DFF.png)
+
+下面这张图显示了D触发器在时钟的两个不同阶段的操作。在时钟的低电平阶段，新的数据进入主锁存器并被存储。数据不能传播到主锁存器之外，因为在时钟的低电平阶段，副锁存器中的三态反相器起到开路作用。此时触发器输出的仅显示存储在从锁存器中的旧数据。当时钟信号变为高电平时，存储在主锁存器中的新数据通过从锁存器传输并到达输出端。可以使用触发器的门延迟来近似估算${t}_{s}$和${t}_{CLKQ}$的值。
+
+![D触发器的操作过程](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/DFF-operation.png)
 
 ## 时序违规
 
@@ -109,3 +113,5 @@ $$建立时间违规 = {t}_{s} - [{T}_{C} - {t}_{CLKQ} + {T}_{COMB}]$$
 ## 米利状态机
 
 ## 内存
+
+小型的内存块可以通过各种拓扑类型的单比特寄存器实现。例如下图所示的32位宽、16位深的存储块可以通过将16行32位寄存器逐行堆叠起来构建。每个32位寄存器在其输出端包含三态缓冲器，在读取过程中使用。
