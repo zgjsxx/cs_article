@@ -123,3 +123,10 @@ $$建立时间违规 = {t}_{s} - [{T}_{C} - {t}_{CLKQ} + {T}_{COMB}]$$
 图中的每一行存储块通过单独的写使能（WE）和读使能（RE）输入来分别进行数据的写入或读取。
 
 ![32 × 16 内存块的示意图 ](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/32-16-memory.png)
+
+为了生成写使能(WE)输入 ，```WE[0]```到```WE[15]```， 需要使用一个地址解码器。该解码器使用四位地址```Address[3:0]```和一个单独的```WE```输入，根据图中的真值表，每一个地址仅会激活一行并禁用所有其他行。
+
+例如当```WE=1```且```Address[3：0]=0000```时，将32位数据写入第0行。
+
+
+然而，当```WE=0```时，无论输入地址如何将阻止向存储块的所有行写入数据，如下面的真值表所示。
