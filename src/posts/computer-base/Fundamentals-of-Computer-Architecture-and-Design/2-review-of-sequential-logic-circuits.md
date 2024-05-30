@@ -128,5 +128,6 @@ $$建立时间违规 = {t}_{s} - [{T}_{C} - {t}_{CLKQ} + {T}_{COMB}]$$
 
 例如当```WE=1```且```Address[3：0]=0000```时，将32位数据写入第0行。
 
+![WE=1时地址解码器功能 ](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/address-decoder-when-we-1.png)
 
 然而，当```WE=0```时，无论输入地址如何将阻止向存储块的所有行写入数据，如下面的真值表所示。
