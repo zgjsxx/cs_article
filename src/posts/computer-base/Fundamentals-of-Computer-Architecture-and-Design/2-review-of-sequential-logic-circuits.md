@@ -109,8 +109,15 @@ $$建立时间违规 = {t}_{s} - [{T}_{C} - {t}_{CLKQ} + {T}_{COMB}]$$
 
 摩尔状态机的状态切换由当前状态和当前状态的输入共同决定，而摩尔状态机的输出完全由当前状态决定，与当前状态输入无关。
 
+下面的状态图显示了一个具有四个状态的摩尔型状态机的例子。需要注意的是，状态图中的每次状态转换都需要一个有效的当前状态的输入项，并且每个节点都会生成一个当前状态输出。
+
+![四个状态的摩尔状态机状态转换图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/block-diagram-moore-machine.png)
 
 ## 米利状态机
+
+米利状态机和摩尔状态机是类似的，包含一个或者多个触发器组成的反馈回路。不同的是，米利状态机的当前状态的输出是从反馈回路的组合逻辑块生成的，而不是从当前状态生成。
+
+由于这种拓扑结构，米利状态机的基本状态图包括当前状态、下一状态以及使状态转换成为可能的输入条件，如图所示。当前状态输出不是从每个当前状态产生的，而是当前状态输入和当前状态的函数。
 
 ## 内存
 
@@ -133,3 +140,13 @@ $$建立时间违规 = {t}_{s} - [{T}_{C} - {t}_{CLKQ} + {T}_{COMB}]$$
 然而，当```WE=0```时，无论输入地址如何将阻止向存储块的所有行写入数据，如下面的真值表所示。
 
 ![WE=0时地址解码器功能 ](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/address-decoder-when-we-0.png)
+
+RE输入， ```RE[0]```到```RE[15]```, 使用类似于```WE```的地址解码器从选定的行中读取数据。当RE=1时，通过下面的真值表，可以将输入地址转化为```RE[15:0]```的one-hot编码。
+
+![RE=1时地址解码器功能 ](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/address-decoder-when-re-1.png)
+
+然而，当```RE=0```时，无论输入地址的值如何，都禁止从任何行读取数据。
+
+![RE=0时地址解码器功能 ](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/address-decoder-when-re-0.png)
+
+因此，必须要提供一个有效的输入地址以及控制信号```RE```和```WE```，才能分别执行读或写操作。```WE=0```， ```RE=1```的组合从选定的行中读取数据， ```WE=1```， ```RE=0```的组合将数据写入选定的行，```WE=0```， ```RE=0```的组合会禁止对内存块进行读写操作。```WE=1```， ```RE=1```的组合是不允许的，应将其解释为内存读取。
