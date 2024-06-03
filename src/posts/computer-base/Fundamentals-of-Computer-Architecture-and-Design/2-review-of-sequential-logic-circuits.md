@@ -111,7 +111,19 @@ $$建立时间违规 = {t}_{s} - [{T}_{C} - {t}_{CLKQ} + {T}_{COMB}]$$
 
 下面的状态图显示了一个具有四个状态的摩尔型状态机的例子。需要注意的是，状态图中的每次状态转换都需要一个有效的当前状态的输入项，并且每个节点都会生成一个当前状态输出。
 
-![四个状态的摩尔状态机状态转换图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/block-diagram-moore-machine.png)
+![四个状态的摩尔状态机状态转换图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/moore-machine-diagram.png)
+
+对于状态0(S0)，无论当前状态输入IN的值是多少，其输出都为```OUT = 1```。当```IN = 1```时，状态S0会转移到下一个状态S1。如果```IN = 0```，则会保持当前的状态S0。
+
+对于状态1(S1)，其输出```OUT = 2```。如果```IN = 0```，则保持状态S1，如果```IN = 1```，则转移到下一状态S2。
+
+对于状态2(S2)，其输出```OUT = 3```，如果```IN = 0```，则保持状态S2，如果```IN = 1```，则转移到下一状态S3。
+
+对于状态3(S3)，其输出```OUT = 4```，如果```IN = 0```，则保持状态S3，如果```IN = 1```，则转移到下一状态S1。
+
+该摩尔状态机的当前状态的输入和输出及其状态可以在下面这样的状态表中列出。在这个表格中，第一列(PS)列出了所有可能的当前状态。中间两列包含了```IN = 0```和 ```IN = 1```时的下一个状态条目。最后一列列出来当前状态的输出。每个当前状态对应一个输出。
+
+![摩尔状态机状态表](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/moore-machine-state-table.png)
 
 ## 米利状态机
 
