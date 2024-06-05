@@ -139,6 +139,8 @@ $$建立时间违规 = {t}_{s} - [{T}_{C} - {t}_{CLKQ} + {T}_{COMB}]$$
 
 接下来一步是生成电路图，以产生上面的moore状态机中的所有五个输出。电路图如下所示。为了生成这个电路，首先必须根据```PS0```,```PS1```和```IN```构建出NS0和NS1的各个组合逻辑块。然后，将每个```NS0```和```NS1```连接到触发器的输入端，以形成反馈回路。```OUT0```、```OUT1```和```OUT2```的逻辑块则直接由```PS0```和```PS1```生成。
 
+![摩尔状态机的电路图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/moore-machine-logic-circuit.png)
+
 ## 米利状态机
 
 米利状态机和摩尔状态机是类似的，包含一个或者多个触发器组成的反馈回路。不同的是，米利状态机的当前状态的输出是从反馈回路的组合逻辑块生成的，而不是从当前状态生成。
