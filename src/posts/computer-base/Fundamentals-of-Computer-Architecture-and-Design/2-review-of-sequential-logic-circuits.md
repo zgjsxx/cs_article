@@ -147,7 +147,16 @@ $$建立时间违规 = {t}_{s} - [{T}_{C} - {t}_{CLKQ} + {T}_{COMB}]$$
 
 由于这种拓扑结构，米利状态机的基本状态图包括当前状态、下一状态以及使状态转换成为可能的输入条件，如图所示。当前状态输出不是从每个当前状态产生的，而是当前状态输入和当前状态的函数。
 
+贴图
+
+下面这张图是一个典型的米利状态机的状态图，其与摩尔状态机有类似的特征。为了便于比较，两个图中的所有状态名称和状态间的转换保持相同。与摩尔状态机不同的是，连接一个状态到下一个状态的每个箭头都携带当前状态的输出。
+
 ![米利状态机的四种状态](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/mearly-machine-state-diagram.png)
+
+米利状态机的状态表包含了两个单独的列，分别列出了```IN=0```和```IN=1```时```NS```和```OUT```的值。
+
+![米利状态机的状态表](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/state-table-mearly-machine.png)
+
 
 ## 内存
 
