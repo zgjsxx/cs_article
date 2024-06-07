@@ -169,7 +169,6 @@ $$建立时间违规 = {t}_{s} - [{T}_{C} - {t}_{CLKQ} + {T}_{COMB}]$$
 
 ![米利状态机的电路图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/mearly-machine-logic-circuit.png)
 
-
 ## 内存
 
 小型的内存块可以通过各种拓扑类型的单比特寄存器实现。例如下图所示的32位宽、16位深的存储块可以通过将16行32位寄存器逐行堆叠起来构建。每个32位寄存器在其输出端包含三态缓冲器，在读取过程中使用。
