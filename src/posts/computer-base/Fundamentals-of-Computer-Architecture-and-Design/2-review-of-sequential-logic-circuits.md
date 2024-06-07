@@ -157,6 +157,18 @@ $$建立时间违规 = {t}_{s} - [{T}_{C} - {t}_{CLKQ} + {T}_{COMB}]$$
 
 ![米利状态机的状态表](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/state-table-mearly-machine.png)
 
+下图中的状态表是根据以二进制编码进行重建后的形式：
+
+![米利状态机的转移表](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/state-table-mearly-machine.png)
+
+通过米利状态机的转移表，我们可以很容易去构建NS0、NS1、OUT0、OUT1和OUT2的卡诺图形式。最简与或式（SOP）表达式也可以相应的给出。
+
+![米利状态机的卡诺图和最简表达式](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/state-table-mearly-machine.png)
+
+下面这张电路图是根据最简表达式构建的。构建该电路图的方法与构建摩尔状态机的电路图的方法相同。
+
+贴图
+
 
 ## 内存
 
