@@ -167,7 +167,7 @@ $$建立时间违规 = {t}_{s} - [{T}_{C} - {t}_{CLKQ} + {T}_{COMB}]$$
 
 下面这张电路图是根据最简表达式构建的。构建该电路图的方法与构建摩尔状态机的电路图的方法相同。
 
-贴图
+![米利状态机的电路图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/mearly-machine-logic-circuit.png)
 
 
 ## 内存
