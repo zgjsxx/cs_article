@@ -79,9 +79,10 @@ $$保持时间违规 = ({t}_{CLK} + {t}_{H}) - ({t}_{CLKQ} + {T}_{COMB})$$
 
 ![多条传播路径的电路图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/Logic-circuit-of-maximum-and-minimum-paths.png)
 
-最大延迟路径包括反相器1和四个二输入NAND门，编号为1、3、4和6，如图2.12所示。该路径总延迟为900 ps。另一方面，最小延迟路径包含编号为5和6的两个二输入NAND门，延迟为400 ps。在时钟周期为1400 ps时，将这些延迟放入图2.13中的时序图，得出节点R处的建立裕度为100 ps。由于时钟边缘没有偏移，因此不需要检查保持违规。
+最大延迟路径包括反相器1和四个二输入NAND门，编号为1、3、4和6，如下图所示。该路径总延迟为900 ps。另一方面，最小延迟路径包含编号为5和6的两个二输入NAND门，延迟为400 ps。在时钟周期为1400 ps时，将这些延迟放入下图中的时序图，得出节点R处的建立裕度为100 ps。由于时钟边缘没有偏移，因此不需要检查保持违规。
 
-贴图
+![Timing-diagram-of-the-circuit](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/Timing-diagram-of-the-circuit.png)
+
 
 ## 寄存器
 
