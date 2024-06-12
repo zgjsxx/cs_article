@@ -64,7 +64,15 @@ $$保持时间违规 = ({t}_{CLK} + {t}_{H}) - ({t}_{CLKQ} + {T}_{COMB})$$
 
 建立时间违规可以通过简单增加时钟周期${T}_{C}$来修复。然而，修复保持时间违规没有简单的方法，因为它们需要在每个触发器输入处进行搜索。当发现它们时，需要将缓冲延迟添加到组合逻辑块的${T}_{COMB}$中，以避免违规。
 
-下面这张示意图检查了两个具有不同传播延迟的组合逻辑块在一个流水线合并成一个块的时序影响。
+下面这张示意图检查了两个具有不同传播延迟的组合逻辑块在一个流水线合并成一个块的时序影响。在时序图中可以发现，数据抵达C节点比D节点更早。节点C和D的数据通过最后一个组合逻辑块传播并到达节点E。这种情况在节点 E 处产生了最小和最大延迟路径。在考虑建立违规的可能性时，我们需要关注最大路径（T2 + T3）；在考虑保持违规的可能性时，我们需要关注最小路径（T1 + T3）在下一个触发器边界处的可能性。
+
+![两个独立路径的时序](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/timing-example-two-independent-path.png)
+
+为了进一步说明多个组合逻辑块的时序问题，下图中给出了一个包含逻辑门的示例。在这个示例中，一个一位加法器的输入连接到节点 A 和 B。通过包含一个 2-1 多路复用器（MUX）来旁路加法器，该多路复用器选择加法器的输出或旁路路径。
+
+反相器的传播延迟${T}_{INV}$和二输入 NAND 门的传播延迟${T}_{NAND2}$分别为 100 ps 和 200 ps。建立时间、保持时间和时钟到 Q 的延迟分别为 100 ps、0 ps 和 300 ps。
+
+![多条传播路径的时序的例子](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/An-example-with-multiple-propagation-path.png)
 
 
 ## 寄存器
