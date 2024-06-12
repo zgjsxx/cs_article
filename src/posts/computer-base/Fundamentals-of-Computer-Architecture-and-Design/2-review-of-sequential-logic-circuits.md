@@ -62,8 +62,9 @@ $$保持时间违规 = ({t}_{CLK} + {t}_{H}) - ({t}_{CLKQ} + {T}_{COMB})$$
 
 ![保持时间违规](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/hold-violation.png)
 
-
 建立时间违规可以通过简单增加时钟周期${T}_{C}$来修复。然而，修复保持时间违规没有简单的方法，因为它们需要在每个触发器输入处进行搜索。当发现它们时，需要将缓冲延迟添加到组合逻辑块的${T}_{COMB}$中，以避免违规。
+
+下面这张示意图检查了两个具有不同传播延迟的组合逻辑块在一个流水线合并成一个块的时序影响。
 
 
 ## 寄存器
