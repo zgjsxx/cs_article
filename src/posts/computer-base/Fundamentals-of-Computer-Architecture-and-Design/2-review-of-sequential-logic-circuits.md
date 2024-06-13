@@ -23,18 +23,18 @@ tag:
 
 D锁存器(D-Latch)是逻辑设计中最基本的存储元件。它具有数据输入```D```、时钟输入```clock```和数据输出```Q```，如下图所示，它包含一个三态反相器作为输入级，后面连接着两个背靠背的反相器，构成了一个环形连接，用于存储数据。
 
-连接到三态反相器使能输入端的时钟信号可以设置为高电平使能或低电平使能。在下图中，输入端的时钟信号为低电平使能。在时钟的低电平期间，输入```D```可以传递到输出端```Q```。在时钟的高电平期间，输入的变化被屏蔽，不会传输到输出端。一旦数据存储在背靠背的反相器环路中，它就变得稳定，并且直到在输入引入不同的数据之前都不会改变。锁存器的输出级缓冲器用于驱动多个逻辑门输入。
+连接到三态反相器使能输入端的时钟信号可以设置为高电平使能或低电平使能。在下图中，输入端的时钟信号为低电平使能。在时钟的低电平期间，输入```D```可以传递到输出端```Q```。在时钟的高电平期间，输入的变化被屏蔽，不会传输到输出端。此时数据稳定存储在背靠背的反相器环路中。锁存器的输出级缓冲器用于驱动多个逻辑门输入。
 
 ![D-锁存器的电路原理图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/D-Latch-circuit.png)
 
-D锁存器的操作过程下图所示。在时钟的低电平期间，三态反相器被使能。新数据通过三态反相器传输，覆盖了背靠背反相器阶段的旧数据，并到达输出。当时钟切换到高相位时，输入输出数据传输停止，因为三态缓冲器被禁用并阻止任何新数据传输。因此，如果需要在锁存器中保留某些数据，需要在时钟上升沿之前的某个时间存储。这个时间间隔称为建立时间tS，大致等于通过三态反相器和存储元件中反相器的延迟之和。在时钟的高相位，存储在锁存器中的数据不再改变，如下图所示。
+D锁存器的操作过程下图所示。在时钟的低电平期间，三态反相器被使能。新数据通过三态反相器传输，覆盖了背靠背反相器阶段的旧数据，并到达输出。当时钟切换到高电平时，输入输出数据传输停止，因为三态缓冲器被禁用并阻止任何新数据传输。因此，如果需要在锁存器中保留某些数据，需要在时钟上升沿之前的某个时间存储。这个时间间隔称为建立时间${t}_{S}$，大致等于通过三态反相器和存储元件中反相器的延迟之和。在时钟的高电平阶段，存储在锁存器中的数据不再改变，如下图所示。
 
 ![D锁存器的操作](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/operation-of-D-Latch.png)
 
 
 ## D触发器(D-Flip-Flop)
 
-D触发器是逻辑设计中另一个重要元件，可以用于保存数据。和D锁存器类似，D触发器也有一个输入端```D```，一个时钟输入端，一个数据输出端```Q```。如下图所示。下图还展示了一个D触发器的经典电路示意图，其中包含串联的两个锁存器。第一个锁存器具有低电平有效的时钟输入，成为主锁存器(master)。第二个锁存器具有高电平有效的时钟输入，称为从锁存器(slave)。主锁存器在时钟低电平的阶段接收新数据，并在时钟的高电平阶段将这些数据传输给从锁存器。
+D触发器是逻辑设计中另一个重要元件，可以用于保存数据。和D锁存器类似，D触发器也有一个输入端```D```，一个时钟输入端```clock```，一个数据输出端```Q```。如下图所示。图中展示了一个D触发器的经典电路示意图，其中包含串联的两个锁存器。第一个锁存器具有低电平有效的时钟输入，成为主锁存器(master)。第二个锁存器具有高电平有效的时钟输入，称为从锁存器(slave)。主锁存器在时钟低电平的阶段接收新数据，并在时钟的高电平阶段将这些数据传输给从锁存器。
 
 ![D触发器的操作](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/D-flip-flop-circuit.png)
 
@@ -48,15 +48,17 @@ D触发器是逻辑设计中另一个重要元件，可以用于保存数据。�
 
 ## 时序违规
 
-下图展示了一个流水线的一部分，有一个具有传播延迟${T}_{COMB}$的组合逻辑块夹在两个触发器边界之间。在时钟的上升沿，有效数据通过IN端口输入，需要满足建立和保持时间的要求。经过${t}_{CLKQ}$的延迟后，数据在A节点处出现，并通过组合逻辑块进行传播，时序图如下所示。
+我们需注意数据路径和时钟网络中的意外延迟可能导致的时序违规。本节将检查由触发器控制的流水线中的建立时间和保持时间违规情况。
+
+下图展示了一个流水线的一部分，有一个具有传播延迟${T}_{COMB}$的组合逻辑块夹在两个触发器边界之间。在时钟的上升沿，有效数据通过```IN```端口输入，需要满足建立和保持时间的要求。经过${t}_{CLKQ}$的延迟后，数据在A节点处出现，并通过组合逻辑块进行传播，时序图如下所示。
 
 ![setup-violation](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/setup-violation.png)
 
 在此图中，数据到达节点B的时间过晚，违反了触发器的分配建立时间。这被称之为建立时间违规。违规的程度取决于时钟周期，可以通过下面的公式进行计算：
 
-$$建立时间违规 = {t}_{s} - [{T}_{C} - {t}_{CLKQ} + {T}_{COMB}]$$
+$$建立时间违规 = {t}_{s} - [{T}_{C} - ({t}_{CLKQ} + {T}_{COMB})]$$
 
-下面这张图展示了由于时钟线上意外延迟而导致时钟偏移${T}_{CLK}$的保持时间违规情况。在时序图中，有效数据从IN端口引入到流水线中，并在经过${t}_{CLKQ}$和${T}_{COMB}$延迟后到达节点B。由于时钟偏移，数据提前到达节点B。这造成了一个相当大的建立时间余量，等于（${T}_{C} + {T}_{CLK} - {t}_{S} - {t}_{CLKQ} - {T}_{COMB}$），但在延迟时钟边缘产生了保持时间违规。违规的量取决于时钟延迟，计算如下：
+保持违规是另一种违规的现象。下面这张图展示了由于时钟线上意外延迟而导致时钟偏移${T}_{CLK}$的保持时间违规情况。在时序图中，有效数据从IN端口引入到流水线中，并在经过${t}_{CLKQ}$和${T}_{COMB}$延迟后到达节点B。由于时钟偏移，数据提前到达节点B。这造成了一个相当大的建立时间余量，等于（${T}_{C} + {T}_{CLK} - {t}_{S} - {t}_{CLKQ} - {T}_{COMB}$），但在延迟时钟边缘产生了保持时间违规。违规的量取决于时钟延迟，计算如下：
 
 $$保持时间违规 = ({t}_{CLK} + {t}_{H}) - ({t}_{CLKQ} + {T}_{COMB})$$
 
@@ -81,8 +83,7 @@ $$保持时间违规 = ({t}_{CLK} + {t}_{H}) - ({t}_{CLKQ} + {T}_{COMB})$$
 
 最大延迟路径包括反相器1和四个二输入NAND门，编号为1、3、4和6，如下图所示。该路径总延迟为900 ps。另一方面，最小延迟路径包含编号为5和6的两个二输入NAND门，延迟为400 ps。在时钟周期为1400 ps时，将这些延迟放入下图中的时序图，得出节点R处的建立裕度为100 ps。由于时钟边缘没有偏移，因此不需要检查保持违规。
 
-![Timing-diagram-of-the-circuit](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/Timing-diagram-of-the-circuit.png)
-
+![电路时序图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/Timing-diagram-of-the-circuit.png)
 
 ## 寄存器
 
@@ -94,11 +95,11 @@ $$保持时间违规 = ({t}_{CLK} + {t}_{H}) - ({t}_{CLKQ} + {T}_{COMB})$$
 
 ![one-bit-register](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/one-bit-register.png)
 
-下图展示的是一个寄存器的时序图，描述了一位寄存器的操作。当WE输入为0时， IN端口的输入数据被屏蔽。在第二个时钟周期的中间，当WE输入变为1, 新数据被允许通过 2-1 MUX并在第三个时钟周期开始时更新寄存器的内容。在第三个时钟周期结束之前，WE输入转换为逻辑0，并导致寄存器输出OUT在第四个时钟周期期间保持为逻辑1。
+下图展示的是一个寄存器的时序图，描述了一位寄存器的操作。当```WE```输入为0时， ```IN```端口的输入数据被屏蔽。在第二个时钟周期的中间，当```WE```输入变为1, 新数据被允许通过 2-1 MUX并在第三个时钟周期开始时更新寄存器的内容。在第三个时钟周期结束之前，```WE```输入转换为逻辑0，并导致寄存器输出OUT在第四个时钟周期期间保持为逻辑1。
 
 ![one-bit-register-timing-diagram](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/one-bit-register-timing-diagram.png)
 
-从单比特寄存器推导出更复杂的寄存器是容易的。下图显示的是一个32比特的寄存器。32比特的寄存器拥有公共的时钟(clock)和写使能输入(WE)。因此，如果WE（写使能）输入为逻辑1，那么在时钟上升沿，输入端的32位数据将会被写入寄存器。
+从单比特寄存器推导出更复杂的寄存器是容易的。下图显示的是一个32比特的寄存器。32比特的寄存器拥有公共的时钟(clock)和写使能输入(WE)。因此，如果```WE```（写使能）输入为逻辑1，那么在时钟上升沿，输入端的32位数据将会被写入寄存器。
 
 ![32-bit-register](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/32-bit-register.png)
 
@@ -205,7 +206,7 @@ $$保持时间违规 = ({t}_{CLK} + {t}_{H}) - ({t}_{CLKQ} + {T}_{COMB})$$
 
 同样地，图中每列的所有输出端子也相互连接，以便从存储块读取数据。例如，输出引脚```OUT[0]```连接到图中从第0行到第15行的所有输出引脚```Out[0]```，从而能够从选定的行读取一个位的数据。其余的输出引脚```OUT[1]```到```OUT[31]```也是如此。
 
-图中的每一行存储块通过单独的写使能（WE）和读使能（RE）输入来分别进行数据的写入或读取。
+图中的每一行存储块通过单独的写使能（```WE```）和读使能（```RE```）输入来分别进行数据的写入或读取。
 
 ![32 × 16 内存块的示意图 ](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/2/32-16-memory.png)
 
