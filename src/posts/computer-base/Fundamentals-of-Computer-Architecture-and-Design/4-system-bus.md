@@ -88,6 +88,9 @@ Write端口，顾名思义，用于描述主设备是否正在进行数据写入
 |1 1 1 1|32768|
 
 
+下图显示了一个典型的总线从设备的I/O端口。由于从设备无权发起数据传输，因此省略了```Req```和```Ack```端口。```Ready```信号指示一旦总线主设备发起传输，从设备是否准备好传输或接收数据。WData、RData和Address端口分别用于写数据、读数据和指定目的地址。控制输入```Status```、```Write```、```Size```和```Burst```描述了上述传输的性质。```Enable```（EN）输入由地址解码器生成，并基于总线主设备生成的地址来激活特定的从设备。
+
+![总线从设备接口](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/4/Bus-slave-interface.png)
 
 ## 基本写传输过程
 
