@@ -102,6 +102,15 @@ Write端口，顾名思义，用于描述主设备是否正在进行数据写入
 
 然而，有时从属设备可能未准备好接收或发送数据。比如，在下图的第二个周期，从属设备的状态变为未准备好（Not Ready）。在第三个时钟周期的上升沿检测到从属设备的状态后，主控设备暂停写传输。这意味着当前的数据包```WData2```及下一个地址和控制信号```A3```和```C3```将被重复发送，直到从属设备的状态变为准备好为止。当从属设备准备好接收剩余数据时，正常的数据传输将继续。
 
+![Ready=0时的写传输过程](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/4/basic-write-transfer-ready=0.png)
+
+下面讨论这样一个问题：当从设备频繁更改其状态时，会发生什么情况？
+
+当从设备在一个时钟周期内将状态更改为未准备好时，主设备会在下一个时钟上升沿检测到这一变化，并保持当前数据、下一个地址和控制信号，直到从设备再次变为准备好状态。
+
+下图是一个从设备频繁更改其状态的例子。在该图中，从设备在第一个周期内处于未准备好状态。因此，第一个地址和控制包```A1```和```C1```被延长，没有数据发送到从设备。当从设备在第二个周期内发出准备好信号时，总线主设备在第三个周期的上升沿产生第一个数据包```WData1```，并将地址和控制信号更改为```A2```和```C2```。然而，从设备在第三和第四周期再次将状态更改为未准备好。主设备在第四和第五时钟周期的上升沿检测到状态变化，并通过不更改```A2```、```C2```和```WData1```作出响应。第五周期的准备好信号促使主设备在第六周期开始时产生```A3```、```C3```和```WData2```。主设备保持这些值，直到第八周期开始时从设备再次更改其状态为准备好。此时，主设备发送新的```A4```、```C4```和```WData3```。
+
+![Ready时常变化时的写传输过程](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/4/basic-write-transfer-with-varying-Ready-signal.png)
 
 ## 基本读传输过程
 
