@@ -8,8 +8,8 @@ tag:
 - [计算机基本架构-系统总线](#计算机基本架构-系统总线)
   - [1.并行总线架构](#1并行总线架构)
   - [2.基本写传输过程](#2基本写传输过程)
-  - [基本读传输过程](#基本读传输过程)
-  - [总线主状态改变](#总线主状态改变)
+  - [3.基本读传输过程](#3基本读传输过程)
+  - [4.总线主状态改变](#4总线主状态改变)
   - [总线握手](#总线握手)
   - [总线仲裁](#总线仲裁)
   - [串行接口](#串行接口)
@@ -112,9 +112,21 @@ Write端口，顾名思义，用于描述主设备是否正在进行数据写入
 
 ![Ready时常变化时的写传输过程](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/4/basic-write-transfer-with-varying-Ready-signal.png)
 
-## 基本读传输过程
+## 3.基本读传输过程
 
-## 总线主状态改变
+下面是一个基本的读传输过程。当从设备发出准备信号，它就会为主设备提供数据。一旦主设备在时钟边沿检测到准备信号，它会在下一个正时钟边沿读取从设备的响应，并生成下一个地址和控制信号发送给从设备。
+
+![基本读传输过程](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/4/basic-read-transfer.png)
+
+当从设备频繁更改其状态时，读取序列会如何变化？
+
+下图显示了一个从设备频繁更改其状态的例子。在此图中，从设备在第一个周期之前处于未准备好状态。因此，主设备会保持第一个地址和控制数据包```A1```和```C1```，直到从设备变为准备好状态。当主设备在第三个周期的正边沿检测到准备信号时，它会通过向从设备发出新的地址和控制信号```A2```和```C2```作出响应。在第三个周期内，从设备还会向主设备发送```RData1```。主设备在检测到从设备的准备信号后，于第六个周期的正边沿读取数据。
+
+图中其余的读事务遵循上述相同的协议。换句话说，每当主设备检测到从设备的准备信号时，就会为从设备生成一组新的地址和控制信号；从设备在变为准备好状态后会向主设备发送新的数据包；主设备在从设备准备好时读取从设备的数据。
+
+![Ready时常变化时的读传输过程](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/4/basic-read-transfer-with-varying-ready-signal.png)
+
+## 4.总线主状态改变
 
 ## 总线握手
 
