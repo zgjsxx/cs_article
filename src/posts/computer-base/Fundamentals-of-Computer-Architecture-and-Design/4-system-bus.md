@@ -195,7 +195,7 @@ Write端口，顾名思义，用于描述主设备是否正在进行数据写入
 
 当总线主设备连接到多个从设备时，它需要为每个从设备生成一个低电平有效的从设备选择信号，如下图所示：
 
-![SPI总线主设备和三个从设备](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/4/SPI-bus-between-master-and-three-slaves.pngg)
+![SPI总线主设备和三个从设备](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/4/SPI-bus-between-master-and-three-slaves.png)
 
 SPI 是一种单主设备串行通信协议。这意味着只有一个主设备被指定来启动并执行与从设备的所有串行通信。当 SPI 主设备希望发送或请求从设备的数据时，它首先通过将相应的从设备选择（$\overline{SS}$）信号拉低至逻辑0来选择特定的从设备，然后为从设备生成时钟信号，如下图所示。一旦选择信号和时钟信号建立，主设备就可以在每个```SCK```的下降沿通过其 ```SDO``` 端口向选定的从设备发送串行数据，同时在每个 ```SCK``` 的沿通过 ```SDI``` 端口采样从设备的数据。根据 ```SPI``` 协议，从设备能够发送和接收数据，但不能生成 ```SCK```。
 
@@ -231,6 +231,11 @@ ${I}^{2}C$是一种多主机总线协议，使用仅有的两根线路——串�
 
 在物理上，${I}^{2}C$总线由两根活动线组成，即```SDA```和```SCL```，它们连接主设备和从设备，如下图所示。时钟生成和数据流都是双向的。这个协议假定发起数据传输的设备是总线主设备；${I}^{2}C$总线上的所有其他设备被视为总线从设备。
 
-在典型的${I}^{2}C$总线中，如下图所示，总线主设备和从设备都有两个输入端口，即```SCL In```和```SDA In```，以及两个输出端口，即```SCL Out```和```SDA Out```。当主设备发出```SCL Out = 1```（或者```SDA Out = 1```）时，相应的N通道MOSFET开启，并将```SCL```线路（或```SDA```线路）拉低至地线。当主设备发出```SCL Out = 0```（或者```SDA Out = 0```）时，相应的n通道晶体管关闭，使得SCL（或SDA）线路悬空。然而，无论是```SCL```还是```SDA```，实际上都不会真正悬空到不确定的电压水平。上拉电阻Rpu会立即将悬空线路提升到电源电压水平```VDD```。在总线的另一端，${I}^{2}C$从设备通过```SCL In```（或者SDA In）端口检测变化，并确定当前的总线数值。
+在典型的${I}^{2}C$总线中，如下图所示，总线主设备和从设备都有两个输入端口，即```SCL In```和```SDA In```，以及两个输出端口，即```SCL Out```和```SDA Out```。当主设备发出```SCL Out = 1```（或者```SDA Out = 1```）时，相应的N通道MOSFET开启，并将```SCL```线路（或```SDA```线路）拉低至地线。当主设备发出```SCL Out = 0```（或者```SDA Out = 0```）时，相应的n通道晶体管关闭，使得SCL（或SDA）线路悬空。然而，无论是```SCL```还是```SDA```，实际上都不会真正悬空到不确定的电压水平。上拉电阻```Rpu```会立即将悬空线路提升到电源电压水平```VDD```。在总线的另一端，${I}^{2}C$从设备通过```SCL In```（或者```SDA In```）端口检测变化，并确定当前的总线数值。
 
 贴图
+
+
+开始（Start）和停止（Stop）信号是由```SCL```和```SDA```值的组合生成的，如下图所示。根据该图，当总线主设备将```SDA```线拉到地时且```SCL = 1```时，会产生一个开始信号。类似地，当总线主设备释放```SDA```线时且```SCL = 1```时，会创建一个停止信号。
+
+![${I}^{2}C$数据流的开始位和停止位](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/4/I2C-datastream-start-and-stop-condition.png)
