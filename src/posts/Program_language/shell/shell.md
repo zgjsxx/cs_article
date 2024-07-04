@@ -3,6 +3,7 @@
   - [shell命令中的分号， \&\& 和 ||的区别](#shell命令中的分号--和-的区别)
   - [变量的定义](#变量的定义)
   - [正则表达式](#正则表达式)
+  - [循环](#循环)
 
 # shell
 
@@ -47,3 +48,6 @@ oldname=$fullname #Quotes not needed to preserve spaces in value
 ```shell
 cat test.txt | grep -v "^$" # remove empty lines
 ```
+
+
+## 循环
