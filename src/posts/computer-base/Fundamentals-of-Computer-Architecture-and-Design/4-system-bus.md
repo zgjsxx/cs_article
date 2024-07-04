@@ -234,7 +234,7 @@ ${I}^{2}C$是一种多主机总线协议，使用仅有的两根线路——串�
 
 在典型的${I}^{2}C$总线中，如下图所示，总线主设备和从设备都有两个输入端口，即```SCL In```和```SDA In```，以及两个输出端口，即```SCL Out```和```SDA Out```。当主设备发出```SCL Out = 1```（或者```SDA Out = 1```）时，相应的N通道MOSFET开启，并将```SCL```线路（或```SDA```线路）拉低至地线。当主设备发出```SCL Out = 0```（或者```SDA Out = 0```）时，相应的n通道晶体管关闭，使得SCL（或SDA）线路悬空。然而，无论是```SCL```还是```SDA```，实际上都不会真正悬空到不确定的电压水平。上拉电阻```Rpu```会立即将悬空线路提升到电源电压水平```VDD```。在总线的另一端，${I}^{2}C$从设备通过```SCL In```（或者```SDA In```）端口检测变化，并确定当前的总线数值。
 
-贴图
+![I2C架构](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/4/I2C-architecture.png)
 
 
 开始（Start）和停止（Stop）信号是由```SCL```和```SDA```值的组合生成的，如下图所示。根据该图，当总线主设备将```SDA```线拉到地时且```SCL = 1```时，会产生一个开始信号。类似地，当总线主设备释放```SDA```线时且```SCL = 1```时，会创建一个停止信号。
