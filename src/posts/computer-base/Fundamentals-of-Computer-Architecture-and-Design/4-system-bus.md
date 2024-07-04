@@ -14,6 +14,7 @@ tag:
   - [6.总线仲裁器](#6总线仲裁器)
   - [7.总线主设备的切换](#7总线主设备的切换)
   - [8.串行接口](#8串行接口)
+  - [参考文章](#参考文章)
 
 # 计算机基本架构-系统总线
 
@@ -239,3 +240,9 @@ ${I}^{2}C$是一种多主机总线协议，使用仅有的两根线路——串�
 开始（Start）和停止（Stop）信号是由```SCL```和```SDA```值的组合生成的，如下图所示。根据该图，当总线主设备将```SDA```线拉到地时且```SCL = 1```时，会产生一个开始信号。类似地，当总线主设备释放```SDA```线时且```SCL = 1```时，会创建一个停止信号。
 
 ![${I}^{2}C$数据流的开始位和停止位](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/4/I2C-datastream-start-and-stop-condition.png)
+
+
+
+## 参考文章
+
+https://rexpighj123.pixnet.net/blog/post/219960237
