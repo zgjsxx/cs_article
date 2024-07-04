@@ -2,6 +2,7 @@
 - [shell](#shell)
   - [shell命令中的分号， \&\& 和 ||的区别](#shell命令中的分号--和-的区别)
   - [变量的定义](#变量的定义)
+  - [正则表达式](#正则表达式)
 
 # shell
 
@@ -30,4 +31,19 @@ this_is_a_long_string_that_does_not_mean_much
 first=isaac middle=bashevis last=singer #Multiple assignments allowed on one line
 fullname="isaac bashevis singer" #Use quotes for whitespace in value
 oldname=$fullname #Quotes not needed to preserve spaces in value
+```
+
+## 正则表达式
+
+|正则表示符号|含义|
+|--|--|
+|\||
+|.|匹配除换行符\n之外的任何单字符|
+|*|匹配前门的子表达式0次或者多次|
+|{n,m}|匹配子表达式出现n到m次|
+
+"^" 和 "$" 可以一起使用，此时括起来的正则表达式必须完全匹配整个字符串（或行）。有时候使用简单的正则表达式 "^$" 也很有用，它匹配空字符串或空行。结合 grep 的 "-v" 选项，该选项用于打印所有不匹配模式的行，可以用来过滤掉文件中的空行。
+
+```shell
+cat test.txt | grep -v "^$" # remove empty lines
 ```
