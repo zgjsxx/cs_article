@@ -204,7 +204,7 @@ SPI 是一种单主设备串行通信协议。这意味着只有一个主设备�
 
 另一方面，从设备也可以在时钟信号的下降沿从其```SDO```端口发送串行数据包，数据从```DataS1```（最高有效位）到```DataS4```（最低有效位）。然后，在时钟信号的上升沿，从主设备的```SDI```端口对从设备发送的串行数据进行采样，数据从```DataM1```（最高有效位）到```DataM4```（最低有效位）。
 
-贴图
+![单主单从SPI总线协议](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/4/SPI-bus-protocol-between-master-and-slave.png)
 
 ```SPI```总线协议提供了四种通信模式。每种协议根据SCK信号的初始电平（SCK稳态时的逻辑电平）和数据生成边沿进行分类。每种通信模式如下图所示。
 
@@ -252,7 +252,8 @@ I2C总线上每个从设备由一个七位或十位的地址字段定义，如�
 
 下图显示了何时允许数据更改以及何时需要保持稳定。I2C 协议仅允许在 SCL 为逻辑 0 时更改数据。如果 SDA 上的数据在 SCL 为逻辑 1 时发生变化，这可能会根据数据转换被解释为启动或停止条件。因此，只要 SCL = 1，SDA 上的数据就不允许更改。
 
-贴图
+![I2C数据交换的时机](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/4/I2C-data-change-conditions.png)
+
 
 Figure 4.25解释了在具有七位地址的从设备上总线主机向其写入两个字节数据的时序图。根据该图，写入过程始于在SCL = 1时将SDA的值转换为逻辑0。随后是起始位，从最高有效位SA[6]到最低有效位SA[0]的从设备地址位逐个传递。根据I2C总线协议（如图4.24所示），每个地址位只在SCL为逻辑0时才会被引入SDA。接下来生成写命令及随后的从设备应答。字节0和字节1中的数据位也从最高有效数据位D[7]开始逐个传递到SDA。写入序列在SCL = 1时SDA转换为逻辑1，完成写入过程。
 
