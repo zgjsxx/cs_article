@@ -212,11 +212,11 @@ MODE 0通信协议假设SCK的稳态电平为逻辑0。每个数据位由主设�
 
 ```MODE 1```仍然假设SCK的稳态电平为逻辑0，但数据生成发生在SCK的上升沿。在这种模式下，主设备和从设备都在负边沿读取数据。
 
-MODE 2将SCK的稳态电平切换到逻辑1。数据在SCK的正边沿释放，并在负边沿进行采样，如图4.20所示。
+MODE 2将SCK的稳态电平切换到逻辑1。数据在SCK的正边沿释放，并在负边沿进行采样，如下图所示。
 
 MODE 3同样假设SCK的稳态电平为逻辑1。然而，数据在SCK的负边沿释放，并在正边沿进行采样。
 
-贴图
+![SPI协议模式](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/4/SPI-bus-protocol-mode.png)
 
 一个主从对必须在数据交换期间使用相同的模式。如果使用多个从设备，并且每个从设备使用不同的通信模式，主设备在与不同从设备通信时必须重新配置自身。
 
@@ -236,11 +236,20 @@ ${I}^{2}C$是一种多主机总线协议，使用仅有的两根线路——串�
 
 ![I2C架构](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/4/I2C-architecture.png)
 
+I2C总线上每个从设备由一个七位或十位的地址字段定义，如下图所示。每个地址后的数据包长度为八位。只有四个控制信号来调节数据流：启动（Start）、停止（Stop）、写/读（Write/Read）和确认（Acknowledge）。
+
 
 开始（Start）和停止（Stop）信号是由```SCL```和```SDA```值的组合生成的，如下图所示。根据该图，当总线主设备将```SDA```线拉到地时且```SCL = 1```时，会产生一个开始信号。类似地，当总线主设备释放```SDA```线时且```SCL = 1```时，会创建一个停止信号。
 
 ![${I}^{2}C$数据流的开始位和停止位](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/4/I2C-datastream-start-and-stop-condition.png)
 
+下图展示了七位和十位版本的读写数据传输。在该图的顶部序列解释了总线主控器如何向使用七位地址的从设备写入多个字节的数据。主控器通过产生一个开始位来启动序列。这相当于给所有从设备发出唤醒信号，使它们能够监视即将到来的地址。接下来是一个七位长的从设备地址。总线主控器首先发送最高有效地址位。剩余的地址位将逐个释放，直到最不重要的位。这时，所有从设备都会将刚刚发送的总线地址与它们自己的地址进行比较。如果地址不匹配，从设备就会忽略SDA总线上的其余传入位，并等待下一次总线传输的开始。然而，如果地址匹配，被寻址的从设备会等待下一个位，指示来自主设备的传输类型。当主设备发送写比特位时，从设备通过将```SDA```线拉低来响应一个确认信号```SAck```。主设备检测到确认信号后，发送第一个8位长的数据包。传输数据位的格式与地址相同：首先发送数据包的最高有效位，然后是中间位，最后是最低有效位。当所有8位数据都成功接收后，从设备会产生另一个确认信号。数据传输会一直继续，直到主设备完成所有数据包的发送。传输在主设备生成停止信号时结束。
+
+下图中的第二个条目显示了对一个十位地址的总线从设备的写传输。在开始位之后，总线主设备发送一个五位前导码 11110，指示它将要发送一个十位从设备地址。接下来，主设备发送两个最高有效地址位，然后是写位。当从设备确认所有这些条目的传递后，主设备发送剩下的八个地址位。随后从设备再次发出确认信号，主设备将所有数据字节传输到指定的从设备。数据传输在总线主设备生成停止位时完成。
+
+下图中的第三个和第四个条目展示了由总线主设备发起的七位和十位读序列。在每个序列中，接收到开始位和地址后，指定的从设备开始向主设备发送数据包。在成功接收到第一个数据字节后，主设备向从设备发送确认信号 MAck，之后从设备传输下一个字节。传输持续进行，直到从设备将其所有数据字节传送给主设备。然而，就在主设备发出停止位之前，它会生成一个不确认信号 MNack，表示传输结束，如图所示。
+
+![I2C操作模式](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/4/I2C-mode-of-operation.png)
 
 
 ## 参考文章
