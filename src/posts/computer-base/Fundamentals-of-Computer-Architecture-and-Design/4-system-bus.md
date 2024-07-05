@@ -251,7 +251,6 @@ I2C总线上每个从设备由一个七位或十位的地址字段定义，如�
 
 ![I2C操作模式](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/4/I2C-mode-of-operation.png)
 
-
 ## 参考文章
 
 https://rexpighj123.pixnet.net/blog/post/219960237
