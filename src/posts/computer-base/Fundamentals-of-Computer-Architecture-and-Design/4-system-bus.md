@@ -257,11 +257,11 @@ I2C总线上每个从设备由一个七位或十位的地址字段定义，如�
 
 Figure 4.25解释了在具有七位地址的从设备上总线主机向其写入两个字节数据的时序图。根据该图，写入过程始于在SCL = 1时将SDA的值转换为逻辑0。随后是起始位，从最高有效位SA[6]到最低有效位SA[0]的从设备地址位逐个传递。根据I2C总线协议（如图4.24所示），每个地址位只在SCL为逻辑0时才会被引入SDA。接下来生成写命令及随后的从设备应答。字节0和字节1中的数据位也从最高有效数据位D[7]开始逐个传递到SDA。写入序列在SCL = 1时SDA转换为逻辑1，完成写入过程。
 
-贴图
+![I2C写时序图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/4/I2C-write-timing-diagram.png)
 
 Figure 4.26展示了从从设备读取两个字节数据的时序图。在起始位和从设备地址后，主机通过SDA = 1发出读取命令。随后，数据字节从从设备传输到主机，并且主机在接收每个数据字节时进行确认。传输在主机不确认最后一个数据字节（MNack）并生成停止位时结束。
 
-贴图
+![I2C读时序图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/4/I2C-read-timing-diagram.png)
 
 这就是为什么I2C总线协议在只使用两根物理线路的情况下，能够在任意数量的主设备和从设备之间保持无故障通信的原因。例如，如果两个或多个设备同时尝试在SDA上写入数据会发生什么情况？在电气级别上，实际上没有多个设备同时在总线上竞争逻辑电平的情况。如果一个特定设备试图向总线写入逻辑0，而另一个设备试图写入逻辑1，那么在图4.21中带有上拉电阻的物理总线结构确保这两个设备之间不会发生冲突，并且总线会转换为逻辑0。换句话说，在任何冲突中，逻辑0总是胜出！
 
