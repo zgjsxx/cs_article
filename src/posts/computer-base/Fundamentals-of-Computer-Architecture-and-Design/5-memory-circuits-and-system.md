@@ -7,7 +7,7 @@ tag:
 
 - [计算机基本架构-内存](#计算机基本架构-内存)
   - [1.静态随机存取存储器 (SRAM)](#1静态随机存取存储器-sram)
-  - [同步动态随机存取存储器（SDRAM）](#同步动态随机存取存储器sdram)
+  - [2.同步动态随机存取存储器（SDRAM）](#2同步动态随机存取存储器sdram)
   - [EEPROM](#eeprom)
   - [Flash memory](#flash-memory)
   - [refernce](#refernce)
@@ -59,7 +59,9 @@ tag:
 ![图5-10：SRAM总线接口](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/5-10-increasing-SRAM-address-space.png)
 
 
-## 同步动态随机存取存储器（SDRAM）
+## 2.同步动态随机存取存储器（SDRAM）
+
+**同步动态随机存取内存**(SDRAM) 是一种旧版 DRAM 的变种，它构成了几乎所有计算系统的主要内存。尽管它的容量可以比 SRAM 高出几个数量级，但它的速度却不如 SRAM。因此，SDRAM 主要用于在速度不重要的情况下存储大量数据块。
 
 ## EEPROM
 
