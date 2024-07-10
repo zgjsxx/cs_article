@@ -10,6 +10,7 @@ tag:
   - [2.同步动态随机存取存储器（SDRAM）](#2同步动态随机存取存储器sdram)
   - [3.电可擦除可编程只读存储器(EEPROM)](#3电可擦除可编程只读存储器eeprom)
   - [4.Flash memory](#4flash-memory)
+  - [5.Serial Flash Memory](#5serial-flash-memory)
   - [refernce](#refernce)
 
 # 计算机基本架构-内存
@@ -77,10 +78,13 @@ tag:
 
 贴图
 
-
 ## 3.电可擦除可编程只读存储器(EEPROM)
 
+电可擦除可编程只读存储器 (E2PROM) 历史上被认为是闪存的前身，同时也是计算机系统中速度最慢的存储器。它相对于其他类型存储器的最大优势在于其能够在系统断电后仍能保留数据，这是因为其存储核心采用了浮栅MOS晶体管。相较于机电硬盘，它的尺寸相对较小，使其成为存储内置操作系统 (BIOS) 的理想选择，特别适用于手持计算平台。
+
 ## 4.Flash memory
+
+## 5.Serial Flash Memory
 
 ## refernce
 
