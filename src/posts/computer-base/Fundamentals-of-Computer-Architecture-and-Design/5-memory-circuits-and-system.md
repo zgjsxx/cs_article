@@ -82,6 +82,11 @@ tag:
 
 电可擦除可编程只读存储器 (E2PROM) 历史上被认为是闪存的前身，同时也是计算机系统中速度最慢的存储器。它相对于其他类型存储器的最大优势在于其能够在系统断电后仍能保留数据，这是因为其存储核心采用了浮栅MOS晶体管。相较于机电硬盘，它的尺寸相对较小，使其成为存储内置操作系统 (BIOS) 的理想选择，特别适用于手持计算平台。
 
+典型的E2PROM存储器由多个扇区组成，每个扇区包含多个页面，如图5-31所示。E2PROM中的单个字可以通过指定其扇区地址、页面地址和行地址来定位。扇区地址表示特定字所在的扇区。页面地址定位扇区内的具体页面。最后，行地址指向页面内数据字节的位置。E2PROM中有五个控制信号用于执行读取、写入或擦除操作。活动低电平的使能信号（EN）将特定页面置于待机模式，并为即将进行的操作做好准备。活动低电平的命令使能信号（CE）与命令代码（如读取、写入（编程）或擦除）一起发出。活动低电平的地址使能信号（AE）在提供地址时发出。最后，活动低电平的写使能信号（WE）和读使能信号（RE）分别用于写入和读取数据。
+
+![5-31：典型的EEPROM的组织形式](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/5-31-typical-eeprom-read-write-interface.png)
+
+
 ## 4.Flash memory
 
 ## 5.Serial Flash Memory
