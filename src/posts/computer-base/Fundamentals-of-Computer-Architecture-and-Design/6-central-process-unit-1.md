@@ -35,8 +35,36 @@ RISC CPU中有三种类型的指令：**寄存器到寄存器类型**、**立即
 OPC RS1, RS2, RD
 ```
 
-这种类型的指令从寄存器文件（RF）中获取第一个和第二个源寄存器的内容，分别是```Reg[RS1]```和```Reg[RS2]```，根据操作码（OPC）对它们进行处理，并将结果写入目标寄存器```Reg[RD]```中。该操作如下所述。
+这种类型的指令从寄存器文件（RF）中获取第一个和第二个源寄存器的内容，分别是```Reg[RS1]```和```Reg[RS2]```，根据操作码（```OPC```）对它们进行处理，并将结果写入目标寄存器```Reg[RD]```中。该操作如下所述。
 
 ```shell
-Reg[RS1] (OPC) Reg[RS2] ! Reg[RD]
+Reg[RS1] (OPC) Reg[RS2] -> Reg[RD]
 ```
+
+一个立即数类型的指令包含一个操作码（OPC）和三个操作数：一个源寄存器地址RS，一个目的寄存器地址RD，以及一个立即数据，如下所示：
+
+```shell
+OPC RS, RD, Imm Value
+```
+
+这种类型的指令将源寄存器```Reg[RS]```的内容与根据操作码（```OPC```）进行符号扩展的立即值相结合，然后将结果写入寄存器文件中的目的寄存器```Reg[RD]```。该操作如下所示：
+
+```shell
+Reg[RS] (OPC) Immediate Value -> Reg[RD]
+```
+
+Jump-type指令包含一个操作码（OPC），后面跟着一个单独的立即值，如下所示。
+
+```shell
+OPC Imm Value
+```
+
+这种类型的指令使用立即字段来修改指令存储器中的程序计数器（PC）内容。该指令的操作如下所示。
+
+```shell
+Immediate Value -> PC
+```
+
+所有三种指令类型都适合于一个32位宽的指令存储器，如图6-1所示。在这张图中，每个字段顶部的数字对应于指令存储器的位位置，定义了操作码（OPC）或特定操作数字段的边界。
+
+![6-1：指令的格式](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/6/fig-6-1-instruction-field-formats.png)
