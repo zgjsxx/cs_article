@@ -30,19 +30,19 @@ tag:
 
 如图下图所示，典型的```SRAM```架构由四个不同的模块组成：**SRAM核心**、**地址译码器**、**感应放大器**和**内部SRAM控制器**。存储核心保持即时数据。感应放大器在读取过程中将单元电压放大到完整的逻辑电平。地址译码器根据N位地址生成${2}^{N}$个字线（Word Lines）。最后，控制器生成在读取或写入周期中所需的自时序脉冲。
 
-![一个典型的有8比特地址和32比特数据位的SRAM架构](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/SRAM-arhi-with-eight-bit-address-32-bit-data.png)
+![一个典型的有8比特地址和32比特数据位的SRAM架构](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-1-SRAM-arhi-with-eight-bit-address-32-bit-data.png)
 
 每个```SRAM```单元由两个背对背的反相器组成，就像锁存器中使用的那样，并且有两个N沟道金属氧化物半导体（NMOS）传输门晶体管来隔离单元中的现有数据或允许新数据进入单元，如下图所示。当需要将数据写入单元时，```WL = 1```会打开两个NMOS晶体管，允许来自Bit和Bitbar输入端的真实数据和互补数据同时写入单元。如果我们假设节点A初始为逻辑0，节点B为逻辑1，且WL = 0，那么WL的逻辑电平会关闭两个NMOS晶体管，锁存器将完全与其周围环境隔离。结果是逻辑0电平被保持在单元中。但是，如果```WL = 1```，Bit节点为1，Bitbar节点为0，那么WL的逻辑电平会打开两个NMOS晶体管，允许Bit和Bitbar上的值覆盖节点A和B上现有的逻辑电平，从而将单元中存储的位从逻辑0更改为逻辑1。
 
 同样地，如果需要从单元中读取数据，可以通过设置```WL=1```来打开两个NMOS晶体管，然后在Bit和Bitbar输出之间产生的小差分电位会被感应放大器放大，最终在SRAM输出端达到完整的逻辑电平。
 
-![SRAM内存单元](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/SRAM-memory-cell.png)
+![SRAM内存单元](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-2-SRAM-memory-cell.png)
 
 数据写入序列以```EN= 1```和```WE = 1```开始。这种组合将SRAM核心中的```Bit```和```Bitbar```节点预充到预设电压值，并为写入做准备。当预充周期完成后，控制器通过设置```EnWL = 1```来启用地址解码器，如下图所示。解码器根据```AddrIn[7:0]```提供的值激活256个```WL```中的一个。在同一时间段内，控制器还生成```WritePulse = 1```，允许有效数据```DIn[31:0]```写入指定地址。
 
 从SRAM核心读取数据通过设置```EN = 1```和```WE = 0```来执行。与写入操作类似，控制器在读取数据之前首先对SRAM核心进行预充，然后启用地址解码器。根据```AddrIn```端口的地址值，特定行的```WL```输入被激活，数据从指定行的每个单元被读取到相应的Bit和Bitbar节点。感应放大器将单元电压放大到全逻辑电平，并将数据传送到```DOut```端口。
 
-贴图
+![SRAM写操作时序图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-3-SRAM-IO-timing-for-write.png)
 
 将SRAM模块集成到现有系统中的一个重要任务是设计其总线接口。下图显示了这种实现的框图。总线接口基本上将所有总线控制信号转换为SRAM控制信号（反之亦然），但很少对地址或数据进行修改。在第4章描述的单向总线协议中，SRAM被视为总线从设备，它根据```Ready```信号与总线主设备交换数据。同样如**系统总线章节**中所述，总线主设备有四个控制信号来配置数据传输。```Status```信号指示总线主设备是发送第一个数据包（START）还是正在发送剩余的数据包（```CONT```）。总线主设备还可能发送```IDLE```或```BUSY```信号，分别指示其已完成当前数据传输或正忙于内部任务。```Write```信号指定总线主设备是打算向从设备写入数据还是从从设备读取数据。```Burst```信号指定事务中的数据包数量，而```Size```信号定义数据的宽度。
 
