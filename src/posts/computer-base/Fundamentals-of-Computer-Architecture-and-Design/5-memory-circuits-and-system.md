@@ -44,17 +44,17 @@ tag:
 
 ![图3：SRAM写操作时序图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-3-SRAM-IO-timing-for-write.png)
 
-![图4：SRAM读操作时序图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-3-SRAM-IO-timing-for-read.png)
+![图4：SRAM读操作时序图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-4-SRAM-IO-timing-for-read.png)
 
 将SRAM模块集成到现有系统中的一个重要任务是设计其总线接口。下图显示了这种实现的框图。总线接口基本上将所有总线控制信号转换为SRAM控制信号（反之亦然），但很少对地址或数据进行修改。在第4章描述的单向总线协议中，SRAM被视为总线从设备，它根据```Ready```信号与总线主设备交换数据。同样如**系统总线章节**中所述，总线主设备有四个控制信号来配置数据传输。```Status```信号指示总线主设备是发送第一个数据包（START）还是正在发送剩余的数据包（```CONT```）。总线主设备还可能发送```IDLE```或```BUSY```信号，分别指示其已完成当前数据传输或正忙于内部任务。```Write```信号指定总线主设备是打算向从设备写入数据还是从从设备读取数据。```Burst```信号指定事务中的数据包数量，而```Size```信号定义数据的宽度。
 
-![图5-5：SRAM总线接口](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/sram-bus-interface.png)
+![图5：SRAM总线接口](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/sram-bus-interface.png)
 
 下图中的时序图展示了如何将四个数据包W1至W4写入四个连续的SRAM地址A1至A4。要启动写入序列，总线主设备在第一个时钟周期内发出一个有效地址，并设定```Status = START```和```Write = 1```，同时通过产生一个有效高的总线接口写入使能信号（```BIWEn```, Bus Interface Write Enable）来启用总线接口进行写入。在接收到```BIWEn = 1```后，总线接口在下一个周期内产生```Ready = 1```，并提示总线主设备在第三个周期内更改地址和控制信号。当总线主设备将地址从```A1```更改为```A2```时，它也根据第4章中解释的单向总线协议发送第一个数据包```W1```。然而，为了写入SRAM地址，有效数据必须与有效地址在同一个周期内可用，如图5-3所示。因此，在图5-5中，SRAM的Addr端口上添加了一组八个触发器，使地址A1延迟一个时钟周期，并与当前数据W1对齐。总线接口还在第三个周期内产生```EN = WE = 1```，以便在第四个时钟周期的正沿将```W1```写入```A1```。接下来的写入以相同的方式完成：SRAM地址延迟一个周期，以便在第五个周期的正沿将W2写入地址A2。在第六个周期，总线接口降低```Ready```信号，以使总线主设备停止递增从设备地址。然而，它保持```EN = WE = 1```，以便能够将```W4```写入```A4```。
 
 贴图
 
-为了启动读取序列，总线主设备在图5-8的第一个时钟周期内发出一个有效的SRAM地址，并设定```Status = START```和```Write = 0```信号。这种组合产生一个有效高的总线接口读使能信号，即```BIREn = 1```，这被解释为总线主设备打算从SRAM地址读取数据。因此，总线接口在第二个周期内产生```EN = 1```，```WE = 0```，```Ready = 1```。这在第三个周期从SRAM地址B1获取第一个数据R1。第四和第五周期内的读事务与第三周期相同，总线主设备分别从地址B2和B3读取数据R2和R3。在第六个周期，总线接口保持Ready = 1，以便总线主设备仍能够从地址B4读取最后一个数据R4。
+为了启动读取序列，总线主设备在图8的第一个时钟周期内发出一个有效的SRAM地址，并设定```Status = START```和```Write = 0```信号。这种组合产生一个有效高的总线接口读使能信号，即```BIREn = 1```，这被解释为总线主设备打算从SRAM地址读取数据。因此，总线接口在第二个周期内产生```EN = 1```，```WE = 0```，```Ready = 1```。这在第三个周期从SRAM地址B1获取第一个数据R1。第四和第五周期内的读事务与第三周期相同，总线主设备分别从地址B2和B3读取数据R2和R3。在第六个周期，总线接口保持```Ready = 1```，以便总线主设备仍能够从地址B4读取最后一个数据R4。
 
 贴图
 

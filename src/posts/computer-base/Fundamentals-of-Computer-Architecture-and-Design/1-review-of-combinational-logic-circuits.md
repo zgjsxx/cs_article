@@ -7,7 +7,6 @@ tag:
 
 - [计算机基本架构-组合逻辑电路回顾](#计算机基本架构-组合逻辑电路回顾)
   - [1.逻辑门](#1逻辑门)
-    - [与门(AND)](#与门and)
   - [2.布尔代数](#2布尔代数)
   - [3.使用真值表设计组合电路](#3使用真值表设计组合电路)
   - [4.使用卡诺图设计组合电路](#4使用卡诺图设计组合电路)
@@ -25,7 +24,15 @@ tag:
 
 ## 1.逻辑门
 
-### 与门(AND)
+**与门(AND)**
+
+图1中的输出```OUT```在开关A和开关B都打开时为逻辑0。A和B有一个处于关闭状态，就会输出逻辑0。
+
+![图1：两输入与门的开关表示法](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/fig-1-switch-representation-of-two-input-AND-gate.png)
+
+一个两输入的与门的功能与图1中的电路类似。如果图2中的与门的任意两个输入A和B，处于逻辑0，则与门会产生逻辑0的输出OUT。只有当与门的两个输入都等于逻辑1时，输出才会为逻辑1。该行为在表1中列出，这样的表称为真值表。
+
+![图2：两输入与门的符号表示](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/fig-2-two-input-AND-gate-symbol.png)
 
 
 ## 2.布尔代数
