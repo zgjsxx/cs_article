@@ -34,6 +34,7 @@ tag:
 
 ![图2：两输入与门的符号表示](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/fig-2-two-input-AND-gate-symbol.png)
 
+![表1：两输入与门的真值表](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/tbl-1-two-input-AND-gate-truth-table.png)
 
 ## 2.布尔代数
 
