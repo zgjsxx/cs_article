@@ -60,14 +60,17 @@ tag:
 
 ![图7：SRAM写操作的总线接口](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-7-SRAM-bus-interface-for-write.png)
 
-为了启动读取序列，总线主设备在图8的第一个时钟周期内发出一个有效的SRAM地址，并设定```Status = START```和```Write = 0```信号。这种组合产生一个有效高的总线接口读使能信号，即```BIREn = 1```，这被解释为总线主设备打算从SRAM地址读取数据。因此，总线接口在第二个周期内产生```EN = 1```，```WE = 0```，```Ready = 1```。这在第三个周期从SRAM地址B1获取第一个数据R1。第四和第五周期内的读事务与第三周期相同，总线主设备分别从地址B2和B3读取数据R2和R3。在第六个周期，总线接口保持```Ready = 1```，以便总线主设备仍能够从地址B4读取最后一个数据R4。
+为了启动读取序列，总线主设备在图8的第一个时钟周期内发出一个有效的SRAM地址，并设定```Status = START```和```Write = 0```信号。这种组合产生一个有效高的总线接口读使能信号，即```BIREn = 1```，这被解释为总线主设备打算从SRAM地址读取数据。因此，总线接口在第二个周期内产生```EN = 1```，```WE = 0```，```Ready = 1```。这在第三个周期从SRAM地址```B1```获取第一个数据```R1```。第四和第五周期内的读事务与第三周期相同，总线主设备分别从地址B2和B3读取数据R2和R3。在第六个周期，总线接口保持```Ready = 1```，以便总线主设备仍能够从地址B4读取最后一个数据R4。
 
-贴图
+![图8：SRAM总线读操作的接口时序图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-8-SRAM-bus-interface-timing-diagram-for-read.png)
+
+与写操作情况类似，图9中的读总线接口也是图8中的时序图的直接结果。空闲状态对应于图8中时序图的第一个时钟周期。一旦生成```BIREn = 1```，总线接口就会过渡到待机状态，在该状态下，它产生```EN = 1```、```WE = 0```和```Ready = 1```。接口在第三个周期进入读状态，并产生与之前相同的输出，以便总线主设备读取其第一个数据R1，并在下一个周期发送新地址。接口保持在读状态，直到总线主设备发出的读地址数量少于突发长度。读状态覆盖图8中时序图的第三到第五个周期。当读地址数量达到突发长度时，总线接口在第六个周期过渡到最后读状态，并继续生成```Ready = 1```。这样做是为了使总线主设备仍然能够读取最后的数据，如前所述。接口在接下来的周期无条件返回到空闲状态。
+
+![图9：SRAM读操作的总线接口](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-9-SRAM-bus-interface-for-read.png)
 
 增加SRAM容量需要使用额外的地址位。在图10所示的示例中，通过添加两个额外的地址位```Addr[5:4]```，SRAM容量从```32 x 16```位增加到```32 x 64```位，这些地址位用于访问四个SRAM块中的一个。在这个图中，即使```Addr[3:0]```指向所有四个32 x 16 SRAM块的相同地址位置，```Addr[5:4]```结合EN信号只启用四个块中的一个。此外，从所选块读取的数据通过```Addr[5:4]```输入路由到4-1多路复用器。```Addr[5:4] = 00```选择```DOut0```端口的内容，并通过4-1多路复用器的端口0将数据路由到Out[31:0]。同样，```Addr[5:4]``` = 01、10和11分别选择4-1多路复用器的端口1、2和3，并将```DOut1```、```DOut2```和```DOut3```端口的数据分别路由到```Out[31:0]```。
 
-![图5-10：SRAM总线接口](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/5-10-increasing-SRAM-address-space.png)
-
+![图10：SRAM总线接口](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/5-10-increasing-SRAM-address-space.png)
 
 ## 2.同步动态随机存取存储器（SDRAM）
 
