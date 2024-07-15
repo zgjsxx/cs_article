@@ -54,7 +54,7 @@ OUT = A . B
 
 ![图4：两输入或门的符号表示](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/fig-4-two-input-OR-gate-symbol.png)
 
-贴图
+![表2：两输入或门的真值表](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/tbl2-two-input-or-gate-truth-table.png)
 
 两个输入的或门的功能表示为：
 
