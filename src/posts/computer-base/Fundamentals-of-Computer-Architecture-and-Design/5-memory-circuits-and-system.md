@@ -58,10 +58,9 @@ tag:
 
 写入状态是实际写入操作发生的状态：当总线主设备发出的写入地址数小于突发长度时，```EN```和```WE```信号保持为逻辑1。这个状态对应于时序图中的第三、第四和第五个时钟周期。当写入地址数达到突发长度的值时，总线接口进入最后写入阶段，```Ready```信号变为逻辑0。总线主设备在第六个时钟周期将最后一个数据包写入SRAM的最后一个地址。
 
-贴图
+![图7：SRAM写操作的总线接口](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-7-SRAM-bus-interface-for-write.png)
 
 为了启动读取序列，总线主设备在图8的第一个时钟周期内发出一个有效的SRAM地址，并设定```Status = START```和```Write = 0```信号。这种组合产生一个有效高的总线接口读使能信号，即```BIREn = 1```，这被解释为总线主设备打算从SRAM地址读取数据。因此，总线接口在第二个周期内产生```EN = 1```，```WE = 0```，```Ready = 1```。这在第三个周期从SRAM地址B1获取第一个数据R1。第四和第五周期内的读事务与第三周期相同，总线主设备分别从地址B2和B3读取数据R2和R3。在第六个周期，总线接口保持```Ready = 1```，以便总线主设备仍能够从地址B4读取最后一个数据R4。
-
 
 贴图
 
