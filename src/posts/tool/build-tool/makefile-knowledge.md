@@ -3,6 +3,21 @@ category:
 - Linux
 - Makefile
 ---
+
+- [makefile案例学习](#makefile案例学习)
+  - [makefile的基本规则](#makefile的基本规则)
+  - [demo1：第一个Makefile](#demo1第一个makefile)
+  - [使用$@ $\< $^符号简化编写](#使用--符号简化编写)
+  - [demo2：使用$@ $\< $^ 简化书写](#demo2使用---简化书写)
+  - [vpath和VPATH](#vpath和vpath)
+  - [demo3：使用vpath和VPATH指定依赖文件搜索路径](#demo3使用vpath和vpath指定依赖文件搜索路径)
+  - [使用内置函数wildcard，patsubst， foreach， notdir等函数帮助我们构建](#使用内置函数wildcardpatsubst-foreach-notdir等函数帮助我们构建)
+  - [静态模式](#静态模式)
+  - [makefile自动生成依赖](#makefile自动生成依赖)
+  - [伪目标](#伪目标)
+  - [demo4: 一个综合案列使用内置函数+静态模式+自动生成依赖](#demo4-一个综合案列使用内置函数静态模式自动生成依赖)
+
+
 # makefile案例学习
 很多时候， 我们在```git clone```完一个project之后，就会让我们使用```make```命令进行项目的构建。这个make命令的背后就是按照了Makefile文件定义的格式去完成项目构建。
 
