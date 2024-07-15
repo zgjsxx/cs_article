@@ -36,6 +36,25 @@ tag:
 
 ![表1：两输入与门的真值表](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/tbl-1-two-input-AND-gate-truth-table.png)
 
+两个输入的与门的功能表示为：
+
+```shell
+OUT = A . B
+```
+
+这里，输入A和B之间的符号"."表示**与操作**。
+
+**或门(AND)**
+
+现在，假设开关A和B之间是并联连接，如图3所示。如果任意一个开关闭合，输出OUT将变为逻辑1；否则，输出将保持在逻辑0。
+
+![图3：两输入或门的开关表示法](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/fig-3-switch-representation-of-two-input-OR-gate.png)
+
+如图4所示的两输入或门的功能也类似于图3中的电路。如果任意两个输入为逻辑1，该门的输出OUT将为逻辑1。只有当门的两个输入都等于逻辑0时，输出才为逻辑0。这种行为在真值表（表2）中列出。
+
+![图4：两输入或门的符号表示](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/fig-4-two-input-OR-gate-symbol.png)
+
+
 ## 2.布尔代数
 
 能够重新配置逻辑门以符合我们德设计目标是至关重要的。逻辑重配置可能像重新分组单个门的输入或对多个门的输入取反这样简单，以达到设计目标。
