@@ -66,21 +66,41 @@ OUT = A + B
 
 **异或门**
 
-如图5所示，两输入异或门（XOR门）。如果两个输入相等，XOR门输出逻辑0。因此，在许多逻辑应用中，该门用于比较输入逻辑电平以判断它们是否相等。该门的功能行为在表3中列出。
+如图5所示，两输入异或门（XOR门）。如果两个输入相等，XOR门输出逻辑0。因此，在许多逻辑应用中，该门用于比较输入逻辑电平以判断它们是否相等。异或门的功能行为在表3中列出。
 
-贴图
+![图5：异或门的符号表示](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/fig-5-two-input-XOR-gate-symbol.png)
+
+![表3：两输入异或门的真值表](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/tbl3-two-input-XOR-gate-truth-table.png)
 
 两个输入的异或门的功能表示为：
+
+```shell
 OUT = A ⊕ B
+```
+
 这里，输入A和B之间的符号"⊕"表示异或操作
 
 **缓冲器**
 
 缓冲器是一个单输入设备，其输出逻辑上等于其输入。该门的唯一用途是能够为连接到其输出的逻辑门输入提供足够的电流。该门的逻辑表示如图6所示。
 
+![图6：缓冲器的符号表示](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/fig-6-buffer-symbol.png)
+
 **互补逻辑门(反相器)**
 
-所有基本逻辑门都需要具有互补形式。如果需要对单个输入取反，使用如图1.7所示的反相器。反相器的真值表如表4所示。
+所有基本逻辑门都需要具有互补形式。如果需要对单个输入取反，使用如图7所示的反相器。反相器的真值表如表4所示。
+
+![图7：反相器的符号表示](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/fig-7-inverter-symbol.png)
+
+![表3：反相器的真值表](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/tbl-4-inverter-truth-table.png)
+
+反相器的功能表示为：
+
+$OUT = \overline{IN}$
+
+这里，输入IN上方的符号“-”表示取反的作用。
+
+两输入AND门的补码形式称为两输入```NAND```门，其中```N```表示否定。其逻辑表示如图8所示，门输出端的圆圈表示补码输出。该门的真值表如表5所示。注意，该表中的所有输出值都是表1中给定值的完全相反。
 
 
 ## 2.布尔代数
