@@ -70,7 +70,7 @@ tag:
 
 增加SRAM容量需要使用额外的地址位。在图10所示的示例中，通过添加两个额外的地址位```Addr[5:4]```，SRAM容量从```32 x 16```位增加到```32 x 64```位，这些地址位用于访问四个SRAM块中的一个。在这个图中，即使```Addr[3:0]```指向所有四个32 x 16 SRAM块的相同地址位置，```Addr[5:4]```结合EN信号只启用四个块中的一个。此外，从所选块读取的数据通过```Addr[5:4]```输入路由到4-1多路复用器。```Addr[5:4] = 00```选择```DOut0```端口的内容，并通过4-1多路复用器的端口0将数据路由到Out[31:0]。同样，```Addr[5:4]``` = 01、10和11分别选择4-1多路复用器的端口1、2和3，并将```DOut1```、```DOut2```和```DOut3```端口的数据分别路由到```Out[31:0]```。
 
-![图10：SRAM总线接口](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/5-10-increasing-SRAM-address-space.png)
+![图10：SRAM总线接口](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-10-increasing-SRAM-address-space.png)
 
 ## 2.同步动态随机存取存储器（SDRAM）
 
@@ -78,21 +78,19 @@ tag:
 
 一个```SDRAM```模块由四个部分组成。存储核心是数据存储的地方。行和列解码器定位数据。感应放大器在读取过程中放大单元电压。控制器管理所有读写序列。
 
-图5-11中的框图显示了一个典型的32位```SDRAM```架构，它由四个称为```bank```的存储核心组成，这些核心通过一个单向输入/输出端口访问。在操作内存之前，必须将主要的内部功能，如寻址模式、数据延迟和突发长度，存储在地址模式寄存器中。
+图11中的框图显示了一种典型的32位SDRAM架构，它由四个称为存储库的内存核心组成，通过单个双向输入/输出端口进行访问。在操作内存之前，必须将主要的内部功能，例如地址模式、数据延迟和突发长度，存储在地址模式寄存器中。一旦编程完成，低电平有效的行地址选通信号（```RAS```）、列地址选通信号（```CAS```）和写使能信号（```WE```）将决定内存的功能，如表1所示。选定存储库的输入/输出端口上的数据可以在数据到达输入/输出端口```DInOut```之前在读/写逻辑块处屏蔽。
 
-贴图
+![图11：一个典型的SDRAM的架构](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-11-a-typical-SDRAM-architecture.png)
 
-编程完成后，如表5-1所示，低电平有效的行地址选通信号（```RAS```）、列地址选通信号（```CAS```）和写使能信号（```WE```）决定了内存的功能。选定银行的输入/输出端口上的数据可以在到达数据输入/输出端口（```DInOut```）之前在读/写逻辑块处被屏蔽。
+![表1：SDRAM操作模式](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/tbl-1-SDRAM-modes-of-operation.png)
 
-![表5-1：SDRAM操作模式](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/table5-1-SDRAM-modes-of-operation.png)
+```SDRAM```单元是一个简单的器件，由一个```NMOS```通道晶体管来控制数据的流入和流出，以及一个电容器来存储数据，如图12所示。当需要将新数据写入单元时，通过将控制信号设置为1来打开NMOS晶体管，使```DIn/Out```端子的数据显示覆盖单元节点上的旧数据。另一方面，读取单元中的数据则需要在打开通道晶体管之前激活感应放大器。当需要保存数据时，只需通过将控制信号设置为0来关闭```NMOS```晶体管。然而，单元电容器上的电荷会通过其绝缘体慢慢泄漏，导致单元电压降低。因此，在```SDRAM```操作过程中，需要自动或手动的单元刷新周期来保持单元中的位值。
 
-```SDRAM```单元是一个简单的器件，由一个```NMOS```通道晶体管来控制数据的流入和流出，以及一个电容器来存储数据，如图5-12所示。当需要将新数据写入单元时，通过将控制信号设置为1来打开NMOS晶体管，使```DIn/Out```端子的数据显示覆盖单元节点上的旧数据。另一方面，读取单元中的数据则需要在打开通道晶体管之前激活感应放大器。当需要保存数据时，只需通过将控制信号设置为0来关闭```NMOS```晶体管。然而，单元电容器上的电荷会通过其绝缘体慢慢泄漏，导致单元电压降低。因此，在```SDRAM```操作过程中，需要自动或手动的单元刷新周期来保持单元中的位值。
+![图12：SDRAM 内存单元](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-12-SDRAM-memory-cell.png)
 
-![图5-12：SDRAM 内存单元](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/5-12-SDRAM-memory-cell.png)
+表1的真值表的第一行说明了如何编程内部地址模式寄存器。在时钟的上升沿，$\overline{CS}$、$\overline{RAS}$、$\overline{CAS}$ 和 $\overline{WE}$ 信号被拉低至逻辑 0 以编程地址模式寄存器，如图13所示。在编程模式中，地址位 ```A[2:0]``` 定义了数据突发长度，如表2所示。突发长度可以从一个字到整页，整页等于整个存储库的内容。地址位 ```A[3]``` 定义了每个数据包的 SDRAM 地址如何递增。通过简单地将起始地址加1并根据突发长度的大小消除进位位，可以实现顺序寻址。
 
-表5-1的真值表的第一行说明了如何编程内部地址模式寄存器。在时钟的上升沿，$\overline{CS}$、$\overline{RAS}$、$\overline{CAS}$ 和 $\overline{WE}$ 信号被拉低至逻辑 0 以编程地址模式寄存器，如图 5-13 所示。在编程模式中，地址位 ```A[2:0]``` 定义了数据突发长度，如表 5-2 所示。突发长度可以从一个字到整页，整页等于整个存储库的内容。地址位 ```A[3]``` 定义了每个数据包的 SDRAM 地址如何递增。通过简单地将起始地址加 1 并根据突发长度的大小消除进位位，可以实现顺序寻址。
-
-贴图
+![图13：地址模式寄存器的编程时序图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-13-timing-diagram-for-programming-the-address-mode-register.png)
 
 例如，如果起始地址为 13 且突发长度为两个字，则会消除列 ```A[0]``` 的进位位，下一地址变为 12，如表 5-3 所示。同一表中，如果突发长度增加到四个字，则会消除列 ```A[1]``` 的进位位，起始地址 13 之后的地址值依次变为 ```14、15、 12```。如果突发长度变为八个字，则会消除列 ```A[2]``` 的进位位，地址值依次为 ```13、14、15、8、9、10、11 和 12```。顺序寻址将数据的读写限制在预定义的循环存储空间内，这对于某些特定的软件应用非常方便。
 
