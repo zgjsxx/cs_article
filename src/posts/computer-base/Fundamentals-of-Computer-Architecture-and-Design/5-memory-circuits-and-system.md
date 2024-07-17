@@ -92,9 +92,17 @@ tag:
 
 ![图13：地址模式寄存器的编程时序图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-13-timing-diagram-for-programming-the-address-mode-register.png)
 
-例如，如果起始地址为 13 且突发长度为两个字，则会消除列 ```A[0]``` 的进位位，下一地址变为 12，如表 5-3 所示。同一表中，如果突发长度增加到四个字，则会消除列 ```A[1]``` 的进位位，起始地址 13 之后的地址值依次变为 ```14、15、 12```。如果突发长度变为八个字，则会消除列 ```A[2]``` 的进位位，地址值依次为 ```13、14、15、8、9、10、11 和 12```。顺序寻址将数据的读写限制在预定义的循环存储空间内，这对于某些特定的软件应用非常方便。
+![表2：地址模式寄存器的编程真值表](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/tbl-2-truth-table-for-programming-the-address-mode-reg.png)
 
-![表5-3：SDRAM 序列模式对于突发长度是2，4，8时的地址变化](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/table-5-3-SDRAM-sequential-mode-addressing-for-burst-length.png)
+例如，如果起始地址为 13 且突发长度为两个字，则会消除列 ```A[0]``` 的进位位，下一地址变为 12，如表3所示。同一表中，如果突发长度增加到四个字，则会消除列 ```A[1]``` 的进位位，起始地址 13 之后的地址值依次变为 ```14、15、12```。如果突发长度变为八个字，则会消除列 ```A[2]``` 的进位位，地址值依次为 ```13、14、15、8、9、10、11 和 12```。顺序寻址将数据的读写限制在预定义的循环存储空间内，这对于某些特定的软件应用非常方便。
+
+![表3：SDRAM 序列模式对于突发长度是2，4，8时的地址变化](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/tbl-3-SDRAM-sequential-mode-addressing-for-burst-length.png)
+
+**线性寻址模式**是各种SDRAM中实际交错寻址模式的简化版本，并按线性方式增加SDRAM地址，如表4所示。在该表中，如果起始地址是13且突发长度为2，则下一个地址将是14。如果突发长度增加到4，紧随13之后的三个地址将是14、15和16。与顺序寻址模式相反，线性寻址模式按位逐个增加SDRAM地址，而不是将数据限制在一个循环地址空间内。
+
+![表4：SDRAM先行模式对于突发长度是2，4时的地址变化](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/tbl-4-SDRAM-linear-addressing-mode-for-burst-lengths-of-2-and-4.png)
+
+表1中真值表的第二行显示了如何启动手动刷新周期。在手动刷新模式下，SDRAM会补充每个单元的节点电压值，因为随着时间的推移，单元电容器上的电荷会通过其介电层泄漏。刷新周期之间的时间间隔取决于所使用的技术、氧化层的质量以及电容器板之间介电层的厚度，如图14所示。
 
 
 ## 3.电可擦除可编程只读存储器(EEPROM)
