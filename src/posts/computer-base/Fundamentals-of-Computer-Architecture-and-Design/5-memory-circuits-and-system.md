@@ -104,11 +104,11 @@ tag:
 
 表1中真值表的第二行显示了如何启动手动刷新周期。在手动刷新模式下，SDRAM会补充每个单元的节点电压值，因为随着时间的推移，单元电容器上的电荷会通过其介电层泄漏。刷新周期之间的时间间隔取决于所使用的技术、氧化层的质量以及电容器板之间介电层的厚度，如图14所示。
 
-图14
+![图14：自刷新的时序图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-14-timing-diagram-for-self-refresh.png)
 
 表1中的第三到第六行构成了如图15所示的读写序列。在此图中，读或写序列总是从预充电SDRAM核心的所有行和列开始。接下来是一个激活周期，其中生成行地址。在最后一个周期，生成列地址，根据控制信号$\overline{CS}$、$\overline{RAS}$、$\overline{CAS}$和$\overline{WE}$，将数据写入或从内存中读取。
 
-图15
+![图15：读写的操作周期](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-15-write-and-read-operations.png)
 
 在进行读或写操作之前，必须对一个存储体的所有行和列预充电至某一电压水平，持续一个时钟周期，如图16所示。在预充电期间，$\overline{CS}$、$\overline{RAS}$和$\overline{WE}$信号必须拉低至逻辑0，而$\overline{CAS}$信号必须保持在逻辑1，如表1的第三行所示。预充电电压的值可以在0V到满电压之间，具体取决于技术和电路设计的要求。预充电完成后，激活周期会在一定时间后开始。预充电与激活周期之间的时间间隔称为预充电时间周期，```tPRE```，如图16所示。激活周期通过将$\overline{CS}$和$\overline{RAS}$拉低至逻辑0来启用，但保持$\overline{CAS}$和$\overline{WE}$在逻辑1，如表1的第四行所示。在激活周期之后，必须在经过一定时间后才能对同一个存储体开始下一个预充电周期。这个时间间隔称为RAS时间周期，```tRAS```，如图16所示。
 
@@ -128,7 +128,7 @@ tag:
 
 典型的E2PROM存储器由多个扇区组成，每个扇区包含多个页面，如图31所示。E2PROM中的单个字可以通过指定其扇区地址、页面地址和行地址来定位。扇区地址表示特定字所在的扇区。页面地址定位扇区内的具体页面。最后，行地址指向页面内数据字节的位置。E2PROM中有五个控制信号用于执行读取、写入或擦除操作。活动低电平的使能信号（EN）将特定页面置于待机模式，并为即将进行的操作做好准备。活动低电平的命令使能信号（CE）与命令代码（如读取、写入（编程）或擦除）一起发出。活动低电平的地址使能信号（AE）在提供地址时发出。最后，活动低电平的写使能信号（WE）和读使能信号（RE）分别用于写入和读取数据。
 
-![5-31：典型的EEPROM的组织形式](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/5-31-typical-eeprom-read-write-interface.png)
+![图31：典型的EEPROM的组织形式](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-31-typical-eeprom-read-write-interface.png)
 
 图34所示的E2PROM单元基本上是一个N沟道MOS晶体管，在其控制栅终端（字线）和电子传导的沟道之间夹有一个额外的浮动栅层。该器件还具有漏极（位线）和源极（源线）终端，用于将单元连接到相邻电路。
 
