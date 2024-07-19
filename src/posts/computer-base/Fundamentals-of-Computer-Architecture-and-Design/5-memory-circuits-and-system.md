@@ -112,7 +112,7 @@ tag:
 
 在进行读或写操作之前，必须对一个存储体的所有行和列预充电至某一电压水平，持续一个时钟周期，如图16所示。在预充电期间，$\overline{CS}$、$\overline{RAS}$和$\overline{WE}$信号必须拉低至逻辑0，而$\overline{CAS}$信号必须保持在逻辑1，如表1的第三行所示。预充电电压的值可以在0V到满电压之间，具体取决于技术和电路设计的要求。预充电完成后，激活周期会在一定时间后开始。预充电与激活周期之间的时间间隔称为预充电时间周期，```tPRE```，如图16所示。激活周期通过将$\overline{CS}$和$\overline{RAS}$拉低至逻辑0来启用，但保持$\overline{CAS}$和$\overline{WE}$在逻辑1，如表1的第四行所示。在激活周期之后，必须在经过一定时间后才能对同一个存储体开始下一个预充电周期。这个时间间隔称为RAS时间周期，```tRAS```，如图16所示。
 
-图16
+![图16：Bank的预充电和激活](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-16-bank-precharge-and-activation-cycles.png)
 
 表1的第五行显示了当$\overline{CS}$ = $\overline{CAS}$ = $\overline{WE}$ = 0和$\overline{RAS}$ = 1时，如何向选定的存储体写入数据。实际的写入操作发生在图15中的写入序列的最后阶段，在预充电和激活周期之后。为了详细说明写入序列，图17中给出了一个单次写入的例子。在此图中，写入周期从预充电存储体1开始。在t = tPRE之后，激活周期开始，并将行地址提供给SDRAM。当在时间周期tCAS之后提供列地址时，四个数据包D(0)到D(3)在四个连续的时钟周期内被写入SDRAM。请注意，在此图中，如果同一个存储体用于另一次写入操作，则需要在存储体激活周期和下一次预充电周期之间安排一个新的时间周期tRAS。
 
