@@ -128,8 +128,7 @@ tag:
 
 图20中的示例显示了从BANK1进行的一次读取操作。在发出读取命令和列地址之前，读取和写入操作的路径是相同的。然而，从这一点开始，读取突发会采取不同的路径，并等待编程的延迟期结束。与写入过程类似，在读取过程中也必须经过一定的${t}_{RAS}$周期，才能从同一存储库中读取其他数据流。在该图中，${t}_{WAIT}$表示最后一个数据包与下一个预充电周期开始之间的等待期。
 
-图20
-
+![图20：单个读周期](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-20-single-read-cycle.png)
 
 
 ## 3.电可擦除可编程只读存储器(EEPROM)
