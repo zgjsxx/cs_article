@@ -124,7 +124,11 @@ tag:
 
 表1的第六行展示了如何从已选中的存储库（bank）启动读取周期。从SDRAM读取数据涉及一个延迟周期，该延迟周期需要在地址模式寄存器中进行编程。图19中的示例显示，在读取命令和地址给出后，经过三个时钟周期的延迟期，读取突发（burst）开始。三个时钟周期的延迟意味着数据在读取命令和地址发出后的第三个时钟周期时在SDRAM的输出端变的可用。
 
-图19
+![图19：读周期中延迟的定义](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-19-definition-of-latency-during-a-read-cycle.png)
+
+图20中的示例显示了从BANK1进行的一次读取操作。在发出读取命令和列地址之前，读取和写入操作的路径是相同的。然而，从这一点开始，读取突发会采取不同的路径，并等待编程的延迟期结束。与写入过程类似，在读取过程中也必须经过一定的${t}_{RAS}$周期，才能从同一存储库中读取其他数据流。在该图中，${t}_{WAIT}$表示最后一个数据包与下一个预充电周期开始之间的等待期。
+
+图20
 
 
 
