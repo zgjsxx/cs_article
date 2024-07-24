@@ -132,6 +132,8 @@ tag:
 
 图21中的示例描述了从同一BANK进行的多次读取，并假设${t}_{WAIT}$等于零。这种情况下，从存储库1读取四个字（```D(0)```到```D(3)```）的突发读取，并在最后一个数据包传送期间对同一存储库进行预充电。第二次从存储库1的突发读取遵循与第一次相同的模式，在经过两个时钟周期的编程延迟后传送```D(4)```到```D(7)```。如果${t}_{WAIT}$不为零，那么该图中的第二次预充电期将遵循图20中的模式，并在${t}_{WAIT}$期满后开始。
 
+![图21：在同一个bank中多个读周期(${t}_{pre} = 1 cycle$,${t}_{CAS} = 2 cycles$, ${t}_{WAIT} = 0 cycles$)](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-21-multi-read-cycle-same-bank.png)
+
 
 ## 3.电可擦除可编程只读存储器(EEPROM)
 
