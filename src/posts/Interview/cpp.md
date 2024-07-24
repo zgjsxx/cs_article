@@ -79,7 +79,7 @@ int getValue(void) const;
 
 ## 类和对象
 
-**什么是RTTI**
+### 什么是RTTI
 
 RTTI（Run-Time Type Information，运行时类型信息）是一种在程序运行时提供对象类型信息的机制。它允许在运行时检查对象的类型，通常用于以下几个方面：
 
