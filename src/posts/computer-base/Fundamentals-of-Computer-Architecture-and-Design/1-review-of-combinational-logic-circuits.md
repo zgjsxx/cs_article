@@ -92,7 +92,7 @@ OUT = A ⊕ B
 
 ![图7：反相器的符号表示](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/fig-7-inverter-symbol.png)
 
-![表3：反相器的真值表](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/tbl-4-inverter-truth-table.png)
+![表4：反相器的真值表](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/tbl-4-inverter-truth-table.png)
 
 反相器的功能表示为：
 
@@ -104,7 +104,17 @@ $OUT = \overline{IN}$
 
 ![图8：两输入与非门的符号表示](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/fig-8-two-input-NAND-gate-symbol.png)
 
+![表5：两输入与非门真值表](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/tbl-5-two-input-NAND-gate-truth-table.png)
 
+两个输入NAND门的功能表示是：
+
+$OUT = \overline{A \cdot B}$
+
+与NAND门类似，两个输入的或门和异或门有相应的互补类型，分别称为两输入的或非门和异或非门。
+
+两个输入的或非门的符号表示和真值表分别在图9和表6中显示。同样，表6中的所有输出都是表2中的精确互补。
+
+![图9：两输入或非门的符号表示](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/fig-9-two-input-NOR-gate-symbol.png)
 
 
 ## 2.布尔代数
