@@ -136,7 +136,7 @@ tag:
 
 从两个不同存储单元读取数据的交错技术，在图22中，与图18中写入数据到两个不同存储单元时的技术并无不同。与写入情况一样，时序图中第二次预充电周期的位置对于实现两个连续的读取突发（从存储单元0读取D0(0)到D0(3)和从存储单元1读取D1(0)到D1(3)）非常重要，这样可以在不丢失任何周期的情况下完成，并且能够在最短的时间内从SDRAM中获取数据。
 
-图22
+![图22：在不同bank中多个读周期(${t}_{pre} = 1 cycle$,${t}_{CAS} = 2 cycles$)](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-22-multi-read-cycle-from-different-banks.png)
 
 表1的第七行显示了如何停止读或写突发。图23展示了在数据突发中途发出突发停止命令时的单次写入序列。接收到该命令后，被选中的存储单元进入待机模式，并等待下一个预充电命令。
 
