@@ -140,7 +140,7 @@ tag:
 
 表1的第七行显示了如何停止读或写突发。图23展示了在数据突发中途发出突发停止命令时的单次写入序列。接收到该命令后，被选中的存储单元进入待机模式，并等待下一个预充电命令。
 
-图23
+![图23：突发停止](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-23-burst-stop-during-write.png)
 
 当在读取过程中间发出突发停止命令时，最后一个数据包仍会在紧随突发停止命令的时钟边沿传送，如图24所示。
 
