@@ -164,6 +164,7 @@ tag:
 
 一旦启用，总线接口将在地址寄存器中存储起始SDRAM地址，并通过$\overline{CS} = 0$ ，$\overline{RAS} = 0$，$\overline{CAS} = 1$和$\overline{WE} = 0$为所选存储单元发出预充电命令。在同一个周期内，计数器通过LoadtPRE = 1加载预充电等待周期tPRE，如时序图所示。
 
+![图27：SDRAM 总线接口的写周期](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-27-write-cycle-via-SDRAM-bus-interface.png)
 
 
 ## 3.电可擦除可编程只读存储器(EEPROM)
