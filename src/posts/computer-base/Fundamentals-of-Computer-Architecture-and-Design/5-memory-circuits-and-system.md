@@ -158,7 +158,12 @@ tag:
 
 对于正常的SDRAM操作，总线地址```Addr[31:0]```必须被划分为几个段。在图26的例子中，SDRAM地址的四个最高有效位```Addr[31:28]```表示SDRAM芯片标识，用于激活相应的总线接口。```Addr[21:20]```用于选择SDRAM的存储体，即```BS[1:0]```。```Addr[19:10]```和```Addr[9:0]```分别指定行地址和列地址。
 
-图26
+![图26：SDRAM 总线接口地址映射](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-26-SDRAM-bus-interface-address-mapping.png)
+
+图27显示了一个典型的SDRAM写入序列。在这个时序图中，所有五个SDRAM接口寄存器必须在IDLE/PROG时钟周期之前进行编程，如前所述。SDRAM写入序列从系统总线发送Status = START，Write = 1和起始SDRAM地址开始。这三个信号使总线接口写使能信号BIWEn转换为逻辑1，从而在图27的第一个周期中启用总线接口进行写操作。
+
+一旦启用，总线接口将在地址寄存器中存储起始SDRAM地址，并通过$\overline{CS} = 0$ ，$\overline{RAS} = 0$，$\overline{CAS} = 1$和$\overline{WE} = 0$为所选存储单元发出预充电命令。在同一个周期内，计数器通过LoadtPRE = 1加载预充电等待周期tPRE，如时序图所示。
+
 
 
 ## 3.电可擦除可编程只读存储器(EEPROM)
