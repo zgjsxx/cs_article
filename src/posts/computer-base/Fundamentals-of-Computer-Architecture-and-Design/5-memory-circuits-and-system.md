@@ -160,11 +160,19 @@ tag:
 
 ![图26：SDRAM 总线接口地址映射](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-26-SDRAM-bus-interface-address-mapping.png)
 
-图27显示了一个典型的SDRAM写入序列。在这个时序图中，所有五个SDRAM接口寄存器必须在IDLE/PROG时钟周期之前进行编程，如前所述。SDRAM写入序列从系统总线发送Status = START，Write = 1和起始SDRAM地址开始。这三个信号使总线接口写使能信号BIWEn转换为逻辑1，从而在图27的第一个周期中启用总线接口进行写操作。
-
-一旦启用，总线接口将在地址寄存器中存储起始SDRAM地址，并通过$\overline{CS} = 0$ ，$\overline{RAS} = 0$，$\overline{CAS} = 1$和$\overline{WE} = 0$为所选存储单元发出预充电命令。在同一个周期内，计数器通过LoadtPRE = 1加载预充电等待周期tPRE，如时序图所示。
+图27显示了一个典型的SDRAM写入序列。在这个时序图中，所有五个SDRAM接口寄存器必须在IDLE/PROG时钟周期之前进行编程，如前所述。SDRAM写入序列从系统总线发送Status = START，Write = 1和起始SDRAM地址开始。这三个信号使总线接口写使能信号BIWEn转换为逻辑1，从而在图27的第一个周期中启用总线接口进行写操作。一旦启用，总线接口将在地址寄存器中存储起始SDRAM地址，并通过$\overline{CS} = 0$ ，$\overline{RAS} = 0$，$\overline{CAS} = 1$和$\overline{WE} = 0$为所选存储单元发出预充电命令。在同一个周期内，计数器通过LoadtPRE = 1加载预充电等待周期tPRE，如时序图所示。
 
 ![图27：SDRAM 总线接口的写周期](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-27-write-cycle-via-SDRAM-bus-interface.png)
+
+预充电等待周期是通过将时钟周期数与时钟周期相乘来计算的。该设计中的计数器是一个递减计数器。当其输出值 ```CountOut``` 变为 1 时，控制器启动所选 SDRAM 存储体的激活周期并发送行地址。激活周期开始时，通过 ```LoadtCAS = 1``` 将 ${t}_{CAS}$ 值加载到递减计数器。在同一个时钟周期内，行地址 ```Addr[19:10]``` 通过选择行地址选择器（```SelRow = 1```）从地址寄存器传输到 SDRAM 的 R 端口的 3-1 复用器。当激活等待周期结束时，控制器使用 ```LoadtBURST``` 输入将写突发长度（数据包的数量）加载到递减计数器，并在下一个周期中启动写入序列。
+
+在图27中的开始写入（START WRITE）期间，控制器通过生成 ```SelCol = 1```，将列地址 ```Addr[9:0]``` 从地址寄存器通过图25 中的 3-1 复用器的 C 端口传输到 SDRAM 的 ```A[9:0]``` 输入端。在同一时钟周期内，控制器还生成 $\overline{CS} = 0$, $\overline{RAS} = 1$, $\overline{CAS} = 0$ 和 $\overline{WE} = 0$，并通过 ```EnWData = 1``` 启用三态缓冲器，以将第一个写数据包 ```D0``` 写入 ```SDRAM```。为了能够写入剩余的数据包，从这一点开始，控制器发出 ```Ready = 1```。当序列进入图27中的加载等待（LOAD WAIT）期间（即最后一次写入发生的地方）时，控制器降低 ```Ready``` 信号，但保持 ```EnWData``` 信号为逻辑 1，以写入最后一个数据包 ```D3```。这个时钟周期也标志着等待周期 ${t}_{WAIT}$ 的开始。如果需要对同一个存储体进行另一次写入序列，控制器会发出 ${Loadt}_{WAIT} = 1$，将 ${t}_{WAIT}$ 加载到递减计数器中。
+
+为简化起见，时序图中省略了剩余的控制信号 Burst 和 Size。在整个数据传输过程中，本例中 Burst 设置为 4，Size 设置为 32。对于字节和半字传输，Size 需要按照表5 中描述的那样进行掩码定义。
+
+控制器的写入状态图如图28 所示。在该图中，当接口接收到 BIWEn = 1 时，控制器从 IDLE/PROG 状态（对应图27中时序图的第一个周期）转换到 LOAD PRE 状态（对应同一时序图的第二个时钟周期）。在 LOAD PRE 状态下，控制器重置 $\overline{CS}$, $\overline{RAS}$, $\overline{CAS} $ 和 $\overline{WE}$，但设置所选存储体的 CAS 以启动预充电过程。在该状态下，会生成两个附加信号：```StoreReg = 1``` 用于将总线地址存储在地址寄存器中，```LoadtPRE = 1``` 用于启动预充电等待周期。控制器在预充电等待状态 tPRE 中保持不变，直到 CountOut = 1。然后，控制器转换到 LOAD CAS 状态，激活所选存储体，发出 SelRow = 1 以将行地址传输到 SDRAM，并生成 LoadtCAS = 1 以启动激活等待周期。下一个状态 tCAS 是另一个等待状态，控制器在此状态中等待激活周期结束。一旦该周期结束，控制器首先进入 LOAD BURST 状态，然后进入 START WRITE 状态以启动将数据写入 SDRAM。后者对应于前面提到的将第一个数据包写入 SDRAM 核心的状态。随后的写入发生在控制器转换到 WRITE 状态时。控制器保持在该状态，直到 CountOut = 2，表示还有一个数据包要写入 SDRAM。当控制器移动到 LOAD WAIT 状态时，最后一个数据包被最终写入。在尝试另一个写入过程之前，控制器在 tWAIT 状态中等待，直到 CountOut = 1。
+
+![图28：SDRAM写操作状态图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-28-SDRAM-bus-interface-for-write.png)
 
 
 ## 3.电可擦除可编程只读存储器(EEPROM)
