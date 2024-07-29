@@ -174,6 +174,11 @@ tag:
 
 ![图28：SDRAM写操作状态图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-28-SDRAM-bus-interface-for-write.png)
 
+请注意，图28中的所有状态名称和图27顶部的周期名称保持一致，以便在时序图和状态图之间实现一一对应。
+
+SDRAM 读取序列同样以系统总线发送```Status = START```、```Write = 0``` 和初始 SDRAM 地址开始。这一组合设置了总线接口读取使能信号 ```BIREn = 1```，使能总线接口在图29的时序图中的第一个周期从 SDRAM 核心读取数据。读取过程的其余部分与写入过程相同，直到控制器在图29的 START READ 周期中发出读取命令并发送所选 SDRAM 存储体的列地址。由于 SDRAM 数据在延迟期后才变得可用，控制器必须在读取突发前复制这个精确的延迟，并在突发期间和之后生成控制信号。例如，在延迟期结束前的一个周期，控制器需要生成 LoadtBURST = 1，将突发持续时间加载到递减计数器，以便能够检测到突发数据的开始和结束。因此，控制器可以确定何时生成 EnRData = 1 以使能三态缓冲器，从 SDRAM 的 RData 输出读取数据包 D0 到 D3。在最后一个数据传输期间，控制器发出 LoadtWAIT = 1，将 tWAIT 的值加载到递减计数器中，以便在选择同一存储体进行另一次读取时使用。
+
+![图29：SDRAM总线接口的读周期](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-29-read-cycle-via-SDRAM-bus-interface.png)
 
 ## 3.电可擦除可编程只读存储器(EEPROM)
 
