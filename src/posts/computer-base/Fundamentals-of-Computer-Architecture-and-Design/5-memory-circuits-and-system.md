@@ -180,6 +180,10 @@ SDRAM 读取序列同样以系统总线发送```Status = START```、```Write = 0
 
 ![图29：SDRAM总线接口的读周期](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-29-read-cycle-via-SDRAM-bus-interface.png)
 
+图30中的状态图直接源于图29中的时序图。在该状态图中，当接口接收到```BIREn = 1```信号时，控制器从IDLE状态（对应于图29中的第一个周期）转换到LOAD PRE状态（对应于同一时序图中的第二个时钟周期）。在LOAD PRE状态中，通过$\overline{CS} = 0$、$\overline{RAS} = 0$、$\overline{WE} = 0$和$\overline{CAS} = 1$来选择预充电的存储体。在此状态下，控制器通过```StoreReg = 1```将有效的总线地址存储到地址寄存器中，并通过```LoadtPRE = 1```将预充电等待周期加载到递减计数器中。控制器在tPRE状态中保持，直到递减计数器中的预充电值耗尽。随后，控制器转到LOAD CAS状态，通过$\overline{CS} = 0$、$\overline{RAS} = 0$、$\overline{WE} = 1$和$\overline{CAS} = 1$激活所选存储体，发出```SelRow = 1```将行地址从地址寄存器传输到SDRAM，并生成LoadtCAS = 1将激活等待周期加载到递减计数器中。CAS等待周期对应于图30中的tCAS状态。当此周期在CountOut = 1时结束，控制器转换到START READ状态，通过$\overline{CS} = 0$、$\overline{RAS} = 1$、$\overline{WE} = 1$和$\overline{CAS} = 0$启动数据读取，并产生SelCol = 1将列地址从地址寄存器传输到SDRAM地址端口。此状态之后是四个单独的等待状态，以选择编程的读取延迟周期。由于图5.29中的读取延迟等于两个，状态机通过单个LAT WAIT状态。在LAT WAIT状态中，控制器发出LoadtBURST = 1，并将数据突发值tBURST加载到递减计数器中。在延迟状态之后，状态机转换到READ状态，直到CountOut = 2，表示读取突发结束。在此状态下，它生成EnRData = 1以启用数据输出缓冲器，并生成Ready = 1以验证读取数据。在突发周期结束时，状态机移动到LOAD WAIT状态，并发出LoadtWAIT = 1，将所需的等待周期加载到递减计数器中，直到下一个预充电发生。随后，状态机转换到tWAIT状态，并在等待周期结束前保持在此状态。
+
+![图30：SDRAM总线接口读操作流程(控制信号为了简化目的没有展示)](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-30-SDRAM-bus-interface-for-read.png)
+
 ## 3.电可擦除可编程只读存储器(EEPROM)
 
 电可擦除可编程只读存储器 (E2PROM) 历史上被认为是闪存的前身，同时也是计算机系统中速度最慢的存储器。它相对于其他类型存储器的最大优势在于其能够在系统断电后仍能保留数据，这是因为其存储核心采用了浮栅MOS晶体管。相较于机电硬盘，它的尺寸相对较小，使其成为存储内置操作系统 (BIOS) 的理想选择，特别适用于手持计算平台。
