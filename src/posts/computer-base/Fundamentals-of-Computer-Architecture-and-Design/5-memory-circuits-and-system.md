@@ -196,11 +196,18 @@ SDRAM 读取序列同样以系统总线发送```Status = START```、```Write = 0
 
 ![图32：典型的EEPROM的架构](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-32-E2PROM-major-operation-modes.png)
 
+![图33：E2PROM的主要操作模式](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-33-E2PROM-major-modes.png)
+
+
 图34所示的E2PROM单元基本上是一个N沟道MOS晶体管，在其控制栅终端（字线）和电子传导的沟道之间夹有一个额外的浮动栅层。该器件还具有漏极（位线）和源极（源线）终端，用于将单元连接到相邻电路。
 
 要向存储单元写入逻辑0，在**字线**和**位线**之间施加高电压，同时**源线**节点保持接地。此配置在晶体管沟道中生成热载流子，这些热载流子通过栅氧化层隧穿并到达浮动栅极，提升晶体管的阈值电压。提升的阈值电压防止了在正常电路操作期间使用的标准栅源电压将已编程器件开启，并导致存储在器件中的值被解释为逻辑0。另一方面，没有在浮动栅极上带电的未编程器件表现出低阈值电压特性，并且可以通过标准栅源电压开启，产生沟道电流。在这种状态下，存储在器件中的值被解释为逻辑1。
 
 ![图34：EEPROM单元](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-34-e2prom-cell.png)
+
+图35显示了一个典型的**命令输入序列**。对于这个E2PROM示例，有四种基本命令：读取、写入（编程）、页擦除和状态寄存器读取。在E2PROM或闪存中，写入和编程命令可以互换使用，因为它们表示相同的操作。操作序列始终是命令输入，然后是地址和数据输入。为了输入命令，$\overline{EN}$被拉低到逻辑0，$\overline{AE}$被拉高到逻辑1（因为输入的不是地址），并且$\overline{CE}$被拉低到逻辑0，表明I/O总线上的值是命令输入。由于命令输入是写入命令寄存器的，$\overline{WE}$也在$\overline{CE}$信号的负跳变后某个时间被拉低到逻辑0。这段延迟称为建立时间${t}_{s}$，如图35所示。$\overline{WE}$信号的低电平持续一段${t}_{LO}$时间，并在$\overline{CE}$的正跳变之前某个时间返回到逻辑1。这段时间间隔称为保持时间，${t}_{H}$。在$\overline{WE}$的正跳变之前，需要发出有效的命令输入，满足数据建立时间${t}_{DS}$和数据保持时间${t}_{DH}$，如图35所示。
+
+![图35：命令序列的时序图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-35-Command-input-timing-diagram.png)
 
 ## 4.Flash memory
 
