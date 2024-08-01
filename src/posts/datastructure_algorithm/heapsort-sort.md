@@ -83,6 +83,9 @@ tag:
 
 
 ## 堆排序的代码实现
+
+c语言实现
+
 ```c
 #include <stdio.h>    
 #include <string.h>
@@ -177,6 +180,71 @@ int main()
    print(l6);
 
 	return 0;
+}
+```
+
+c++语言实现
+
+```cpp
+#include <vector>
+#include <iostream>
+using namespace std;
+
+void maxHeapify(vector<int>& a, int start, int end) {
+    int leftIdx = start * 2 + 1;
+    int rightIdx = start * 2 + 2;
+    int largest = start;
+    if (leftIdx <= end && a[leftIdx] > a[largest]) {
+        largest = leftIdx;
+    } 
+    if (rightIdx <= end && a[rightIdx] > a[largest]) {
+        largest = rightIdx;
+    }
+    if (largest != start) {
+        swap(a[start], a[largest]);
+        maxHeapify(a, largest, end);
+    }
+}
+void maxHeapify2(vector<int>& a, int start, int end){
+    int curIdx = start;
+    int leftIdx = 2 * curIdx + 1;
+    int rightIdx = 2 * curIdx + 2;
+    while(leftIdx <= end){
+        int largest = curIdx;
+        if (leftIdx <= end && a[leftIdx] > a[largest]) {
+            largest = leftIdx;
+        } 
+        if (rightIdx <= end && a[rightIdx] > a[largest]) {
+            largest = rightIdx;
+        }
+        if (largest == curIdx) {
+            break;
+        }
+        std::swap(a[largest], a[curIdx]);
+        curIdx = largest;
+        leftIdx = 2 * curIdx + 1;
+        rightIdx = 2 * curIdx + 2;           
+    }
+}
+
+int main() {
+    vector<int> nums{9,5,1,3,2,8,7,4,6, 5};
+    int heapSize = nums.size();
+    for (int i = heapSize / 2 - 1; i >= 0; --i) {
+        maxHeapify(nums, i, heapSize - 1);
+    } 
+    for(auto &item : nums){
+        std::cout << item << " " ;
+    }
+    std::cout << std::endl;
+    for (int i = nums.size() - 1; i > 0; --i) {
+        swap(nums[0], nums[i]);
+        maxHeapify(nums, 0, i - 1);
+    }
+    for(auto &item : nums){
+        std::cout << item << " " ;
+    }
+    return 0;
 }
 ```
 
