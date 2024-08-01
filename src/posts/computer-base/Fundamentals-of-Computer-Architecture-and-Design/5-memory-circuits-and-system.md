@@ -211,9 +211,11 @@ SDRAM 读取序列同样以系统总线发送```Status = START```、```Write = 0
 
 图36所示的**地址输入时序**与前面描述的命令输入时序原理相同：$\overline{EN}$需要为逻辑0以启用设备，$\overline{AE}$必须为逻辑0以进行地址输入，而$\overline{CE}$需要为逻辑1，因为该操作不是命令输入。在$\overline{EN}$信号的低电平阶段，$\overline{WE}$信号必须两次降到逻辑0以定位E2PROM中的数据。第一次$\overline{WE}$为0时，在$\overline{WE}$的第一个上升沿输入一个八位的行地址。接下来，在第二次$\overline{WE}$为0时输入一个由四位页地址和四位扇区地址组成的组合。在$\overline{EN}$信号的上升沿之前，$\overline{WE}$信号必须在${t}_{S}$周期后降到逻辑0，然后在${t}_{H}$周期内回到逻辑1。地址输入期间，$\overline{WE}$信号还必须在低电平保持${t}_{LO}$周期，在高电平保持${t}_{HI}$（或更长）周期。在${t}_{DS}$和${t}_{DH}$设置和保持时间内，每个$\overline{WE}$的上升沿都会发出有效的地址值。
 
-图36
 
-图37描述了数据输入序列，其中（M + 1）个数据包被写入E2PROM核心。在整个写入周期内，$\overline{AE}$信号必须保持为逻辑1，表示该操作是数据输入而不是地址输入。每个$\overline{WE}$信号的上升沿都会写入一个数据包。
+![图36：地址输入序列的时序图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-36-address-input-timing-diagram.png)
+
+
+图37描述了**数据输入序列**，其中（M + 1）个数据包被写入E2PROM核心。在整个写入周期内，$\overline{AE}$信号必须保持为逻辑1，表示该操作是数据输入而不是地址输入。每个$\overline{WE}$信号的上升沿都会写入一个数据包。
 
 在读取过程中，低电平有效的控制信号$\overline{AE}$和$\overline{CE}$保持为逻辑1。读取使能信号$\overline{RE}$在每个下降沿使E2PROM从其存储核心读取数据，如图38所示。从$\overline{RE}$的下降沿到实际数据从存储器中可用之间的时间延迟称为访问时间${t}_{A}$，如同一时序图所示。$\overline{RE}$信号必须具有指定的${t}_{S}$、${t}_{H}$、${t}_{LO}$和${t}_{HI}$时间周期，才能从存储核心读取数据。
 
