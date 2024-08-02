@@ -217,7 +217,16 @@ SDRAM 读取序列同样以系统总线发送```Status = START```、```Write = 0
 
 图37描述了**数据输入序列**，其中（M + 1）个数据包被写入E2PROM核心。在整个写入周期内，$\overline{AE}$信号必须保持为逻辑1，表示该操作是数据输入而不是地址输入。每个$\overline{WE}$信号的上升沿都会写入一个数据包。
 
-在读取过程中，低电平有效的控制信号$\overline{AE}$和$\overline{CE}$保持为逻辑1。读取使能信号$\overline{RE}$在每个下降沿使E2PROM从其存储核心读取数据，如图38所示。从$\overline{RE}$的下降沿到实际数据从存储器中可用之间的时间延迟称为访问时间${t}_{A}$，如同一时序图所示。$\overline{RE}$信号必须具有指定的${t}_{S}$、${t}_{H}$、${t}_{LO}$和${t}_{HI}$时间周期，才能从存储核心读取数据。
+![图37：数据输入序列的时序图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-37-data-input(write-or-program)-timing-diagram.png)
+
+图38描述了**数据读取序列**，在读取过程中，低电平有效的控制信号$\overline{AE}$和$\overline{CE}$保持为逻辑1。读取使能信号$\overline{RE}$在每个下降沿使E2PROM从其存储核心读取数据，如图38所示。从$\overline{RE}$的下降沿到实际数据从存储器中可用之间的时间延迟称为访问时间${t}_{A}$，如同一时序图所示。$\overline{RE}$信号必须具有指定的${t}_{S}$、${t}_{H}$、${t}_{LO}$和${t}_{HI}$时间周期，才能从存储核心读取数据。
+
+图38
+
+读取状态寄存器的数据是一个两步过程。第一步是在$\overline{WE}$信号的上升沿输入状态寄存器读取命令。随后在$\overline{RE}$信号的下降沿（${t}_{A}$）之后的一段时间读取寄存器的内容，如图39所示。请注意，在输入命令时，$\overline{CE}$信号最初保持在逻辑0，但在读取状态寄存器内容时，$\overline{CE}$信号被提升到逻辑1。
+
+图39
+
 
 ## 4.Flash memory
 
