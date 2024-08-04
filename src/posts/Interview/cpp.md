@@ -5,10 +5,79 @@ tag:
 - c++面经
 ---
 
+- [c++面经](#c面经)
+  - [c++基础](#c基础)
+    - [请实现一个strcpy方法](#请实现一个strcpy方法)
+    - [内存堆栈对比，分别有什么特点？它们的分配效率如何？](#内存堆栈对比分别有什么特点它们的分配效率如何)
+    - [++i和i++哪个效率更高？](#i和i哪个效率更高)
+    - [c++中const的作用](#c中const的作用)
+    - [如何禁用拷贝构造函数](#如何禁用拷贝构造函数)
+  - [类和对象](#类和对象)
+    - [什么是RTTI](#什么是rtti)
+  - [STL](#stl)
+  - [参考](#参考)
 
 # c++面经
 
 ## c++基础
+
+### 请实现一个strcpy方法
+
+```cpp
+#include <stdio.h>
+
+// 实现 strcpy 函数
+char* my_strcpy(char* destination, const char* source) {
+    char* ptr = destination;
+
+    // 复制源字符串中的每一个字符到目标字符串
+    while (*source != '\0') {
+        *ptr++ = *source++;
+    }
+
+    // 确保目标字符串以 '\0' 结尾
+    *ptr = '\0';
+
+    return destination;
+}
+
+int main() {
+    char source[] = "Hello, World!";
+    char destination[50];  // 目标字符串的大小应足够容纳源字符串
+
+    // 使用自定义的 strcpy 函数
+    my_strcpy(destination, source);
+
+    // 输出复制后的目标字符串
+    printf("Copied string: %s\n", destination);
+
+    return 0;
+}
+```
+
+这里函数需要返回```char*```，主要是因为：
+- 链式调用（Chaining）：
+
+由于strcpy返回destination，可以在一条语句中进行多个操作。例如：
+
+```c
+char destination[50];
+printf("%s\n", strcpy(destination, "Hello, World!"));
+```
+
+- 一致的函数接口设计：
+
+在C标准库中，许多字符串处理函数（例如strcat、strncpy等）都会返回目标字符串指针。这种设计提供了一种一致的接口，使得函数的行为和使用方式更具一致性和可预测性。
+
+- 增强代码的灵活性：
+
+返回目标字符串指针可以增强代码的灵活性，使调用者可以在需要时使用返回值，或忽略它。例如：
+
+```c
+char destination[50];
+char *result = strcpy(destination, "Hello, World!");
+printf("Copied string: %s\n", result);
+```
 
 ### 内存堆栈对比，分别有什么特点？它们的分配效率如何？
 
