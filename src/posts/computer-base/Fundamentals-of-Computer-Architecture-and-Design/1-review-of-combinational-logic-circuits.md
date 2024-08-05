@@ -106,15 +106,25 @@ $OUT = \overline{IN}$
 
 ![表5：两输入与非门真值表](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/tbl-5-two-input-NAND-gate-truth-table.png)
 
-两个输入NAND门的功能表示是：
+两个输入**与非门**的功能表示是：
 
 $OUT = \overline{A \cdot B}$
 
 与NAND门类似，两个输入的或门和异或门有相应的互补类型，分别称为两输入的或非门和异或非门。
 
-两个输入的或非门的符号表示和真值表分别在图9和表6中显示。同样，表6中的所有输出都是表2中的精确互补。
+两个输入的或非门的符号表示和真值表分别在图9和表6中显示。同样，表6中的所有输出都是表2中的互补。
 
 ![图9：两输入或非门的符号表示](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/fig-9-two-input-NOR-gate-symbol.png)
+
+![表6：两输入或非门真值表](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/tbl-6-two-input-NOR-gate-truth-table.png)
+
+两个输入**或非门**的功能表示是：
+
+$OUT = \overline{A + B}$
+
+图10和表7分别显示了两输入异或非门的符号表示和真值表。这个门与其对应的两输入异或门类似，常用于检测输入逻辑电平是否相等。
+
+![图10：两输入异或非门的符号表示](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/1/fig-10-two-input-XNOR-gate-symbol.png)
 
 
 ## 2.布尔代数
