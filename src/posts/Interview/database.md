@@ -119,3 +119,5 @@ MySQL 的事务隔离级别定义了事务之间的可见性和一致性，决�
 ## MySQL可重复读完全解决了幻读问题吗？
 
 MySQL InnoDB 引擎的可重复读隔离级别（默认隔离级），根据不同的查询方式，分别提出了避免幻读的方案：
+
+https://xiaolincoding.com/mysql/transaction/phantom.html#%E4%BB%80%E4%B9%88%E6%98%AF%E5%B9%BB%E8%AF%BB
