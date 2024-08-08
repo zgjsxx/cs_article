@@ -9,6 +9,8 @@ tag:
 - [设计模式面经](#设计模式面经)
   - [创建型模式](#创建型模式)
     - [工厂方法](#工厂方法)
+  - [结构性模式](#结构性模式)
+    - [适配器模式](#适配器模式)
   - [行为型模式](#行为型模式)
     - [策略模式](#策略模式)
 
@@ -186,6 +188,81 @@ int main() {
 
 - 简单工厂模式：客户端依赖于具体的工厂类，当工厂类需要修改时，客户端代码也可能需要调整。
 - 工厂方法模式：客户端依赖于抽象工厂接口和产品接口，具体实现类的变化对客户端代码透明，从而提高了系统的灵活性和可扩展性。
+
+
+## 结构性模式
+
+### 适配器模式
+
+日志系统
+
+假设你有一个旧的日志类 ```OldLogger```，它的接口 ```logMessage(std::string msg)```，但你的系统希望使用新的接口 Logger，该接口提供 ```log(std::string msg, LogLevel level)``` 方法。
+
+```cpp
+#include <iostream>
+#include <string>
+
+// 旧的日志类
+class OldLogger {
+public:
+    void logMessage(const std::string& msg) {
+        std::cout << "Old Logger: " << msg << std::endl;
+    }
+};
+
+// 新的日志接口
+enum class LogLevel {
+    INFO,
+    WARNING,
+    ERROR
+};
+
+class Logger {
+public:
+    virtual void log(const std::string& msg, LogLevel level) = 0;
+};
+
+// 适配器类
+class LoggerAdapter : public Logger {
+private:
+    OldLogger* oldLogger;
+
+public:
+    LoggerAdapter() {
+        oldLogger = new OldLogger();
+    }
+
+    void log(const std::string& msg, LogLevel level) override {
+        std::string levelStr;
+        switch (level) {
+            case LogLevel::INFO:
+                levelStr = "INFO: ";
+                break;
+            case LogLevel::WARNING:
+                levelStr = "WARNING: ";
+                break;
+            case LogLevel::ERROR:
+                levelStr = "ERROR: ";
+                break;
+        }
+        oldLogger->logMessage(levelStr + msg);
+    }
+
+    ~LoggerAdapter() {
+        delete oldLogger;
+    }
+};
+
+int main() {
+    Logger* logger = new LoggerAdapter();
+    logger->log("This is an information message.", LogLevel::INFO);
+    logger->log("This is a warning message.", LogLevel::WARNING);
+    logger->log("This is an error message.", LogLevel::ERROR);
+    delete logger;
+    return 0;
+}
+```
+
 
 ## 行为型模式
 
