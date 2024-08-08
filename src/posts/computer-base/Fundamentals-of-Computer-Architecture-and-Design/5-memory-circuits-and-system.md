@@ -225,7 +225,7 @@ SDRAM 读取序列同样以系统总线发送```Status = START```、```Write = 0
 
 图39描述的是**读取状态寄存器**的过程。读取状态寄存器的数据是一个两步过程。第一步是在$\overline{WE}$信号的上升沿输入状态寄存器读取命令。随后在$\overline{RE}$信号的下降沿（${t}_{A}$）之后的一段时间读取寄存器的内容，如图39所示。请注意，在输入命令时，$\overline{CE}$信号最初保持在逻辑0，但在读取状态寄存器内容时，$\overline{CE}$信号被提升到逻辑1。
 
-图39
+![图39：读状态寄存器的时序图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-39-timing-diagram-for-reading-status-register.png)
 
 图39描述的是**完整页面的写入操作**的过程。完整页面数据写入操作由四个任务组合而成。如图40所示。
 第一个任务是在$\overline{WE}$（写使能）信号的上升沿输入写入数据缓冲区命令，同时保持$\overline{CE}$（片选）信号为逻辑0。
