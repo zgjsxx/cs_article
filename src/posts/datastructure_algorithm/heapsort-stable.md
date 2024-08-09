@@ -26,53 +26,44 @@ tag:
 
 在堆顶与堆尾交换的时候两个相等的记录在序列中的相对位置就可能发生改变，这就影响其稳定性了。
 
-下面看一个实际的例子， [5A,6,5B,7,8] ，A和B用于区分相同元素。
+下面看一个实际的例子， [5,4A,3,2,4B,1] ，A和B用于区分相同元素。
 
 数组的原始的状态如下所示：
 
 ![heapsort-stable1](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/datastructure_algorithm/heapsort-stable/heapsort-stable1.png)
 
 
-首先调整下方的子树[6，7，8]，将8和6的位置调换。
+当前状态下，已经是一个大顶堆，因此将堆顶元素5和尾部元素1进行交换.
 
 ![heapsort-stable2](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/datastructure_algorithm/heapsort-stable/heapsort-stable2.png)
 
-接着调整下方的子树[5A，8，5B]，将8和5A的位置调换。
+接着调整子树[1，4A，3]，将1和4A的位置调换。
 
 ![heapsort-stable3](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/datastructure_algorithm/heapsort-stable/heapsort-stable3.png)
 
-由于5A和8位置的调换，需要重新调整下方的子树[5A，7，6]，将5A和7的位置调换。这个时候5A和5B的顺序就出现了一次乱序。
+接着调整子树[1，2，4B]，将1和4B的位置调换。
 
 ![heapsort-stable4](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/datastructure_algorithm/heapsort-stable/heapsort-stable4.png)
 
-至此，第一轮排序完毕，将8和数组尾部元素6交换。
+至此，又一轮排序完毕，将4A和数组尾部元素1交换。
 
 ![heapsort-stable5](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/datastructure_algorithm/heapsort-stable/heapsort-stable5.png)
 
-接着调整顶部的子树[6，7，5B]，将7和6的位置调换。
+接着调整顶部的子树[1，4B，3]，将1和4B的位置调换。
 
 ![heapsort-stable6](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/datastructure_algorithm/heapsort-stable/heapsort-stable6.png)
 
-这个时候第二轮排序已经结束，此时可以将7和数组尾部元素5A进行调整。
+接着调整子树[1，2]，将1和2的位置调换。
 
 ![heapsort-stable7](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/datastructure_algorithm/heapsort-stable/heapsort-stable7.png)
 
-接着调整顶部的子树[5A，6，5B]，将6和5A的位置调换。
+至此，又一轮排序完毕，将4B和数组尾部元素1交换。
 
 ![heapsort-stable8](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/datastructure_algorithm/heapsort-stable/heapsort-stable8.png)
 
-这个时候第三轮排序已经结束，此时可以将6和数组尾部元素5B进行调整。
+至此为止，元素4B已经排在了4A前面，已经可以证明出堆排序的不稳定性。
 
-![heapsort-stable9](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/datastructure_algorithm/heapsort-stable/heapsort-stable9.png)
-
-剩下的元素已经满足了排序的要求，于是直接输出结果。
-
-![heapsort-stable10](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/datastructure_algorithm/heapsort-stable/heapsort-stable10.png)
-
-
-至此[5,4A,3,2,4B,1]  排序为 [1, 2, 3, 4B, 4A, 5]。可以看到4A和4B的关系发生了变化。
-
-下面通过c++的代码也验证了这一点。
+通过下面的c++的代码也验证了这一点。
 
 ```cpp
 #include <iostream>
