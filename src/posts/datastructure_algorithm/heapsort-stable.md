@@ -70,7 +70,82 @@ tag:
 ![heapsort-stable10](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/datastructure_algorithm/heapsort-stable/heapsort-stable10.png)
 
 
+至此[5,4A,3,2,4B,1]  排序为 [1, 2, 3, 4B, 4A, 5]。可以看到4A和4B的关系发生了变化。
 
-至此[5A,6,5B,7,8]  排序为 [5B,5A,6,7,8]。可以看到5A和5B的关系发生了变化。
+下面通过c++的代码也验证了这一点。
 
-通过这个例子也证明了堆排序不是一个稳定排序。
+```cpp
+#include <iostream>
+#include <vector>
+#include <algorithm>
+
+// 打印数组的函数
+void printArray(const std::vector<std::pair<int, char>>& arr) {
+    for (const auto& elem : arr) {
+        std::cout << elem.first << elem.second << " ";
+    }
+    std::cout << std::endl;
+}
+
+// 堆排序的辅助函数，用于堆调整
+void heapify(std::vector<std::pair<int, char>>& arr, int n, int i) {
+    int largest = i;        // 初始化最大元素为根节点
+    int left = 2 * i + 1;   // 左子节点
+    int right = 2 * i + 2;  // 右子节点
+
+    // 如果左子节点比根节点大
+    if (left < n && arr[left].first > arr[largest].first)
+        largest = left;
+
+    // 如果右子节点比当前最大元素大
+    if (right < n && arr[right].first > arr[largest].first)
+        largest = right;
+
+    // 如果最大元素不是根节点
+    if (largest != i) {
+        std::swap(arr[i], arr[largest]);
+
+        // 递归地对受影响的子树进行堆调整
+        heapify(arr, n, largest);
+    }
+}
+
+// 堆排序函数
+void heapSort(std::vector<std::pair<int, char>>& arr, int n) {
+    // 构建最大堆
+    for (int i = n / 2 - 1; i >= 0; i--)
+        heapify(arr, n, i);
+
+    // 一个个取出元素，进行堆调整
+    for (int i = n - 1; i > 0; i--) {
+        std::swap(arr[0], arr[i]);
+        heapify(arr, i, 0);
+    }
+}
+
+int main() {
+    // 定义数组，元素是 pair，第一个元素是值，第二个元素是标识符
+    std::vector<std::pair<int, char>> arr = {{5, 'a'}, {4, 'a'}, {3, 'a'}, {2, 'a'}, {4, 'b'}, {1, 'a'}};
+
+    std::cout << "Original array:\n";
+    printArray(arr);
+
+    // 进行堆排序
+    heapSort(arr, arr.size());
+
+    std::cout << "\nSorted array:\n";
+    printArray(arr);
+
+    return 0;
+}
+```
+
+结果输出如下，很明显4A和4B的关系在排序前后位置发生了变化。
+
+```shell
+Original array:
+5a 4a 3a 2a 4b 1a 
+
+Sorted array:
+1a 2a 3a 4b 4a 5a 
+```
