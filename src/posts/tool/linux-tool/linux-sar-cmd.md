@@ -1,3 +1,9 @@
+---
+category: 
+- Linux
+- tool
+---
+
 # sar
 
 ## sar –n DEV查看网络流量
