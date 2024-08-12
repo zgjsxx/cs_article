@@ -8,60 +8,93 @@ category:
 
 ## 基本概念
 
-命令 lsof （ list opened files ）负责列出系统中已经打开的文件，包括普通文件，目录，块特殊文件，字符特殊文件，正在执行的文本引用，库，流或网络文件（例如：网络套接字，NFS文件或UNIX域套接字）。
+**lsof**（List Set Open Files）是一个用于查看系统中当前打开文件的命令。在类Unix系统中，几乎所有事物都被视为文件，包括常规文件、目录、设备文件、套接字、管道等。因此，lsof 不仅可以查看正在使用的文件，还可以查看使用网络连接、设备和其他资源的进程。下面我将详细介绍 lsof 的常用选项和用法。
 
-## 常用参数
--p pid : 输出指定进程打开的文件；
+## 基本语法
 
--l : 输出中使用ID代替用户名；
+```shell
+lsof [选项] [文件]
+```
 
--u userName : 输出指定用户打开的文件；
+## 常用选项
 
--c string : 输出 COMMAND 列中包含 string 的项；
+**1.查看所有打开的文件**
 
--d fd : 输出包含指定描述符的项；
+```shell
+lsof
+```
 
-fileName : 输出打开文件 fileName 的所有项；
+这将列出系统中所有打开的文件。输出的每一行代表一个打开的文件，并包含以下列信息：
 
--i [46] [protocol][@hostname|hostaddr][:service|port] : 输出符合指定条件的项，其中：
+- COMMAND：打开文件的进程名。
+- PID：进程ID。
+- USER：进程的属主。
+- FD：文件描述符，表示文件在进程中的引用方式（例如：cwd表示当前工作目录，txt表示程序代码，mem表示内存映射文件，0-9表示文件描述符号）。
+- TYPE：文件类型（例如：DIR目录，REG常规文件，CHR字符设备，FIFO先进先出队列，SOCK套接字）。
+- DEVICE：设备号。
+- SIZE/OFF：文件大小或文件偏移。
+- NODE：文件节点号。
+- NAME：文件名或路径。
 
-    46 ：分别指 IPv4、IPv6；
+**2.根据文件名查看使用它的进程**
 
-    protocol ：指 TCP 或 UDP；
+```shell
+lsof /path/to/file
+```
 
-    hostname :  网络主机名；
+**3.根据PID查看进程打开的文件**
 
-    hostaddr : IP 地址；
+```shell
+lsof -p PID
+```
 
-    service : 包含在 /etc/services 中的名称；
+**4.根据用户查看打开的文件**
 
-    port : 端口号，可以是多个；
+```shell
+lsof -u 用户名
+```
 
+**5.查看网络连接**
 
-## 使用场景
+```shell
+lsof -i
+```
 
-### 无参数
+你可以进一步指定协议和端口：
 
+```shell
+lsof -i TCP:80  # 查看所有HTTP（TCP端口80）连接
+lsof -i UDP:53  # 查看所有DNS（UDP端口53）连接
+```
 
-### -p参数
+**6.根据命令名称查看文件**
 
+```shell
+lsof -c 命令名
+```
 
-### -I参数
+**7.查看指定端口的进程**
 
-### -u参数
+```shell
+lsof -i :端口号
+```
 
-### -c参数
+列出正在使用指定端口的进程。例如：
 
-### -d参数
+```shell
+lsof -i :22  # 查看占用22端口的进程（通常是SSH服务）
+```
 
-### lsof + 文件名
-执行命令 lsof /usr/lib64/ld-2.17.so，查看打开文件/usr/lib64/ld-2.17.so的进程项，如下所示：
+**8.查看UNIX域套接字**
 
-### -i参数
+```shell
+lsof -U
+```
 
+**9.组合使用多个选项**
 
+你可以组合多个选项以达到更细致的过滤。例如，要查看用户root的进程sshd打开的所有文件：
 
-
-## 总结
-
-## 参考文献
+```shell
+lsof -u root -c sshd
+```
