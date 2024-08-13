@@ -7,7 +7,6 @@ tag:
 
 # sofware license
 
-
 ## GPL
 
 GPL最典型的例子就是Linux。
