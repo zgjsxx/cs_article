@@ -6,12 +6,106 @@ tag:
 ---
 
 - [数据库](#数据库)
+  - [什么是关系型数据库范式？](#什么是关系型数据库范式)
   - [你对binlog日志和redolog日志了解吗？解释以下这两个日志的作用以及两阶段提交](#你对binlog日志和redolog日志了解吗解释以下这两个日志的作用以及两阶段提交)
   - [列举MySQL的四个隔离级别，并解释每个级别的区别以及可能产生的问题](#列举mysql的四个隔离级别并解释每个级别的区别以及可能产生的问题)
   - [MySQL可重复读完全解决了幻读问题吗？](#mysql可重复读完全解决了幻读问题吗)
 
 
 # 数据库
+
+## 什么是关系型数据库范式？
+
+数据库范式（Normalization）是数据库设计中的一套规则，用于组织数据库中的数据，以**减少数据冗余**，提高数据的完整性和一致性。范式提供了一种系统化的方法来设计数据库结构，使得数据冗余最小化，并避免某些常见的数据库操作问题，如插入异常、删除异常和更新异常。
+
+**1.第一范式（1NF）**
+
+要求：数据库表中的所有字段值必须是不可再分的原子值。换句话说，**每一列**中的数据应当是不可分割的单一值。
+
+示例：
+
+假设有一张表 Student：
+
+|StudentID|	Name|	PhoneNumber|
+|--|--|--|
+|1	|Alice|	123-4567|
+|2	|Bob	|234-5678, 345-6789|
+
+在这里，PhoneNumber列包含多个电话号码（234-5678, 345-6789），这不符合第一范式。要将其转换为1NF，应将每个电话号码分成单独的记录。
+
+转换后：
+
+|StudentID|	Name|	PhoneNumber|
+|--|--|--|
+|1	|Alice|	123-4567|
+|2	|Bob	|234-5678|
+|2	|Bob	|345-6789|
+
+**2.第二范式（2NF）**
+
+要求：在满足第一范式的基础上，数据库表中的每个非主属性必须完全依赖于整个主键，而不能依赖主键的一部分。适用于复合主键的表。
+
+示例：
+
+假设有一张表 OrderDetail，主键是由 OrderID 和 ProductID 组成：
+
+|OrderID|	ProductID	|Quantity	|ProductName|
+|--|--|--|--|
+|101|	1	|10|	Laptop|
+|101|	2	|5	|Mouse|
+
+在这个表中，ProductName依赖于ProductID而不是整个复合主键（OrderID + ProductID），这违反了第二范式。
+
+解决方法：将表拆分为两个表，使得每个非主属性完全依赖于主键。
+
+转换后：
+
+OrderDetail 表：
+
+|OrderID|	ProductID	|Quantity|
+|--|--|--|
+|101|	1	|10|
+|101|	2	|5 |
+
+Product 表：
+
+|ProductID	|ProductName |
+|--|--|
+|1	|Laptop|
+|2	|Mouse |
+
+**3.第三范式（3NF）**
+
+要求：在满足第二范式的基础上，表中的非主属性不应相互依赖，即任何非主属性都不依赖于其他非主属性。
+
+示例：
+
+假设有一张表 Employee：
+
+|EmployeeID	|Name	|DepartmentID	|DepartmentName|
+|--|--|--|--|
+|1	|John	|101	|HR|
+|2	|Jane	|102	|IT|
+
+在这个表中，DepartmentName依赖于DepartmentID，而DepartmentID又依赖于EmployeeID，因此DepartmentName间接依赖于主键EmployeeID，这违反了第三范式。
+
+解决方法：将表进一步拆分。
+
+转换后：
+
+Employee 表：
+
+|EmployeeID	|Name	|DepartmentID|
+|--|--|--|
+|1	|John	|101|
+|2	|Jane	|102|
+
+Department 表：
+
+|DepartmentID	|DepartmentName|
+|--|--|
+|101	|HR|
+|102	|IT|
 
 ## 你对binlog日志和redolog日志了解吗？解释以下这两个日志的作用以及两阶段提交
 
