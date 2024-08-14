@@ -1,3 +1,8 @@
+---
+category: 
+- Linux
+- tool
+---
 
 
 # ps命令

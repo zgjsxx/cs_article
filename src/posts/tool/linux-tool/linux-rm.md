@@ -1,3 +1,8 @@
+---
+category: 
+- Linux
+- tool
+---
 
 
 ## 删除带有空格的文件
