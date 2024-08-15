@@ -12,6 +12,8 @@ tag:
   - [结构型模式](#结构型模式)
     - [适配器模式](#适配器模式)
     - [桥接模式](#桥接模式)
+    - [组合模式](#组合模式)
+    - [享元模式](#享元模式)
   - [行为型模式](#行为型模式)
     - [策略模式](#策略模式)
 
@@ -334,7 +336,7 @@ int main() {
 
 桥接模式适用于以下场景：
 
-- 当一个类存在多个可能的扩展方向，并且每种扩展都可能有不同的实现时。例如，在一个图形绘制系统中，可以有不同的图形类型（如圆形、矩形等）和不同的绘制方式（如矢量绘制、光栅绘制等），桥接模式允许你在不影响客户端代码的情况下独立扩展图形类型和绘制方式。
+- 当一个类存在多个可能的扩展方向，并且每种扩展都可能有不同的实现时。例如，在一个图形绘制系统中，可以有不同的图形类型（如圆形、矩形等）和不同的绘制方式（如矢量绘制、光栅绘制等），桥接模式允许你在不影响客户端代码的情况下独立扩展图形类型和绘制方式。不使用桥接模式时，则需要使用图形类型的个数*光栅绘制个数的类去进行管理。
 
 - 需要在不同的实现之间进行切换时。例如，如果一个系统需要在不同的平台或环境（如Windows、Linux等）下运行，每个平台有不同的实现细节，桥接模式可以让你在不修改抽象部分的情况下轻松切换实现。
 
@@ -470,7 +472,269 @@ int main() {
 
 通过以上的总结和具体的应用场景说明，可以更清楚地理解桥接模式在解耦、扩展性和灵活性方面的重要性。
 
+### 组合模式
 
+不使用组合模式的情况
+假设我们有一个系统需要处理图形对象，比如椭圆 (Ellipse) 和矩形 (Rectangle)，并且还需要处理由这些图形对象组成的图形组 (GraphicGroup)。
+
+如果不使用组合模式，我们可能会设计如下的类：
+
+```cpp
+#include <iostream>
+#include <vector>
+
+class Ellipse {
+public:
+    void draw() const {
+        std::cout << "Drawing an Ellipse" << std::endl;
+    }
+};
+
+class Rectangle {
+public:
+    void draw() const {
+        std::cout << "Drawing a Rectangle" << std::endl;
+    }
+};
+
+class GraphicGroup {
+public:
+    void addEllipse(const Ellipse& ellipse) {
+        ellipses.push_back(ellipse);
+    }
+
+    void addRectangle(const Rectangle& rectangle) {
+        rectangles.push_back(rectangle);
+    }
+
+    void draw() const {
+        for (const auto& ellipse : ellipses) {
+            ellipse.draw();
+        }
+        for (const auto& rectangle : rectangles) {
+            rectangle.draw();
+        }
+    }
+
+private:
+    std::vector<Ellipse> ellipses;
+    std::vector<Rectangle> rectangles;
+};
+
+int main() {
+    Ellipse e1, e2;
+    Rectangle r1;
+
+    GraphicGroup group;
+    group.addEllipse(e1);
+    group.addEllipse(e2);
+    group.addRectangle(r1);
+
+    group.draw();
+
+    return 0;
+}
+```
+问题：
+- GraphicGroup只能处理特定的图形对象（如 Ellipse 和 Rectangle），不能扩展到处理其他类型的图形。
+- 如果你添加更多的图形类型，你需要修改 GraphicGroup 的代码以适应这些新类型，这违反了开闭原则（OCP）。
+
+**使用组合模式的情况**
+
+使用组合模式时，我们可以创建一个统一的抽象类 Graphic，并让 Ellipse、Rectangle 和 GraphicGroup 都继承这个抽象类。这样，客户端代码可以一致地处理单个图形和图形组。
+
+```cpp
+#include <iostream>
+#include <vector>
+#include <memory>
+
+// 抽象基类
+class Graphic {
+public:
+    virtual void draw() const = 0;
+    virtual ~Graphic() = default;
+};
+
+// 具体图形类：椭圆
+class Ellipse : public Graphic {
+public:
+    void draw() const override {
+        std::cout << "Drawing an Ellipse" << std::endl;
+    }
+};
+
+// 具体图形类：矩形
+class Rectangle : public Graphic {
+public:
+    void draw() const override {
+        std::cout << "Drawing a Rectangle" << std::endl;
+    }
+};
+
+// 组合类：图形组
+class GraphicGroup : public Graphic {
+public:
+    void add(std::shared_ptr<Graphic> graphic) {
+        children.push_back(graphic);
+    }
+
+    void draw() const override {
+        for (const auto& child : children) {
+            child->draw();
+        }
+    }
+
+private:
+    std::vector<std::shared_ptr<Graphic>> children;
+};
+
+int main() {
+    std::shared_ptr<Graphic> e1 = std::make_shared<Ellipse>();
+    std::shared_ptr<Graphic> e2 = std::make_shared<Ellipse>();
+    std::shared_ptr<Graphic> r1 = std::make_shared<Rectangle>();
+
+    std::shared_ptr<GraphicGroup> group = std::make_shared<GraphicGroup>();
+    group->add(e1);
+    group->add(e2);
+    group->add(r1);
+
+    group->draw();
+
+    return 0;
+}
+```
+使用组合模式的优势：
+
+- 统一接口： 所有图形类 (Ellipse, Rectangle, GraphicGroup) 都实现了相同的接口 Graphic，因此客户端代码可以一致地处理单个对象和组合对象。
+- 扩展性强： 可以轻松添加新的图形类型，而无需修改现有的组合类 (GraphicGroup)。
+- 简化客户端代码： 客户端不需要区分处理单个对象和组合对象，可以用相同的方式调用 draw() 方法。
+- 通过组合模式，我们可以将单个对象和组合对象统一起来，从而简化客户端代码并提高系统的灵活性和可扩展性。
+
+### 享元模式
+
+享元模式（Flyweight Pattern）是一种结构型设计模式，旨在减少程序中创建对象的数量，从而减少内存的占用。它通过共享已经存在的对象来避免重复创建相同对象的代价，尤其在大量细粒度对象被频繁使用的场景下，这种模式非常有用。
+
+**适用场景**
+
+享元模式特别适用于以下场景：
+
+- 程序中有大量相似的对象，并且这些对象的大部分状态是相同的，可以共享。
+- 系统需要节省内存，并且对象的数量可能很大。
+
+使用享元模式来管理 ConsoleLogger 和 FileLogger 可以更好地展示如何通过共享内部状态来减少内存开销和对象创建的成本。我们可以让这两种不同类型的日志记录器共享相同的日志级别（或其他配置），而输出到控制台还是文件作为具体实现的细节。
+
+```cpp
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <map>
+#include <memory>
+
+// 抽象享元类
+class Logger {
+public:
+    virtual void log(const std::string& message, const std::string& context) const = 0;
+    virtual ~Logger() = default;
+};
+
+// 具体享元类 - 控制台日志记录器
+class ConsoleLogger : public Logger {
+private:
+    std::string logLevel; // 共享的内部状态
+
+public:
+    ConsoleLogger(const std::string& logLevel) : logLevel(logLevel) {}
+
+    void log(const std::string& message, const std::string& context) const override {
+        std::cout << "[" << logLevel << "] " << context << ": " << message << std::endl;
+    }
+};
+
+// 具体享元类 - 文件日志记录器
+class FileLogger : public Logger {
+private:
+    std::string logLevel; // 共享的内部状态
+    std::string filename; // 文件名 - 共享的内部状态
+
+public:
+    FileLogger(const std::string& logLevel, const std::string& filename) 
+        : logLevel(logLevel), filename(filename) {}
+
+    void log(const std::string& message, const std::string& context) const override {
+        std::ofstream ofs(filename, std::ios_base::app);
+        if (ofs.is_open()) {
+            ofs << "[" << logLevel << "] " << context << ": " << message << std::endl;
+            ofs.close();
+        }
+    }
+};
+
+// 享元工厂类，用于管理和创建享元对象
+class LoggerFactory {
+private:
+    std::map<std::string, std::shared_ptr<Logger>> loggers;
+
+    std::string getKey(const std::string& logType, const std::string& logLevel, const std::string& filename = "") const {
+        return logType + "-" + logLevel + "-" + filename;
+    }
+
+public:
+    std::shared_ptr<Logger> getConsoleLogger(const std::string& logLevel) {
+        std::string key = getKey("Console", logLevel);
+        auto it = loggers.find(key);
+        if (it != loggers.end()) {
+            return it->second;
+        } else {
+            auto logger = std::make_shared<ConsoleLogger>(logLevel);
+            loggers[key] = logger;
+            return logger;
+        }
+    }
+
+    std::shared_ptr<Logger> getFileLogger(const std::string& logLevel, const std::string& filename) {
+        std::string key = getKey("File", logLevel, filename);
+        auto it = loggers.find(key);
+        if (it != loggers.end()) {
+            return it->second;
+        } else {
+            auto logger = std::make_shared<FileLogger>(logLevel, filename);
+            loggers[key] = logger;
+            return logger;
+        }
+    }
+};
+
+int main() {
+    LoggerFactory factory;
+
+    // 创建不同类型和级别的日志记录器
+    auto consoleErrorLogger = factory.getConsoleLogger("ERROR");
+    auto consoleInfoLogger = factory.getConsoleLogger("INFO");
+
+    auto fileErrorLogger = factory.getFileLogger("ERROR", "error.log");
+    auto fileInfoLogger = factory.getFileLogger("INFO", "info.log");
+
+    // 使用日志记录器记录日志信息
+    consoleErrorLogger->log("This is an error message", "Main");
+    consoleInfoLogger->log("This is an info message", "Main");
+
+    fileErrorLogger->log("This is an error message", "Main");
+    fileInfoLogger->log("This is an info message", "Main");
+
+    // 使用同一个日志类型和级别的记录器
+    auto anotherConsoleErrorLogger = factory.getConsoleLogger("ERROR");
+    anotherConsoleErrorLogger->log("This is another error message", "Helper");
+
+    auto anotherFileErrorLogger = factory.getFileLogger("ERROR", "error.log");
+    anotherFileErrorLogger->log("This is another error message", "Helper");
+
+    // 注意：consoleErrorLogger 和 anotherConsoleErrorLogger 是同一个实例
+    // fileErrorLogger 和 anotherFileErrorLogger 也是同一个实例
+
+    return 0;
+}
+
+```
 
 ## 行为型模式
 
