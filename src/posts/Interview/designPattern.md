@@ -12,6 +12,7 @@ tag:
   - [结构型模式](#结构型模式)
     - [适配器模式](#适配器模式)
     - [桥接模式](#桥接模式)
+    - [组合模式](#组合模式)
     - [享元模式](#享元模式)
   - [行为型模式](#行为型模式)
     - [策略模式](#策略模式)
@@ -470,6 +471,144 @@ int main() {
 - 设备控制软件：例如，支持多种硬件设备的驱动程序中，桥接模式可以将设备接口与具体的设备实现分开，以支持不同类型的设备。
 
 通过以上的总结和具体的应用场景说明，可以更清楚地理解桥接模式在解耦、扩展性和灵活性方面的重要性。
+
+### 组合模式
+
+不使用组合模式的情况
+假设我们有一个系统需要处理图形对象，比如椭圆 (Ellipse) 和矩形 (Rectangle)，并且还需要处理由这些图形对象组成的图形组 (GraphicGroup)。
+
+如果不使用组合模式，我们可能会设计如下的类：
+
+```cpp
+#include <iostream>
+#include <vector>
+
+class Ellipse {
+public:
+    void draw() const {
+        std::cout << "Drawing an Ellipse" << std::endl;
+    }
+};
+
+class Rectangle {
+public:
+    void draw() const {
+        std::cout << "Drawing a Rectangle" << std::endl;
+    }
+};
+
+class GraphicGroup {
+public:
+    void addEllipse(const Ellipse& ellipse) {
+        ellipses.push_back(ellipse);
+    }
+
+    void addRectangle(const Rectangle& rectangle) {
+        rectangles.push_back(rectangle);
+    }
+
+    void draw() const {
+        for (const auto& ellipse : ellipses) {
+            ellipse.draw();
+        }
+        for (const auto& rectangle : rectangles) {
+            rectangle.draw();
+        }
+    }
+
+private:
+    std::vector<Ellipse> ellipses;
+    std::vector<Rectangle> rectangles;
+};
+
+int main() {
+    Ellipse e1, e2;
+    Rectangle r1;
+
+    GraphicGroup group;
+    group.addEllipse(e1);
+    group.addEllipse(e2);
+    group.addRectangle(r1);
+
+    group.draw();
+
+    return 0;
+}
+```
+问题：
+- GraphicGroup只能处理特定的图形对象（如 Ellipse 和 Rectangle），不能扩展到处理其他类型的图形。
+- 如果你添加更多的图形类型，你需要修改 GraphicGroup 的代码以适应这些新类型，这违反了开闭原则（OCP）。
+
+**使用组合模式的情况**
+
+使用组合模式时，我们可以创建一个统一的抽象类 Graphic，并让 Ellipse、Rectangle 和 GraphicGroup 都继承这个抽象类。这样，客户端代码可以一致地处理单个图形和图形组。
+
+```cpp
+#include <iostream>
+#include <vector>
+#include <memory>
+
+// 抽象基类
+class Graphic {
+public:
+    virtual void draw() const = 0;
+    virtual ~Graphic() = default;
+};
+
+// 具体图形类：椭圆
+class Ellipse : public Graphic {
+public:
+    void draw() const override {
+        std::cout << "Drawing an Ellipse" << std::endl;
+    }
+};
+
+// 具体图形类：矩形
+class Rectangle : public Graphic {
+public:
+    void draw() const override {
+        std::cout << "Drawing a Rectangle" << std::endl;
+    }
+};
+
+// 组合类：图形组
+class GraphicGroup : public Graphic {
+public:
+    void add(std::shared_ptr<Graphic> graphic) {
+        children.push_back(graphic);
+    }
+
+    void draw() const override {
+        for (const auto& child : children) {
+            child->draw();
+        }
+    }
+
+private:
+    std::vector<std::shared_ptr<Graphic>> children;
+};
+
+int main() {
+    std::shared_ptr<Graphic> e1 = std::make_shared<Ellipse>();
+    std::shared_ptr<Graphic> e2 = std::make_shared<Ellipse>();
+    std::shared_ptr<Graphic> r1 = std::make_shared<Rectangle>();
+
+    std::shared_ptr<GraphicGroup> group = std::make_shared<GraphicGroup>();
+    group->add(e1);
+    group->add(e2);
+    group->add(r1);
+
+    group->draw();
+
+    return 0;
+}
+```
+使用组合模式的优势：
+
+- 统一接口： 所有图形类 (Ellipse, Rectangle, GraphicGroup) 都实现了相同的接口 Graphic，因此客户端代码可以一致地处理单个对象和组合对象。
+- 扩展性强： 可以轻松添加新的图形类型，而无需修改现有的组合类 (GraphicGroup)。
+- 简化客户端代码： 客户端不需要区分处理单个对象和组合对象，可以用相同的方式调用 draw() 方法。
+- 通过组合模式，我们可以将单个对象和组合对象统一起来，从而简化客户端代码并提高系统的灵活性和可扩展性。
 
 ### 享元模式
 
