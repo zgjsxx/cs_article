@@ -12,6 +12,7 @@ tag:
   - [结构型模式](#结构型模式)
     - [适配器模式](#适配器模式)
     - [桥接模式](#桥接模式)
+    - [享元模式](#享元模式)
   - [行为型模式](#行为型模式)
     - [策略模式](#策略模式)
 
@@ -470,7 +471,131 @@ int main() {
 
 通过以上的总结和具体的应用场景说明，可以更清楚地理解桥接模式在解耦、扩展性和灵活性方面的重要性。
 
+### 享元模式
 
+享元模式（Flyweight Pattern）是一种结构型设计模式，旨在减少程序中创建对象的数量，从而减少内存的占用。它通过共享已经存在的对象来避免重复创建相同对象的代价，尤其在大量细粒度对象被频繁使用的场景下，这种模式非常有用。
+
+**适用场景**
+
+享元模式特别适用于以下场景：
+
+- 程序中有大量相似的对象，并且这些对象的大部分状态是相同的，可以共享。
+- 系统需要节省内存，并且对象的数量可能很大。
+
+使用享元模式来管理 ConsoleLogger 和 FileLogger 可以更好地展示如何通过共享内部状态来减少内存开销和对象创建的成本。我们可以让这两种不同类型的日志记录器共享相同的日志级别（或其他配置），而输出到控制台还是文件作为具体实现的细节。
+
+```cpp
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <map>
+#include <memory>
+
+// 抽象享元类
+class Logger {
+public:
+    virtual void log(const std::string& message, const std::string& context) const = 0;
+    virtual ~Logger() = default;
+};
+
+// 具体享元类 - 控制台日志记录器
+class ConsoleLogger : public Logger {
+private:
+    std::string logLevel; // 共享的内部状态
+
+public:
+    ConsoleLogger(const std::string& logLevel) : logLevel(logLevel) {}
+
+    void log(const std::string& message, const std::string& context) const override {
+        std::cout << "[" << logLevel << "] " << context << ": " << message << std::endl;
+    }
+};
+
+// 具体享元类 - 文件日志记录器
+class FileLogger : public Logger {
+private:
+    std::string logLevel; // 共享的内部状态
+    std::string filename; // 文件名 - 共享的内部状态
+
+public:
+    FileLogger(const std::string& logLevel, const std::string& filename) 
+        : logLevel(logLevel), filename(filename) {}
+
+    void log(const std::string& message, const std::string& context) const override {
+        std::ofstream ofs(filename, std::ios_base::app);
+        if (ofs.is_open()) {
+            ofs << "[" << logLevel << "] " << context << ": " << message << std::endl;
+            ofs.close();
+        }
+    }
+};
+
+// 享元工厂类，用于管理和创建享元对象
+class LoggerFactory {
+private:
+    std::map<std::string, std::shared_ptr<Logger>> loggers;
+
+    std::string getKey(const std::string& logType, const std::string& logLevel, const std::string& filename = "") const {
+        return logType + "-" + logLevel + "-" + filename;
+    }
+
+public:
+    std::shared_ptr<Logger> getConsoleLogger(const std::string& logLevel) {
+        std::string key = getKey("Console", logLevel);
+        auto it = loggers.find(key);
+        if (it != loggers.end()) {
+            return it->second;
+        } else {
+            auto logger = std::make_shared<ConsoleLogger>(logLevel);
+            loggers[key] = logger;
+            return logger;
+        }
+    }
+
+    std::shared_ptr<Logger> getFileLogger(const std::string& logLevel, const std::string& filename) {
+        std::string key = getKey("File", logLevel, filename);
+        auto it = loggers.find(key);
+        if (it != loggers.end()) {
+            return it->second;
+        } else {
+            auto logger = std::make_shared<FileLogger>(logLevel, filename);
+            loggers[key] = logger;
+            return logger;
+        }
+    }
+};
+
+int main() {
+    LoggerFactory factory;
+
+    // 创建不同类型和级别的日志记录器
+    auto consoleErrorLogger = factory.getConsoleLogger("ERROR");
+    auto consoleInfoLogger = factory.getConsoleLogger("INFO");
+
+    auto fileErrorLogger = factory.getFileLogger("ERROR", "error.log");
+    auto fileInfoLogger = factory.getFileLogger("INFO", "info.log");
+
+    // 使用日志记录器记录日志信息
+    consoleErrorLogger->log("This is an error message", "Main");
+    consoleInfoLogger->log("This is an info message", "Main");
+
+    fileErrorLogger->log("This is an error message", "Main");
+    fileInfoLogger->log("This is an info message", "Main");
+
+    // 使用同一个日志类型和级别的记录器
+    auto anotherConsoleErrorLogger = factory.getConsoleLogger("ERROR");
+    anotherConsoleErrorLogger->log("This is another error message", "Helper");
+
+    auto anotherFileErrorLogger = factory.getFileLogger("ERROR", "error.log");
+    anotherFileErrorLogger->log("This is another error message", "Helper");
+
+    // 注意：consoleErrorLogger 和 anotherConsoleErrorLogger 是同一个实例
+    // fileErrorLogger 和 anotherFileErrorLogger 也是同一个实例
+
+    return 0;
+}
+
+```
 
 ## 行为型模式
 
