@@ -17,6 +17,7 @@ tag:
     - [享元模式](#享元模式)
   - [行为型模式](#行为型模式)
     - [策略模式](#策略模式)
+  - [装饰器模式和代理模式的区别](#装饰器模式和代理模式的区别)
 
 
 # 设计模式面经
@@ -901,3 +902,149 @@ int main() {
     return 0;
 }
 ```
+
+## 装饰器模式和代理模式的区别
+
+**装饰器模式**（Decorator Pattern）和**代理模式**（Proxy Pattern）都是**结构型设计模式**，它们有些相似，但也有不同的目的和用法。以下是它们的主要区别和特点：
+
+**1. 目的**
+
+装饰器模式：主要用于动态地扩展对象的功能，而不修改现有的对象结构。它通过将对象嵌套在一个装饰器对象中，来增加额外的行为或功能。
+
+代理模式：主要用于控制对某个对象的访问，通常用于提供一个替代对象来控制对真实对象的访问。代理对象可以在访问真实对象之前或之后进行一些处理，比如缓存、权限控制、延迟加载等。
+
+**2. 结构**
+
+装饰器模式：
+
+组件（Component）：定义了一个接口，用于实际组件和装饰器的基类。
+具体组件（Concrete Component）：实现了 Component 接口的基本对象。
+装饰器（Decorator）：实现了 Component 接口，并持有一个 Component 对象的引用，用于添加额外的功能。
+具体装饰器（Concrete Decorator）：实现装饰器功能，添加具体的行为或状态。
+代理模式：
+
+主题接口（Subject）：定义了代理和真实对象都需要实现的接口。
+真实主题（Real Subject）：实现了 Subject 接口，提供实际的业务逻辑。
+代理（Proxy）：实现了 Subject 接口，持有 Real Subject 对象的引用，控制对 Real Subject 的访问，可能包括附加的操作。
+
+**3. 用法示例**
+
+装饰器模式示例
+```cpp
+#include <iostream>
+#include <string>
+
+// 组件接口
+class Coffee {
+public:
+    virtual std::string getDescription() const = 0;
+    virtual double cost() const = 0;
+    virtual ~Coffee() = default;
+};
+
+// 具体组件
+class SimpleCoffee : public Coffee {
+public:
+    std::string getDescription() const override {
+        return "Simple Coffee";
+    }
+
+    double cost() const override {
+        return 5.0;
+    }
+};
+
+// 装饰器
+class CoffeeDecorator : public Coffee {
+protected:
+    Coffee* coffee;
+public:
+    CoffeeDecorator(Coffee* c) : coffee(c) {}
+    virtual ~CoffeeDecorator() { delete coffee; }
+};
+
+// 具体装饰器
+class MilkDecorator : public CoffeeDecorator {
+public:
+    MilkDecorator(Coffee* c) : CoffeeDecorator(c) {}
+
+    std::string getDescription() const override {
+        return coffee->getDescription() + ", Milk";
+    }
+
+    double cost() const override {
+        return coffee->cost() + 1.5;
+    }
+};
+
+int main() {
+    Coffee* myCoffee = new SimpleCoffee();
+    myCoffee = new MilkDecorator(myCoffee);
+
+    std::cout << myCoffee->getDescription() << ", Cost: $" << myCoffee->cost() << std::endl;
+
+    delete myCoffee;
+    return 0;
+}
+```
+
+```cpp
+#include <iostream>
+#include <string>
+
+// 主题接口
+class Subject {
+public:
+    virtual void request() const = 0;
+    virtual ~Subject() = default;
+};
+
+// 真实主题
+class RealSubject : public Subject {
+public:
+    void request() const override {
+        std::cout << "RealSubject: Handling request." << std::endl;
+    }
+};
+
+// 代理
+class Proxy : public Subject {
+private:
+    RealSubject* realSubject;
+public:
+    Proxy() : realSubject(new RealSubject()) {}
+    ~Proxy() { delete realSubject; }
+
+    void request() const override {
+        std::cout << "Proxy: Pre-processing before real request." << std::endl;
+        realSubject->request();
+        std::cout << "Proxy: Post-processing after real request." << std::endl;
+    }
+};
+
+int main() {
+    Proxy proxy;
+    proxy.request();
+    return 0;
+}
+```
+
+**4. 主要区别**
+
+功能扩展 vs. 访问控制：
+
+装饰器模式：用于动态地扩展对象的功能，通过在原对象外部添加装饰器。
+代理模式：用于控制对对象的访问，可以包括延迟加载、权限检查等。
+
+设计意图：
+
+装饰器模式：意图是通过装饰器链来增加或修改对象的功能。
+代理模式：意图是控制对真实对象的访问，通过代理提供额外的功能，如延迟加载或访问控制。
+
+使用场景：
+
+装饰器模式：适用于需要在运行时对对象添加功能，且这些功能的组合是灵活的。
+代理模式：适用于需要控制对真实对象的访问，可能涉及延迟初始化、权限验证、记录日志等。
+
+总结
+装饰器模式和代理模式都是非常有用的设计模式，但它们解决的问题不同。装饰器模式侧重于扩展对象功能，而代理模式侧重于控制对对象的访问。了解它们的不同可以帮助你在设计系统时选择合适的模式。
