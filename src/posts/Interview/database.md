@@ -7,6 +7,8 @@ tag:
 
 - [数据库](#数据库)
   - [什么是关系型数据库范式？](#什么是关系型数据库范式)
+  - [MySQL索引有哪些？](#mysql索引有哪些)
+  - [全文索引怎么使用？解决什么问题](#全文索引怎么使用解决什么问题)
   - [你对binlog日志和redolog日志了解吗？解释以下这两个日志的作用以及两阶段提交](#你对binlog日志和redolog日志了解吗解释以下这两个日志的作用以及两阶段提交)
   - [列举MySQL的四个隔离级别，并解释每个级别的区别以及可能产生的问题](#列举mysql的四个隔离级别并解释每个级别的区别以及可能产生的问题)
   - [MySQL可重复读完全解决了幻读问题吗？](#mysql可重复读完全解决了幻读问题吗)
@@ -106,6 +108,189 @@ Department 表：
 |--|--|
 |101	|HR|
 |102	|IT|
+
+
+## MySQL索引有哪些？
+
+
+MySQL数据库中的索引有以下几种类型：
+
+**1. 普通索引（Normal Index）**
+
+**特点**：普通索引是最基本的索引类型，没有任何限制条件。
+
+**作用**：加速查询速度。
+
+**创建方式**：
+
+```sql
+CREATE INDEX index_name ON table_name
+(column_name);
+```
+
+**2. 唯一索引（Unique Index）**
+
+**特点**：唯一索引要求索引列中的所有值都是唯一的，但允许有一个空值 (NULL)。
+
+**作用**：确保数据唯一性，同时也能加速查询。
+
+```sql
+CREATE UNIQUE INDEX index_name ON table_name(column_name);
+```
+
+**3. 主键索引（Primary Key Index）**
+
+**特点**：主键索引是一种特殊的唯一索引，不允许有空值 (NULL)，一个表只能有一个主键索引。
+
+**作用**：唯一标识表中的每一行数据，同时加速查询。
+
+创建方式：
+```sql
+ALTER TABLE table_name ADD PRIMARY KEY (column_name);
+```
+
+或在创建表时定义：
+```sql
+CREATE TABLE table_name (
+    column_name data_type PRIMARY KEY
+);
+```
+
+**4. 全文索引（Full-Text Index）**
+
+**特点**：全文索引用于加速对大文本的搜索，适用于 CHAR、VARCHAR 和 TEXT 字段。
+
+**作用**：用于全文搜索功能，主要用于查找文本字段中的关键词。
+
+创建方式：
+```sql
+CREATE FULLTEXT INDEX index_name ON table_name(column_name);
+```
+
+注意：MySQL的全文索引用于MyISAM和InnoDB引擎，且从MySQL 5.6版本开始支持InnoDB引擎。
+
+**5. 复合索引(联合索引)（Composite Index）**
+
+**特点**：复合索引是指在多个列上创建的索引。
+
+**作用**：用于加速基于多个列的查询，遵循“最左前缀”原则。
+
+```sql
+CREATE INDEX index_name ON table_name(column1, column2);
+```
+
+**6. 空间索引（Spatial Index）**
+
+**特点**：空间索引用于加速地理空间数据的查询，适用于MySQL的 Geometry 数据类型。
+
+**作用**：主要用于地理信息系统（GIS）应用中的位置数据查询。
+
+**创建方式**：
+
+```sql
+CREATE SPATIAL INDEX index_name ON table_name(column_name);
+```
+
+注意：空间索引仅适用于MyISAM表，并且从MySQL 5.7开始支持InnoDB。
+
+**7. 哈希索引（Hash Index）**
+
+**特点**：哈希索引用于加速精确匹配查询，不能用于范围查询。
+
+**作用**：提高等值查询的速度。
+
+**注意**：MySQL并没有直接创建哈希索引的语法，但在某些存储引擎中，如Memory引擎中，哈希索引是默认的。
+
+```cpp
+CREATE TABLE my_table (
+    id INT PRIMARY KEY,
+    name VARCHAR(50)
+) ENGINE=MEMORY;
+
+CREATE INDEX idx_name ON my_table(name);
+```
+
+不同类型的索引有不同的适用场景，合理使用可以极大提升数据库的查询性能。
+
+## 全文索引怎么使用？解决什么问题
+
+全文索引（Full-Text Index）是MySQL中的一种特殊索引类型，专门用于处理文本字段的复杂搜索需求，特别是在长文本中查找特定单词或短语。它主要解决的问题是高效地进行全文搜索，即在大量文本数据中快速找到包含某个关键词的记录。
+
+**1. 全文索引的适用场景**
+长文本搜索：用于在包含大量文本数据的字段中查找特定的词或短语，如博客文章、产品描述、用户评论等。
+模糊匹配：适合用于需要搜索关键词而非精确匹配的场景，如搜索含有“database”和“mysql”这两个词的所有记录。
+多关键词搜索：可以搜索多个关键词，并根据相关性排序结果，如搜索含有“mysql”和“optimization”的记录，并根据这些词在文本中的出现频率和位置排序。
+
+**2. 全文索引的创建**
+MySQL的全文索引通常应用于 CHAR、VARCHAR 和 TEXT 数据类型的列。要使用全文索引，首先需要在相关列上创建全文索引。
+
+```sql
+CREATE TABLE articles (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255),
+    body TEXT,
+    FULLTEXT (title, body)
+);
+```
+
+也可以在已经存在的表上添加全文索引：
+
+```sql
+ALTER TABLE articles ADD FULLTEXT(title, body);
+```
+1. 全文搜索查询
+2. 
+MySQL提供了 MATCH ... AGAINST 语法来执行全文搜索。
+
+**基本搜索**：
+
+```sql
+SELECT * FROM articles 
+WHERE MATCH(title, body) AGAINST('database');
+```
+
+**布尔模式搜索**：
+
+布尔模式允许使用布尔运算符，如+（必须包含）、-（必须不包含）、*（通配符）等：
+
+```sql
+SELECT * FROM articles 
+WHERE MATCH(title, body) AGAINST('+mysql -optimization' IN BOOLEAN MODE);
+```
+
+**自然语言模式**：
+
+自然语言模式是默认的搜索模式，MySQL根据关键词的相关性返回匹配结果：
+
+```sql
+SELECT * FROM articles 
+WHERE MATCH(title, body) AGAINST('mysql optimization');
+```
+
+带有查询扩展的自然语言模式：
+查询扩展模式在给定的查询词之外，还考虑全文索引中其他相关的词来扩展查询：
+
+```sql
+SELECT * FROM articles 
+WHERE MATCH(title, body) AGAINST('mysql optimization' WITH QUERY EXPANSION);
+```
+**3. 全文索引解决的问题**
+
+提高搜索效率：全文索引使得在大量文本数据中查找关键词的速度显著提高，相比LIKE操作符的模糊匹配更加高效。
+支持自然语言查询：能够根据关键词在文本中的相关性对结果进行排序，适用于搜索引擎类型的查询需求。
+支持复杂搜索逻辑：通过布尔模式支持复杂的查询逻辑，如必须包含某些词语或排除某些词语。
+
+**4 注意事项**
+
+最低词长度：默认情况下，MySQL的全文索引忽略长度少于4个字符的单词。这可以通过更改MySQL配置文件中的 ft_min_word_len 参数来调整。
+
+停止词：MySQL会忽略一些常见的“停止词”（如"a", "the", "is"等），这些词通常在搜索中没有意义。这可以通过调整配置来禁用或修改。
+存储引擎：全文索引在MyISAM和InnoDB引擎上都可以使用，但在InnoDB上支持是从MySQL 5.6版本开始的。
+
+**总结**
+
+全文索引是MySQL中用于处理复杂文本搜索需求的强大工具。它能够快速、高效地在大规模文本数据中查找特定关键词，并根据关键词在文本中的相关性对结果进行排序。这在构建搜索引擎、内容管理系统和其他需要文本搜索功能的应用中非常有用。
+
 
 ## 你对binlog日志和redolog日志了解吗？解释以下这两个日志的作用以及两阶段提交
 
