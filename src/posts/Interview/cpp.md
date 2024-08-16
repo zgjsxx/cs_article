@@ -10,7 +10,7 @@ tag:
     - [const关键字的作用](#const关键字的作用)
     - [const成员的初始化方法](#const成员的初始化方法)
     - [const成员引用如何初始化](#const成员引用如何初始化)
-    - [const成员函数内部需要修改成员方法如何解决？](#const成员函数内部需要修改成员方法如何解决)
+    - [const成员函数内部需要修改成员变量如何解决？](#const成员函数内部需要修改成员变量如何解决)
     - [虚函数的返回值可以不一样吗？](#虚函数的返回值可以不一样吗)
     - [dynamic\_cast失败会怎么样？](#dynamic_cast失败会怎么样)
     - [多重继承时，指向子类的指针转化为基类，指针会变吗?](#多重继承时指向子类的指针转化为基类指针会变吗)
@@ -182,7 +182,7 @@ int main() {
 }
 ```
 
-### const成员函数内部需要修改成员方法如何解决？
+### const成员函数内部需要修改成员变量如何解决？
 
 - 使用mutable关键字
 
@@ -238,8 +238,11 @@ public:
     MyClass() : counter(0) {}
 
     void incrementCounter() const {
-        // 使用const_cast去除const属性，允许修改counter
+        // 使用const_cast去除this指针的const属性，允许修改counter
         const_cast<MyClass*>(this)->counter++;
+        // 使用一个指针指向该成员，使用const_cast去除const属性
+        int* temp =const_cast<int*>(&counter);
+        (*temp)++;
     }
 
     void displayCounter() const {
