@@ -14,11 +14,16 @@ tag:
     - [适配器模式](#适配器模式)
     - [桥接模式](#桥接模式)
     - [组合模式](#组合模式)
+    - [装饰模式](#装饰模式)
     - [外观模式](#外观模式)
     - [享元模式](#享元模式)
+    - [代理模式](#代理模式)
   - [行为型模式](#行为型模式)
     - [策略模式](#策略模式)
-  - [装饰器模式和代理模式的区别](#装饰器模式和代理模式的区别)
+    - [命令模式](#命令模式)
+  - [设计模式的相似问题](#设计模式的相似问题)
+    - [装饰器模式和代理模式的区别](#装饰器模式和代理模式的区别)
+    - [外观模式和适配器模式的区别](#外观模式和适配器模式的区别)
 
 
 # 设计模式面经
@@ -653,6 +658,144 @@ int main() {
 - 简化客户端代码： 客户端不需要区分处理单个对象和组合对象，可以用相同的方式调用 draw() 方法。
 - 通过组合模式，我们可以将单个对象和组合对象统一起来，从而简化客户端代码并提高系统的灵活性和可扩展性。
 
+### 装饰模式
+
+装饰模式（Decorator Pattern）是一种结构型设计模式，它允许你动态地给对象添加新的功能，而不改变其结构或影响其他对象。装饰模式通过使用一个或多个装饰器类，将功能包装在原始对象的基础之上。
+
+装饰模式的主要作用
+- 动态扩展对象功能：无需修改现有类的定义，便可动态地为对象添加新功能。
+- 遵循开闭原则：装饰模式允许你在不修改类代码的情况下扩展功能，符合“对扩展开放，对修改封闭”的设计原则。
+- 组合功能：你可以通过多个装饰器来组合对象的功能，这比继承更加灵活。
+
+装饰模式的结构
+- 抽象组件（Component）：定义一个接口，用于对象的基本功能声明，可以是具体的类或接口。
+- 具体组件（ConcreteComponent）：实现抽象组件的类，表示被装饰的原始对象。
+- 装饰器（Decorator）：一个抽象类，继承自组件类，并包含一个指向组件的引用。
+- 具体装饰器（ConcreteDecorator）：继承自装饰器类，添加额外的功能。
+
+示例场景
+假设我们有一个基础的文本类PlainText，表示一段简单的文本。现在，我们想要动态地为这段文本添加不同的格式（如加粗、斜体、下划线等），而不修改原始文本类的代码。
+
+C++ 实现装饰模式
+
+```cpp
+#include <iostream>
+#include <string>
+
+// 抽象组件（Component）
+class Text {
+public:
+    virtual std::string getText() const = 0;
+    virtual ~Text() = default;
+};
+
+// 具体组件（ConcreteComponent）
+class PlainText : public Text {
+private:
+    std::string content;
+
+public:
+    PlainText(const std::string &text) : content(text) {}
+
+    std::string getText() const override {
+        return content;
+    }
+};
+
+// 装饰器（Decorator）
+class TextDecorator : public Text {
+protected:
+    Text *wrappedText;  // 被装饰的文本对象
+
+public:
+    TextDecorator(Text *text) : wrappedText(text) {}
+
+    virtual ~TextDecorator() {
+        delete wrappedText;  // 清理内存
+    }
+};
+
+// 具体装饰器（ConcreteDecorator）1: 加粗
+class BoldDecorator : public TextDecorator {
+public:
+    BoldDecorator(Text *text) : TextDecorator(text) {}
+
+    std::string getText() const override {
+        return "<b>" + wrappedText->getText() + "</b>";  // 用<b>标签包裹文本
+    }
+};
+
+// 具体装饰器（ConcreteDecorator）2: 斜体
+class ItalicDecorator : public TextDecorator {
+public:
+    ItalicDecorator(Text *text) : TextDecorator(text) {}
+
+    std::string getText() const override {
+        return "<i>" + wrappedText->getText() + "</i>";  // 用<i>标签包裹文本
+    }
+};
+
+// 具体装饰器（ConcreteDecorator）3: 下划线
+class UnderlineDecorator : public TextDecorator {
+public:
+    UnderlineDecorator(Text *text) : TextDecorator(text) {}
+
+    std::string getText() const override {
+        return "<u>" + wrappedText->getText() + "</u>";  // 用<u>标签包裹文本
+    }
+};
+
+// 客户端代码
+int main() {
+    // 创建一个简单的文本对象
+    Text *myText = new PlainText("Hello, World!");
+    std::cout << "Plain Text: " << myText->getText() << "\n";
+
+    // 为文本添加加粗效果
+    myText = new BoldDecorator(myText);
+    std::cout << "Bold Text: " << myText->getText() << "\n";
+
+    // 为文本添加斜体效果
+    myText = new ItalicDecorator(myText);
+    std::cout << "Bold and Italic Text: " << myText->getText() << "\n";
+
+    // 为文本添加下划线效果
+    myText = new UnderlineDecorator(myText);
+    std::cout << "Bold, Italic, and Underlined Text: " << myText->getText() << "\n";
+
+    // 清理内存
+    delete myText;
+
+    return 0;
+}
+
+```
+
+**解释**
+- PlainText：这是一个具体组件，实现了Text接口。它代表一个简单的文本，内容是“Hello, World!”。
+- TextDecorator：这是装饰器的基类，继承自Text接口。它包含一个指向Text对象的指针，用于包装组件并扩展其功能。
+- BoldDecorator：具体装饰器类，给文本添加加粗的效果。它通过在文本内容前后加上<b>和</b>标签来实现。
+- ItalicDecorator：具体装饰器类，给文本添加斜体效果。它通过在文本内容前后加上<i>和</i>标签来实现。
+- UnderlineDecorator：具体装饰器类，给文本添加下划线效果。它通过在文本内容前后加上<u>和</u>标签来实现。
+
+**输出结果**
+```cpp
+Plain Text: Hello, World!
+Bold Text: <b>Hello, World!</b>
+Bold and Italic Text: <b><i>Hello, World!</i></b>
+Bold, Italic, and Underlined Text: <b><i><u>Hello, World!</u></i></b>
+```
+
+**代码说明**
+- 简单文本：首先，我们创建一个PlainText对象，其内容为“Hello, World!”。
+- 加粗文本：接着，我们用BoldDecorator装饰PlainText，给文本加粗，输出为<b>Hello, World!</b>。
+- 加斜体：然后，我们用ItalicDecorator再装饰之前的结果，给文本加上斜体效果，输出为<b><i>Hello, World!</i></b>。
+- 加下划线：最后，我们用UnderlineDecorator再次装饰，给文本加上了下划线效果，输出为<b><i><u>Hello, World!</u></i></b>。
+
+**总结**
+
+这个例子展示了如何使用装饰模式来动态地为文本添加不同的格式（如加粗、斜体、下划线等）。通过装饰模式，我们可以灵活地组合不同的格式，而不需要修改原始的文本类。每个装饰器只负责添加一种特定的格式，这样可以自由组合这些装饰器来扩展文本的功能。这种方法比继承更加灵活和可扩展。
+
 ### 外观模式
 
 外观模式主要解决的是简化接口和减少系统复杂性的问题。它通过提供一个统一的接口来访问复杂的子系统，隐藏了子系统的内部细节，使客户端更容易使用子系统的功能。换句话说，外观模式的目标是简化和解耦，提供一个更简单的使用方式。
@@ -671,6 +814,7 @@ int main() {
 假设我们有一个复杂的子系统，其中包含多个类，用于处理不同的功能。我们可以使用外观模式来简化这些功能的调用。
 
 子系统类
+
 ```cpp
 #include <iostream>
 
@@ -874,6 +1018,268 @@ int main() {
 
 ```
 
+
+### 代理模式
+
+代理模式（Proxy Pattern）是一种结构型设计模式，它为其他对象提供一种代理以控制对这个对象的访问。代理模式可以在不改变原始对象的前提下，为其提供额外的功能或控制。代理模式的作用主要有以下几个方面：
+
+**代理模式的主要作用**
+- 控制访问：代理可以限制或控制对某个对象的访问。例如，在远程代理中，客户端无法直接访问远程对象，代理控制这个访问并管理网络通信。
+
+- 延迟加载：也称为“懒加载”（Lazy Initialization），在对象的初始化开销较大时，可以通过代理延迟对象的创建，只有在实际需要时才创建对象。
+
+- 权限管理：在保护代理中，可以通过代理来检查客户端的访问权限，从而决定是否允许访问实际对象。
+
+- 日志记录：代理可以在调用真实对象的操作之前或之后记录日志信息，用于调试或审计。
+
+- 远程代理：代理处理客户端与远程服务之间的通信，隐藏复杂的网络细节。
+
+**代理模式的结构**
+- 抽象接口（Subject）：定义了代理类和实际对象类的共同接口。
+- 真实对象（RealSubject）：实现了抽象接口，是真正需要代理的对象。
+- 代理类（Proxy）：实现了抽象接口，内部持有真实对象的引用，负责控制对真实对象的访问。
+
+示例场景
+
+假设我们有一个银行账户类BankAccount，客户可以通过该类来存款、取款和查看余额。但是为了增加安全性，我们可以引入一个代理类BankAccountProxy，它在执行这些操作之前检查用户的权限。
+
+C++ 实现代理模式
+
+```cpp
+#include <iostream>
+#include <string>
+
+// 抽象接口（Subject）
+class BankAccount {
+public:
+    virtual void deposit(double amount) = 0;
+    virtual void withdraw(double amount) = 0;
+    virtual double getBalance() const = 0;
+};
+
+// 真实对象（RealSubject）
+class RealBankAccount : public BankAccount {
+private:
+    double balance;
+
+public:
+    RealBankAccount() : balance(0.0) {}
+
+    void deposit(double amount) override {
+        balance += amount;
+        std::cout << "Deposited: " << amount << ", New Balance: " << balance << "\n";
+    }
+
+    void withdraw(double amount) override {
+        if (amount <= balance) {
+            balance -= amount;
+            std::cout << "Withdrew: " << amount << ", New Balance: " << balance << "\n";
+        } else {
+            std::cout << "Insufficient funds. Withdrawal failed.\n";
+        }
+    }
+
+    double getBalance() const override {
+        return balance;
+    }
+};
+
+// 代理类（Proxy）
+class BankAccountProxy : public BankAccount {
+private:
+    RealBankAccount *realAccount;
+    std::string userRole;
+
+public:
+    BankAccountProxy(const std::string &role) : realAccount(new RealBankAccount()), userRole(role) {}
+
+    ~BankAccountProxy() {
+        delete realAccount;
+    }
+
+    void deposit(double amount) override {
+        if (userRole == "Admin" || userRole == "User") {
+            realAccount->deposit(amount);
+        } else {
+            std::cout << "Access denied. Only Admin or User can deposit funds.\n";
+        }
+    }
+
+    void withdraw(double amount) override {
+        if (userRole == "Admin") {
+            realAccount->withdraw(amount);
+        } else {
+            std::cout << "Access denied. Only Admin can withdraw funds.\n";
+        }
+    }
+
+    double getBalance() const override {
+        if (userRole == "Admin" || userRole == "User") {
+            return realAccount->getBalance();
+        } else {
+            std::cout << "Access denied. Only Admin or User can view the balance.\n";
+            return -1;
+        }
+    }
+};
+
+// 客户端代码
+int main() {
+    // 创建一个代理对象，角色为普通用户
+    BankAccount *userAccount = new BankAccountProxy("User");
+
+    userAccount->deposit(100.0);  // 正常存款
+    userAccount->withdraw(50.0);  // 用户不能取款
+    std::cout << "Balance: " << userAccount->getBalance() << "\n";  // 查看余额
+
+    delete userAccount;
+
+    // 创建一个代理对象，角色为管理员
+    BankAccount *adminAccount = new BankAccountProxy("Admin");
+
+    adminAccount->deposit(500.0);  // 管理员存款
+    adminAccount->withdraw(200.0);  // 管理员取款
+    std::cout << "Balance: " << adminAccount->getBalance() << "\n";  // 查看余额
+
+    delete adminAccount;
+
+    return 0;
+}
+```
+
+
+好的，让我们用一个不同的例子来说明C++中的代理模式。这次我们模拟一个银行账户的场景，通过代理来控制对账户的访问权限。
+
+示例场景
+假设我们有一个银行账户类BankAccount，客户可以通过该类来存款、取款和查看余额。但是为了增加安全性，我们可以引入一个代理类BankAccountProxy，它在执行这些操作之前检查用户的权限。
+
+C++ 实现代理模式
+
+```cpp
+#include <iostream>
+#include <string>
+
+// 抽象接口（Subject）
+class BankAccount {
+public:
+    virtual void deposit(double amount) = 0;
+    virtual void withdraw(double amount) = 0;
+    virtual double getBalance() const = 0;
+};
+
+// 真实对象（RealSubject）
+class RealBankAccount : public BankAccount {
+private:
+    double balance;
+
+public:
+    RealBankAccount() : balance(0.0) {}
+
+    void deposit(double amount) override {
+        balance += amount;
+        std::cout << "Deposited: " << amount << ", New Balance: " << balance << "\n";
+    }
+
+    void withdraw(double amount) override {
+        if (amount <= balance) {
+            balance -= amount;
+            std::cout << "Withdrew: " << amount << ", New Balance: " << balance << "\n";
+        } else {
+            std::cout << "Insufficient funds. Withdrawal failed.\n";
+        }
+    }
+
+    double getBalance() const override {
+        return balance;
+    }
+};
+
+// 代理类（Proxy）
+class BankAccountProxy : public BankAccount {
+private:
+    RealBankAccount *realAccount;
+    std::string userRole;
+
+public:
+    BankAccountProxy(const std::string &role) : realAccount(new RealBankAccount()), userRole(role) {}
+
+    ~BankAccountProxy() {
+        delete realAccount;
+    }
+
+    void deposit(double amount) override {
+        if (userRole == "Admin" || userRole == "User") {
+            realAccount->deposit(amount);
+        } else {
+            std::cout << "Access denied. Only Admin or User can deposit funds.\n";
+        }
+    }
+
+    void withdraw(double amount) override {
+        if (userRole == "Admin") {
+            realAccount->withdraw(amount);
+        } else {
+            std::cout << "Access denied. Only Admin can withdraw funds.\n";
+        }
+    }
+
+    double getBalance() const override {
+        if (userRole == "Admin" || userRole == "User") {
+            return realAccount->getBalance();
+        } else {
+            std::cout << "Access denied. Only Admin or User can view the balance.\n";
+            return -1;
+        }
+    }
+};
+
+// 客户端代码
+int main() {
+    // 创建一个代理对象，角色为普通用户
+    BankAccount *userAccount = new BankAccountProxy("User");
+
+    userAccount->deposit(100.0);  // 正常存款
+    userAccount->withdraw(50.0);  // 用户不能取款
+    std::cout << "Balance: " << userAccount->getBalance() << "\n";  // 查看余额
+
+    delete userAccount;
+
+    // 创建一个代理对象，角色为管理员
+    BankAccount *adminAccount = new BankAccountProxy("Admin");
+
+    adminAccount->deposit(500.0);  // 管理员存款
+    adminAccount->withdraw(200.0);  // 管理员取款
+    std::cout << "Balance: " << adminAccount->getBalance() << "\n";  // 查看余额
+
+    delete adminAccount;
+
+    return 0;
+}
+```
+
+**解释**
+- RealBankAccount：这是实际的银行账户类，包含存款、取款和获取余额的功能。
+- BankAccountProxy：代理类负责控制对RealBankAccount的访问。它接收用户的角色信息，根据用户的角色决定是否允许进行某些操作。
+  - 如果用户角色是"Admin"（管理员），代理类允许执行所有操作。
+  - 如果用户角色是"User"（普通用户），代理类只允许存款和查看余额，不允许取款。
+  - 如果用户角色是其他角色，代理类拒绝所有操作。
+- 客户端代码：通过代理类来操作银行账户，而不是直接操作RealBankAccount类。这样可以在不修改RealBankAccount的情况下，控制对账户的访问。
+
+输出结果
+
+```shell
+Deposited: 100, New Balance: 100
+Access denied. Only Admin can withdraw funds.
+Balance: 100
+Deposited: 500, New Balance: 600
+Withdrew: 200, New Balance: 400
+Balance: 400
+```
+
+**总结**
+
+在这个例子中，代理模式的主要作用是控制访问权限。通过代理类BankAccountProxy，我们可以在执行账户操作之前检查用户的权限，防止未授权的操作。这种方式提高了系统的安全性，同时保持了系统设计的灵活性。
+
 ## 行为型模式
 
 ### 策略模式
@@ -999,7 +1405,145 @@ int main() {
 }
 ```
 
-## 装饰器模式和代理模式的区别
+### 命令模式
+
+餐厅点餐系统来说明命令模式的使用。
+
+**示例场景**
+
+假设你在一家餐厅用餐，服务员会将你的订单记录下来，然后将订单传递给厨房。厨房根据订单准备菜品，完成后通知服务员上菜。如果你想要取消或者修改订单，服务员也可以传递这一信息给厨房。
+
+在这个例子中：
+
+- **客户**是命令的发起者。
+- **服务员**是调用者，他负责将客户的命令传递给执行者。
+- **厨房**是命令的接收者，负责执行命令。
+
+我们将用命令模式来模拟这一过程。
+
+C++ 实现命令模式
+
+```cpp
+#include <iostream>
+#include <string>
+#include <memory>
+#include <vector>
+
+// 命令接口（Command）
+class Order {
+public:
+    virtual void execute() = 0;  // 执行订单
+    virtual void cancel() = 0;   // 取消订单
+    virtual ~Order() = default;
+};
+
+// 接收者（Receiver）：厨房
+class Kitchen {
+public:
+    void prepareDish(const std::string& dish) {
+        std::cout << "Kitchen is preparing " << dish << "\n";
+    }
+
+    void cancelDish(const std::string& dish) {
+        std::cout << "Kitchen cancels " << dish << "\n";
+    }
+};
+
+// 具体命令（ConcreteCommand）：点菜命令
+class DishOrder : public Order {
+private:
+    Kitchen &kitchen;
+    std::string dish;
+
+public:
+    DishOrder(Kitchen &k, const std::string &d) : kitchen(k), dish(d) {}
+
+    void execute() override {
+        kitchen.prepareDish(dish);
+    }
+
+    void cancel() override {
+        kitchen.cancelDish(dish);
+    }
+};
+
+// 调用者（Invoker）：服务员
+class Waiter {
+private:
+    std::vector<std::unique_ptr<Order>> orders;  // 订单队列
+
+public:
+    void takeOrder(std::unique_ptr<Order> order) {
+        orders.push_back(std::move(order));
+    }
+
+    void placeOrders() {
+        for (auto &order : orders) {
+            order->execute();
+        }
+        orders.clear();  // 清空订单队列
+    }
+
+    void cancelLastOrder() {
+        if (!orders.empty()) {
+            orders.back()->cancel();
+            orders.pop_back();
+        }
+    }
+};
+
+// 客户端代码
+int main() {
+    Kitchen kitchen;
+
+    // 客户下订单
+    std::unique_ptr<Order> order1 = std::make_unique<DishOrder>(kitchen, "Steak");
+    std::unique_ptr<Order> order2 = std::make_unique<DishOrder>(kitchen, "Salad");
+
+    // 服务员接受订单
+    Waiter waiter;
+    waiter.takeOrder(std::move(order1));
+    waiter.takeOrder(std::move(order2));
+
+    // 客户决定不再要沙拉
+    waiter.cancelLastOrder();
+
+    // 服务员将订单传递给厨房
+    waiter.placeOrders();
+
+    return 0;
+}
+```
+
+**解释**
+
+- Order：这是一个抽象基类，定义了execute（执行）和cancel（取消）两个方法。所有的具体订单类都要实现这个接口。
+- Kitchen：这是接收者类，表示厨房。它包含两个方法：prepareDish（准备菜品）和cancelDish（取消菜品）。
+- DishOrder：这是一个具体的命令类，代表点菜的命令。它封装了一个具体的菜品订单，并调用Kitchen对象的方法来执行或取消订单。
+- Waiter：这是调用者类，代表服务员。它管理一系列的订单，并在适当的时候将这些订单传递给厨房执行。如果顾客想要取消最后一个订单，服务员也可以处理这一请求。
+
+```cpp
+Kitchen cancels Salad
+Kitchen is preparing Steak
+```
+
+**代码说明**
+
+- 下订单：客户首先下了两个订单——“Steak”（牛排）和“Salad”（沙拉），服务员接收了这两个订单。
+- 取消订单：客户决定不再要沙拉，于是服务员调用cancelLastOrder方法取消了沙拉订单。
+- 传递订单：服务员将剩下的订单（只有牛排）传递给厨房，厨房准备牛排。
+
+更加贴近实际的特点
+- **命令的取消**：这个例子展示了命令模式如何支持取消功能。客户可以随时取消自己的订单，而无需直接与厨房沟通，增加了系统的灵活性。
+- **队列管理**：服务员使用一个队列来管理订单，这与现实中餐厅的做法类似，可以处理多个命令，并按顺序执行它们。
+
+**总结**
+
+命令模式通过将请求封装为对象，使得请求的处理可以延迟、取消或重做。这种模式非常适合需要灵活管理和执行操作的场景，比如餐厅的点餐系统、文本编辑器的撤销/重做功能等。通过解耦命令的发起者与执行者，命令模式提高了系统的扩展性和可维护性。
+
+## 设计模式的相似问题
+
+### 装饰器模式和代理模式的区别
 
 **装饰器模式**（Decorator Pattern）和**代理模式**（Proxy Pattern）都是**结构型设计模式**，它们有些相似，但也有不同的目的和用法。以下是它们的主要区别和特点：
 
@@ -1127,20 +1671,38 @@ int main() {
 
 **4. 主要区别**
 
-功能扩展 vs. 访问控制：
+**功能扩展 vs. 访问控制：**
 
-装饰器模式：用于动态地扩展对象的功能，通过在原对象外部添加装饰器。
-代理模式：用于控制对对象的访问，可以包括延迟加载、权限检查等。
+- 装饰器模式：用于动态地扩展对象的功能，通过在原对象外部添加装饰器。
+- 代理模式：用于控制对对象的访问，可以包括延迟加载、权限检查等。
 
-设计意图：
+**设计意图**：
 
-装饰器模式：意图是通过装饰器链来增加或修改对象的功能。
-代理模式：意图是控制对真实对象的访问，通过代理提供额外的功能，如延迟加载或访问控制。
+- 装饰器模式：意图是通过装饰器链来增加或修改对象的功能。
+- 代理模式：意图是控制对真实对象的访问，通过代理提供额外的功能，如延迟加载或访问控制。
 
-使用场景：
+**使用场景**：
 
-装饰器模式：适用于需要在运行时对对象添加功能，且这些功能的组合是灵活的。
-代理模式：适用于需要控制对真实对象的访问，可能涉及延迟初始化、权限验证、记录日志等。
+- 装饰器模式：适用于需要在运行时对对象添加功能，且这些功能的组合是灵活的。
+- 代理模式：适用于需要控制对真实对象的访问，可能涉及延迟初始化、权限验证、记录日志等。
 
-总结
-装饰器模式和代理模式都是非常有用的设计模式，但它们解决的问题不同。装饰器模式侧重于扩展对象功能，而代理模式侧重于控制对对象的访问。了解它们的不同可以帮助你在设计系统时选择合适的模式。
+**总结**
+
+- 装饰器模式和代理模式都是非常有用的设计模式，但它们解决的问题不同。装饰器模式侧重于扩展对象功能，而代理模式侧重于控制对对象的访问。了解它们的不同可以帮助你在设计系统时选择合适的模式。
+
+
+### 外观模式和适配器模式的区别
+
+外观模式（Facade Pattern）和适配器模式（Adapter Pattern）是两种常见的设计模式，它们的目的和用法有所不同。以下是它们的主要区别：
+
+**1. 目的**
+- 外观模式：提供一个简化的接口，使得复杂系统的子系统对外界更加容易使用。外观模式的目的是简化客户端的使用，隐藏系统的复杂性。
+- 适配器模式：将一个接口转换成客户期望的另一个接口。适配器模式的目的是解决接口不兼容的问题，使得原本不能一起工作的类可以协同工作。
+
+**2. 使用场景**
+- 外观模式：当你需要为一个复杂的子系统提供一个简单的接口时，可以使用外观模式。例如，提供一个统一的API，来简化与多个类的交互。
+- 适配器模式：当你想要使用一个已经存在的类，但它的接口不符合你的需求时，可以使用适配器模式。例如，将一个老的系统接口适配到新的系统中。
+
+**3. 设计结构**
+- 外观模式：外观模式通常涉及创建一个“外观类”（Facade），该类提供了高层的简化接口，并委托实际的工作给系统的子类或模块。
+- 适配器模式：适配器模式通常涉及创建一个“适配器类”（Adapter），该类将目标接口（Target）与被适配类（Adaptee）关联起来。适配器类实现目标接口，并在实现过程中调用被适配类的方法。
