@@ -21,6 +21,7 @@ tag:
   - [行为型模式](#行为型模式)
     - [策略模式](#策略模式)
     - [命令模式](#命令模式)
+    - [中介者模式](#中介者模式)
   - [设计模式的相似问题](#设计模式的相似问题)
     - [装饰器模式和代理模式的区别](#装饰器模式和代理模式的区别)
     - [外观模式和适配器模式的区别](#外观模式和适配器模式的区别)
@@ -1541,6 +1542,228 @@ Kitchen is preparing Steak
 
 命令模式通过将请求封装为对象，使得请求的处理可以延迟、取消或重做。这种模式非常适合需要灵活管理和执行操作的场景，比如餐厅的点餐系统、文本编辑器的撤销/重做功能等。通过解耦命令的发起者与执行者，命令模式提高了系统的扩展性和可维护性。
 
+### 中介者模式
+
+中介者模式（Mediator Pattern）是一种行为型设计模式，用于减少多个对象和类之间的通信复杂度。中介者模式通过引入一个中介者对象来封装对象之间的交互，从而使这些对象不再直接相互引用，从而实现解耦。
+
+中介者模式的主要作用
+- 减少对象之间的耦合：对象通过中介者进行通信，而不是直接相互调用，从而减少了对象之间的依赖性。
+- 简化对象之间的交互：中介者模式通过集中控制对象之间的通信，简化了系统的复杂性。
+- 提高系统的灵活性和可维护性：通过修改中介者，可以更容易地改变对象之间的交互方式，而不需要修改各个对象本身。
+
+中介者模式的结构
+- 中介者接口（Mediator）：定义了一个接口，用于通信对象的交互。
+- 具体中介者（ConcreteMediator）：实现中介者接口，协调具体同事对象之间的交互。
+- 同事类（Colleague）：各个参与交互的类。每个同事类都知道中介者，并通过中介者与其他同事类通信。
+
+示例：聊天室中的中介者模式
+想象一个聊天室的场景，多个用户（同事类）可以发送消息给其他用户。如果每个用户直接相互通信，系统会变得复杂且难以维护。我们可以使用中介者模式，创建一个聊天室（中介者），所有的用户都通过聊天室来发送和接收消息。
+
+C++ 实现中介者模式
+
+```cpp
+#include <iostream>
+#include <string>
+#include <vector>
+#include <memory>
+
+// 前向声明
+class ChatRoomMediator;
+
+// 同事类（Colleague）：用户
+class User {
+private:
+    std::string name;
+    ChatRoomMediator* mediator;
+
+public:
+    User(const std::string& name, ChatRoomMediator* mediator) : name(name), mediator(mediator) {}
+
+    std::string getName() const {
+        return name;
+    }
+
+    void sendMessage(const std::string& message);
+
+    void receiveMessage(const std::string& sender, const std::string& message) {
+        std::cout << name << " received a message from " << sender << ": " << message << "\n";
+    }
+};
+
+// 中介者接口（Mediator）：聊天室
+class ChatRoomMediator {
+public:
+    virtual void showMessage(User* sender, const std::string& message) = 0;
+    virtual ~ChatRoomMediator() = default;
+};
+
+// 具体中介者（ConcreteMediator）：具体聊天室
+class ChatRoom : public ChatRoomMediator {
+private:
+    std::vector<User*> users;
+
+public:
+    void addUser(User* user) {
+        users.push_back(user);
+    }
+
+    void showMessage(User* sender, const std::string& message) override {
+        for (User* user : users) {
+            if (user != sender) { // 消息不发送给自己
+                user->receiveMessage(sender->getName(), message);
+            }
+        }
+    }
+};
+
+// 同事类方法实现：用户发送消息
+void User::sendMessage(const std::string& message) {
+    std::cout << name << " sends message: " << message << "\n";
+    mediator->showMessage(this, message);
+}
+
+// 客户端代码
+int main() {
+    ChatRoom chatRoom;
+
+    User user1("Alice", &chatRoom);
+    User user2("Bob", &chatRoom);
+    User user3("Charlie", &chatRoom);
+
+    chatRoom.addUser(&user1);
+    chatRoom.addUser(&user2);
+    chatRoom.addUser(&user3);
+
+    user1.sendMessage("Hello everyone!");
+    user2.sendMessage("Hi Alice!");
+    user3.sendMessage("Hey Bob, how's it going?");
+
+    return 0;
+}
+```
+
+
+中介者模式（Mediator Pattern）是一种行为型设计模式，用于减少多个对象和类之间的通信复杂度。中介者模式通过引入一个中介者对象来封装对象之间的交互，从而使这些对象不再直接相互引用，从而实现解耦。
+
+中介者模式的主要作用
+减少对象之间的耦合：对象通过中介者进行通信，而不是直接相互调用，从而减少了对象之间的依赖性。
+简化对象之间的交互：中介者模式通过集中控制对象之间的通信，简化了系统的复杂性。
+提高系统的灵活性和可维护性：通过修改中介者，可以更容易地改变对象之间的交互方式，而不需要修改各个对象本身。
+中介者模式的结构
+中介者接口（Mediator）：定义了一个接口，用于通信对象的交互。
+具体中介者（ConcreteMediator）：实现中介者接口，协调具体同事对象之间的交互。
+同事类（Colleague）：各个参与交互的类。每个同事类都知道中介者，并通过中介者与其他同事类通信。
+示例：聊天室中的中介者模式
+想象一个聊天室的场景，多个用户（同事类）可以发送消息给其他用户。如果每个用户直接相互通信，系统会变得复杂且难以维护。我们可以使用中介者模式，创建一个聊天室（中介者），所有的用户都通过聊天室来发送和接收消息。
+
+C++ 实现中介者模式
+cpp
+复制代码
+#include <iostream>
+#include <string>
+#include <vector>
+#include <memory>
+
+// 前向声明
+class ChatRoomMediator;
+
+// 同事类（Colleague）：用户
+class User {
+private:
+    std::string name;
+    ChatRoomMediator* mediator;
+
+public:
+    User(const std::string& name, ChatRoomMediator* mediator) : name(name), mediator(mediator) {}
+
+    std::string getName() const {
+        return name;
+    }
+
+    void sendMessage(const std::string& message);
+
+    void receiveMessage(const std::string& sender, const std::string& message) {
+        std::cout << name << " received a message from " << sender << ": " << message << "\n";
+    }
+};
+
+// 中介者接口（Mediator）：聊天室
+class ChatRoomMediator {
+public:
+    virtual void showMessage(User* sender, const std::string& message) = 0;
+    virtual ~ChatRoomMediator() = default;
+};
+
+// 具体中介者（ConcreteMediator）：具体聊天室
+class ChatRoom : public ChatRoomMediator {
+private:
+    std::vector<User*> users;
+
+public:
+    void addUser(User* user) {
+        users.push_back(user);
+    }
+
+    void showMessage(User* sender, const std::string& message) override {
+        for (User* user : users) {
+            if (user != sender) { // 消息不发送给自己
+                user->receiveMessage(sender->getName(), message);
+            }
+        }
+    }
+};
+
+// 同事类方法实现：用户发送消息
+void User::sendMessage(const std::string& message) {
+    std::cout << name << " sends message: " << message << "\n";
+    mediator->showMessage(this, message);
+}
+
+// 客户端代码
+int main() {
+    ChatRoom chatRoom;
+
+    User user1("Alice", &chatRoom);
+    User user2("Bob", &chatRoom);
+    User user3("Charlie", &chatRoom);
+
+    chatRoom.addUser(&user1);
+    chatRoom.addUser(&user2);
+    chatRoom.addUser(&user3);
+
+    user1.sendMessage("Hello everyone!");
+    user2.sendMessage("Hi Alice!");
+    user3.sendMessage("Hey Bob, how's it going?");
+
+    return 0;
+}
+
+**解释**
+- ChatRoomMediator：这是中介者接口，定义了showMessage方法，用于协调用户之间的消息传递。
+- ChatRoom：这是具体的中介者类，管理多个用户，并在用户发送消息时负责将消息传递给其他用户。
+- User：这是同事类，表示聊天室中的用户。用户通过中介者（聊天室）来发送和接收消息。
+- sendMessage：用户发送消息的函数，会调用中介者的showMessage方法来传递消息。
+
+```shell
+Alice sends message: Hello everyone!
+Bob received a message from Alice: Hello everyone!
+Charlie received a message from Alice: Hello everyone!
+Bob sends message: Hi Alice!
+Alice received a message from Bob: Hi Alice!
+Charlie received a message from Bob: Hi Alice!
+Charlie sends message: Hey Bob, how's it going?
+Alice received a message from Charlie: Hey Bob, how's it going?
+Bob received a message from Charlie: Hey Bob, how's it going?
+```
+
+**代码说明**
+- 添加用户：在ChatRoom中添加用户对象。用户与聊天室关联后，通过聊天室与其他用户通信。
+- 发送消息：用户发送消息时，消息会通过ChatRoom中介者传递给所有其他用户。每个用户通过receiveMessage方法接收消息。
+- 解耦用户：用户之间并没有直接引用，所有的消息传递都通过ChatRoom这个中介者进行。这实现了用户之间的解耦，简化了用户之间的交互逻辑。
+
+**总结**
+中介者模式通过引入一个中介者对象，将对象之间复杂的通信逻辑集中到中介者内部，从而实现对象之间的解耦和通信逻辑的集中管理。它特别适合用在多对象交互复杂、通信逻辑频繁变化的场景中，例如聊天室、GUI事件处理系统等。使用中介者模式不仅简化了系统的设计，还增强了系统的可维护性和扩展性。
+
 ## 设计模式的相似问题
 
 ### 装饰器模式和代理模式的区别
@@ -1549,125 +1772,25 @@ Kitchen is preparing Steak
 
 **1. 目的**
 
-装饰器模式：主要用于动态地扩展对象的功能，而不修改现有的对象结构。它通过将对象嵌套在一个装饰器对象中，来增加额外的行为或功能。
+**装饰器模式**：主要用于动态地扩展对象的功能，而不修改现有的对象结构。它通过将对象嵌套在一个装饰器对象中，来增加额外的行为或功能。
 
-代理模式：主要用于控制对某个对象的访问，通常用于提供一个替代对象来控制对真实对象的访问。代理对象可以在访问真实对象之前或之后进行一些处理，比如缓存、权限控制、延迟加载等。
+**代理模式**：主要用于控制对某个对象的访问，通常用于提供一个替代对象来控制对真实对象的访问。代理对象可以在访问真实对象之前或之后进行一些处理，比如缓存、权限控制、延迟加载等。
 
 **2. 结构**
 
-装饰器模式：
+**装饰器模式**：
 
-组件（Component）：定义了一个接口，用于实际组件和装饰器的基类。
-具体组件（Concrete Component）：实现了 Component 接口的基本对象。
-装饰器（Decorator）：实现了 Component 接口，并持有一个 Component 对象的引用，用于添加额外的功能。
-具体装饰器（Concrete Decorator）：实现装饰器功能，添加具体的行为或状态。
-代理模式：
+- 组件（Component）：定义了一个接口，用于实际组件和装饰器的基类。
+- 具体组件（Concrete Component）：实现了 Component 接口的基本对象。
+- 装饰器（Decorator）：实现了 Component 接口，并持有一个 Component 对象的引用，用于添加额外的功能。
+- 具体装饰器（Concrete Decorator）：实现装饰器功能，添加具体的行为或状态。
 
-主题接口（Subject）：定义了代理和真实对象都需要实现的接口。
-真实主题（Real Subject）：实现了 Subject 接口，提供实际的业务逻辑。
-代理（Proxy）：实现了 Subject 接口，持有 Real Subject 对象的引用，控制对 Real Subject 的访问，可能包括附加的操作。
+**代理模式**：
 
-**3. 用法示例**
+- 主题接口（Subject）：定义了代理和真实对象都需要实现的接口。
+- 真实主题（Real Subject）：实现了 Subject 接口，提供实际的业务逻辑。
+- 代理（Proxy）：实现了 Subject 接口，持有 Real Subject 对象的引用，控制对 Real Subject 的访问，可能包括附加的操作。
 
-装饰器模式示例
-```cpp
-#include <iostream>
-#include <string>
-
-// 组件接口
-class Coffee {
-public:
-    virtual std::string getDescription() const = 0;
-    virtual double cost() const = 0;
-    virtual ~Coffee() = default;
-};
-
-// 具体组件
-class SimpleCoffee : public Coffee {
-public:
-    std::string getDescription() const override {
-        return "Simple Coffee";
-    }
-
-    double cost() const override {
-        return 5.0;
-    }
-};
-
-// 装饰器
-class CoffeeDecorator : public Coffee {
-protected:
-    Coffee* coffee;
-public:
-    CoffeeDecorator(Coffee* c) : coffee(c) {}
-    virtual ~CoffeeDecorator() { delete coffee; }
-};
-
-// 具体装饰器
-class MilkDecorator : public CoffeeDecorator {
-public:
-    MilkDecorator(Coffee* c) : CoffeeDecorator(c) {}
-
-    std::string getDescription() const override {
-        return coffee->getDescription() + ", Milk";
-    }
-
-    double cost() const override {
-        return coffee->cost() + 1.5;
-    }
-};
-
-int main() {
-    Coffee* myCoffee = new SimpleCoffee();
-    myCoffee = new MilkDecorator(myCoffee);
-
-    std::cout << myCoffee->getDescription() << ", Cost: $" << myCoffee->cost() << std::endl;
-
-    delete myCoffee;
-    return 0;
-}
-```
-
-```cpp
-#include <iostream>
-#include <string>
-
-// 主题接口
-class Subject {
-public:
-    virtual void request() const = 0;
-    virtual ~Subject() = default;
-};
-
-// 真实主题
-class RealSubject : public Subject {
-public:
-    void request() const override {
-        std::cout << "RealSubject: Handling request." << std::endl;
-    }
-};
-
-// 代理
-class Proxy : public Subject {
-private:
-    RealSubject* realSubject;
-public:
-    Proxy() : realSubject(new RealSubject()) {}
-    ~Proxy() { delete realSubject; }
-
-    void request() const override {
-        std::cout << "Proxy: Pre-processing before real request." << std::endl;
-        realSubject->request();
-        std::cout << "Proxy: Post-processing after real request." << std::endl;
-    }
-};
-
-int main() {
-    Proxy proxy;
-    proxy.request();
-    return 0;
-}
-```
 
 **4. 主要区别**
 
