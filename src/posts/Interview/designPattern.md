@@ -14,6 +14,7 @@ tag:
     - [适配器模式](#适配器模式)
     - [桥接模式](#桥接模式)
     - [组合模式](#组合模式)
+    - [外观模式](#外观模式)
     - [享元模式](#享元模式)
   - [行为型模式](#行为型模式)
     - [策略模式](#策略模式)
@@ -651,6 +652,101 @@ int main() {
 - 扩展性强： 可以轻松添加新的图形类型，而无需修改现有的组合类 (GraphicGroup)。
 - 简化客户端代码： 客户端不需要区分处理单个对象和组合对象，可以用相同的方式调用 draw() 方法。
 - 通过组合模式，我们可以将单个对象和组合对象统一起来，从而简化客户端代码并提高系统的灵活性和可扩展性。
+
+### 外观模式
+
+外观模式主要解决的是简化接口和减少系统复杂性的问题。它通过提供一个统一的接口来访问复杂的子系统，隐藏了子系统的内部细节，使客户端更容易使用子系统的功能。换句话说，外观模式的目标是简化和解耦，提供一个更简单的使用方式。
+
+**外观模式的基本概念**
+
+在外观模式中，外观类（Facade）提供了一个统一的接口，客户端通过这个接口来调用子系统的功能。子系统通常是由多个类组成的，而外观类则将这些复杂的操作封装在一个简单的接口中，隐藏了子系统的复杂性。
+
+**外观模式的优点**
+- 简化接口：外观模式将复杂的子系统操作封装在一个统一的接口中，简化了客户端的调用。
+- 解耦：客户端与子系统之间的依赖减少了，通过外观类，客户端只需与外观类交互，不直接依赖于子系统的具体实现。
+- 便于维护：子系统的改动只需修改外观类的实现，而不必更改客户端的代码，从而减少了系统的维护难度。
+
+外观模式的C++代码示例
+
+假设我们有一个复杂的子系统，其中包含多个类，用于处理不同的功能。我们可以使用外观模式来简化这些功能的调用。
+
+子系统类
+```cpp
+#include <iostream>
+
+class CPU {
+public:
+    void freeze() {
+        std::cout << "CPU freezing..." << std::endl;
+    }
+    void jump(int position) {
+        std::cout << "CPU jumping to position " << position << std::endl;
+    }
+    void execute() {
+        std::cout << "CPU executing..." << std::endl;
+    }
+};
+
+class Memory {
+public:
+    void load(int position, const std::string& data) {
+        std::cout << "Memory loading data '" << data << "' at position " << position << std::endl;
+    }
+};
+
+class HardDrive {
+public:
+    std::string read(int lba, int size) {
+        std::cout << "HardDrive reading " << size << " bytes from LBA " << lba << std::endl;
+        return "data";
+    }
+};
+```
+
+外观类
+
+```cpp
+class ComputerFacade {
+private:
+    CPU cpu;
+    Memory memory;
+    HardDrive hardDrive;
+
+public:
+    void startComputer() {
+        cpu.freeze();
+        memory.load(0, hardDrive.read(0, 1024));
+        cpu.jump(0);
+        cpu.execute();
+    }
+};
+```
+
+客户端代码
+
+```cpp
+int main() {
+    ComputerFacade computer;
+    computer.startComputer();
+    return 0;
+}
+```
+
+解释
+
+**1.子系统类**：
+
+- CPU, Memory, 和 HardDrive 类分别处理计算机的不同方面，如处理器的冻结和执行、内存的加载、硬盘的读取等。
+
+**2.外观类**：
+
+- ComputerFacade 类将这些子系统的复杂操作封装在一个简单的 startComputer 方法中。这个方法调用了子系统中的多个操作，简化了客户端的操作流程。
+
+**3.客户端代码**：
+
+- 在 main 函数中，客户端只需与 ComputerFacade 类交互，通过调用 startComputer 方法启动计算机，而无需直接操作 CPU, Memory, 和 HardDrive 类。这使得客户端的代码更加简洁，且与子系统解耦。
+
+使用外观模式可以有效地将系统的复杂性隐藏在一个简单的接口后面，减少了客户端的复杂度并提高了系统的可维护性。
 
 ### 享元模式
 
