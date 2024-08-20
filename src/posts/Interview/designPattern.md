@@ -22,7 +22,8 @@ tag:
     - [策略模式](#策略模式)
     - [命令模式](#命令模式)
     - [中介者模式](#中介者模式)
-  - [设计模式的相似问题](#设计模式的相似问题)
+    - [责任链模式](#责任链模式)
+  - [设计模式的相似的模式的区别](#设计模式的相似的模式的区别)
     - [装饰器模式和代理模式的区别](#装饰器模式和代理模式的区别)
     - [外观模式和适配器模式的区别](#外观模式和适配器模式的区别)
 
@@ -1668,7 +1669,139 @@ Bob received a message from Charlie: Hey Bob, how's it going?
 **总结**
 中介者模式通过引入一个中介者对象，将对象之间复杂的通信逻辑集中到中介者内部，从而实现对象之间的解耦和通信逻辑的集中管理。它特别适合用在多对象交互复杂、通信逻辑频繁变化的场景中，例如聊天室、GUI事件处理系统等。使用中介者模式不仅简化了系统的设计，还增强了系统的可维护性和扩展性。
 
-## 设计模式的相似问题
+### 责任链模式
+
+**责任链模式**（Chain of Responsibility Pattern）是一种行为设计模式，它允许多个对象有机会处理请求，避免请求的发送者和接收者之间的耦合。通过将这些对象连成一条链，并沿着链传递请求，直到有一个对象处理它为止。
+
+**作用**
+- 解耦请求的发送者和接收者：发送者不需要知道是哪一个接收者最终处理了请求，这使得系统更加灵活和可扩展。
+- 动态组合处理者：可以在运行时决定哪个处理者来处理请求，或者根据条件选择多个处理者中的一个。
+- 提高系统的可维护性：处理者的增加或删除不会影响其他处理者。
+
+**责任链模式的结构**
+
+责任链模式通常包括以下几个部分：
+- Handler（处理者）：定义一个处理请求的接口或抽象类，可以选择将请求传递给下一个处理者。
+- ConcreteHandler（具体处理者）：实现 Handler 接口，处理它所关心的请求，或者将请求传递给下一个处理者。
+
+Client（客户端）：向链上的第一个处理者提交请求。
+
+用 C++ 代码讲解
+
+下面是一个简单的 C++ 实现，用于演示责任链模式。假设我们有一个日志记录器，可以记录不同级别的日志（如 INFO、DEBUG、ERROR）。不同的日志记录器会处理不同级别的日志信息。
+
+```cpp
+#include <iostream>
+#include <string>
+
+// 抽象处理者类
+class Logger {
+public:
+    enum LogLevel { INFO, DEBUG, ERROR };
+    
+    Logger(LogLevel level) : logLevel(level), nextLogger(nullptr) {}
+    
+    void setNextLogger(Logger* next) {
+        nextLogger = next;
+    }
+    
+    void logMessage(LogLevel level, const std::string& message) {
+        if (this->logLevel <= level) {
+            write(message);
+        }
+        if (nextLogger != nullptr) {
+            nextLogger->logMessage(level, message);
+        }
+    }
+    
+protected:
+    virtual void write(const std::string& message) = 0;
+    
+private:
+    LogLevel logLevel;
+    Logger* nextLogger;
+};
+
+// 具体处理者类 - 控制台日志记录器
+class ConsoleLogger : public Logger {
+public:
+    ConsoleLogger(LogLevel level) : Logger(level) {}
+protected:
+    void write(const std::string& message) override {
+        std::cout << "Console::Logger: " << message << std::endl;
+    }
+};
+
+// 具体处理者类 - 文件日志记录器
+class FileLogger : public Logger {
+public:
+    FileLogger(LogLevel level) : Logger(level) {}
+protected:
+    void write(const std::string& message) override {
+        std::cout << "File::Logger: " << message << std::endl;
+    }
+};
+
+// 具体处理者类 - 错误日志记录器
+class ErrorLogger : public Logger {
+public:
+    ErrorLogger(LogLevel level) : Logger(level) {}
+protected:
+    void write(const std::string& message) override {
+        std::cout << "Error::Logger: " << message << std::endl;
+    }
+};
+
+// 客户端代码
+int main() {
+    // 创建日志记录链
+    Logger* errorLogger = new ErrorLogger(Logger::ERROR);
+    Logger* fileLogger = new FileLogger(Logger::DEBUG);
+    Logger* consoleLogger = new ConsoleLogger(Logger::INFO);
+    
+    // 设置责任链
+    errorLogger->setNextLogger(fileLogger);
+    fileLogger->setNextLogger(consoleLogger);
+    
+    // 处理不同级别的日志信息
+    errorLogger->logMessage(Logger::INFO, "This is an information.");
+    errorLogger->logMessage(Logger::DEBUG, "This is a debug level information.");
+    errorLogger->logMessage(Logger::ERROR, "This is an error information.");
+    
+    // 清理资源
+    delete errorLogger;
+    delete fileLogger;
+    delete consoleLogger;
+    
+    return 0;
+}
+```
+
+**代码解释**
+- Logger: 这是一个抽象的处理者类，定义了处理请求的接口 logMessage 和一个纯虚函数 write，用来实现具体的日志处理。它还包含一个指向下一个处理者的指针 nextLogger，用于形成责任链。
+
+- ConsoleLogger、FileLogger、ErrorLogger: 这些是具体的处理者类，继承自 Logger，并实现了 write 函数，它们处理不同类型的日志信息。
+
+- 责任链的创建: 在 main 函数中，我们创建了三个处理者，并将它们链接在一起，形成责任链。ErrorLogger -> FileLogger -> ConsoleLogger。
+
+- 日志处理: 当我们调用 logMessage 方法时，它会根据日志的级别来决定由哪个处理者来处理。如果当前处理者不能处理，则将请求传递给链中的下一个处理者。
+
+**运行结果**
+
+```shell
+Console::Logger: This is an information.
+File::Logger: This is a debug level information.
+Console::Logger: This is a debug level information.
+Error::Logger: This is an error information.
+File::Logger: This is an error information.
+Console::Logger: This is an error information.
+```
+
+**总结**
+
+责任链模式在解耦请求发送者和接收者之间的依赖方面非常有用，同时还可以通过动态调整责任链来提高系统的灵活性和可扩展性。这个模式特别适合需要多个对象对同一请求进行处理的场景，如日志处理、权限验证等。
+
+## 设计模式的相似的模式的区别
 
 ### 装饰器模式和代理模式的区别
 
