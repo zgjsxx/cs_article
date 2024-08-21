@@ -23,6 +23,7 @@ tag:
     - [如何禁用拷贝构造函数](#如何禁用拷贝构造函数)
     - [std::future和std::promise的作用](#stdfuture和stdpromise的作用)
     - [位域是什么？有哪些注意点](#位域是什么有哪些注意点)
+    - [c++11的新特性有哪些？](#c11的新特性有哪些)
   - [类和对象](#类和对象)
     - [什么是RTTI](#什么是rtti)
   - [STL](#stl)
@@ -1032,6 +1033,322 @@ Size of MixedBitFields: 4 bytes
 ```
 
 a成员的类型为4个bit的有符号整形数据，那么其合法区间就是```[-8，7]```。因此这里给a赋15就会超过其合法区间。
+
+### c++11的新特性有哪些？
+
+一、语法和语言特性
+
+**1. auto类型推导**
+
+auto关键字允许编译器自动推导变量的类型，简化了代码编写。
+
+```cpp
+auto i = 5; // i被推导为int类型
+auto d = 3.14; // d被推导为double类型
+auto s = std::string("Hello"); // s被推导为std::string类型
+```
+**2. 范围for循环（Range-based for Loop）**
+
+引入了一种简化的for循环语法，用于遍历容器中的元素。
+
+示例：
+```cpp
+std::vector<int> vec = {1, 2, 3, 4, 5};
+for (auto& value : vec) {
+    std::cout << value << " ";
+}
+```
+**3. Lambda表达式**
+
+Lambda表达式（匿名函数）提供了一种在代码中定义内联函数的方法，特别适用于需要将函数作为参数传递的场景。
+
+示例：
+
+```cpp
+auto add = [](int a, int b) -> int {
+    return a + b;
+};
+std::cout << add(3, 4); // 输出7
+```
+**4. nullptr**
+
+引入了新的空指针常量nullptr，替代传统的NULL，提供了类型安全的空指针表示。
+
+示例：
+
+```cpp
+int* p = nullptr;
+```
+
+**5. 强类型枚举（Scoped Enum）**
+
+通过enum class定义强类型枚举，避免了传统枚举类型的作用域和类型安全问题。
+
+示例：
+
+```cpp
+复制代码
+enum class Color { Red, Green, Blue };
+Color c = Color::Red;
+```
+
+**6. 委托构造函数（Delegating Constructors）**
+
+允许一个构造函数调用同一类中的另一个构造函数，简化了构造函数的实现。
+
+示例：
+
+```cpp
+class MyClass {
+public:
+    MyClass(int x) : value(x) {}
+    MyClass() : MyClass(0) {} // 委托构造函数
+private:
+    int value;
+};
+```
+
+**7. 默认和删除函数（Defaulted and Deleted Functions）**
+
+可以使用= default和= delete来显式指定默认函数的生成或禁止函数的使用。
+
+示例：
+
+```cpp
+class MyClass {
+public:
+    MyClass() = default; // 使用默认构造函数
+    MyClass(const MyClass&) = delete; // 禁止拷贝构造函数
+};
+```
+
+**8. constexpr**
+
+constexpr关键字用于声明在编译时可计算的常量表达式，提高程序的性能。
+
+示例：
+
+```cpp
+constexpr int square(int x) {
+    return x * x;
+}
+int array[square(5)]; // 等同于int array[25];
+```
+
+**9. 右值引用和移动语义（Rvalue References and Move Semantics）**
+
+引入了右值引用（&&）和std::move，优化了对象的转移，减少了不必要的拷贝，提高了程序性能。
+
+示例：
+
+```cpp
+std::string str1 = "Hello";
+std::string str2 = std::move(str1); // 移动构造，str1变为空
+```
+
+**10. 变长模板（Variadic Templates）**
+
+支持模板参数的可变长度，使得编写通用代码更加灵活。
+
+示例：
+
+```cpp
+template<typename... Args>
+void print(Args... args) {
+    (std::cout << ... << args) << std::endl;
+}
+print(1, 2, 3, "hello"); // 输出：123hello
+```
+
+二、库增强
+
+**1. 智能指针**
+
+引入了std::unique_ptr、std::shared_ptr和std::weak_ptr，用于自动管理动态分配的内存，避免内存泄漏。
+
+示例：
+
+```cpp
+std::unique_ptr<int> ptr(new int(5));
+std::shared_ptr<int> sptr = std::make_shared<int>(10);
+```
+**2. 多线程支持**
+
+标准库中增加了对多线程的支持，包括std::thread、std::mutex、std::lock_guard等，方便进行并发编程。
+
+示例：
+
+```cpp
+#include <thread>
+void func() {
+    std::cout << "Thread is running" << std::endl;
+}
+std::thread t(func);
+t.join();
+```
+
+**3. 新的容器**
+
+添加了无序容器，如std::unordered_map、std::unordered_set，提供了基于哈希表的高效查找。
+
+示例：
+
+```cpp
+std::unordered_map<std::string, int> umap;
+umap["one"] = 1;
+umap["two"] = 2;
+```
+
+**4. 正则表达式**
+
+引入了正则表达式库，支持模式匹配和字符串操作。
+
+示例：
+
+```cpp
+#include <regex>
+std::string s = "hello world";
+std::regex e("(\\w+)\\s(\\w+)");
+std::smatch sm;
+if (std::regex_match(s, sm, e)) {
+    std::cout << sm[1] << " " << sm[2] << std::endl;
+}
+```
+
+**5. 时间库（Chrono）**
+
+提供了高精度的时间测量和处理功能。
+
+示例：
+
+```cpp
+#include <chrono>
+auto start = std::chrono::high_resolution_clock::now();
+// 进行一些操作
+auto end = std::chrono::high_resolution_clock::now();
+auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+std::cout << "Elapsed time: " << duration.count() << "ms" << std::endl;
+```
+
+**6. 元组（Tuple）**
+
+std::tuple允许存储多个不同类型的值。
+
+示例：
+
+```cpp
+std::tuple<int, std::string, double> t(1, "hello", 3.14);
+int i = std::get<0>(t);
+std::string s = std::get<1>(t);
+double d = std::get<2>(t);
+```
+
+**7. 数组（Array）**
+
+std::array是一个定长的数组封装，替代传统的C风格数组。
+
+示例：
+
+```cpp
+std::array<int, 5> arr = {1, 2, 3, 4, 5};
+for (const auto& elem : arr) {
+    std::cout << elem << " ";
+}
+```
+
+**8. 随机数库**
+
+提供了更强大的随机数生成功能，包括多种随机数引擎和分布。
+
+示例：
+
+```cpp
+
+#include <random>
+std::random_device rd;
+std::mt19937 gen(rd());
+std::uniform_int_distribution<> dis(1, 6);
+int random_number = dis(gen);
+```
+
+三、其他改进
+
+**1. 统一的初始化列表（Uniform Initialization）**
+
+引入了统一的花括号{}初始化语法，适用于所有类型的初始化。
+
+示例：
+
+```cpp
+int arr[] = {1, 2, 3, 4, 5};
+std::vector<int> vec{1, 2, 3, 4, 5};
+struct Point { int x; int y; };
+Point p{3, 4};
+```
+
+**2. 原子操作（Atomic Operations）**
+
+提供了std::atomic类型，支持线程安全的原子操作。
+
+示例：
+
+```cpp
+#include <atomic>
+std::atomic<int> atomic_counter(0);
+atomic_counter++;
+```
+
+**3. 静态断言（Static Assertions）**
+
+static_assert允许在编译时检查条件是否满足，提高代码的健壮性。
+
+```cpp
+复制代码
+static_assert(sizeof(int) == 4, "int size is not 4 bytes");
+```
+
+**4. 用户自定义字面量（User-defined Literals）**
+
+允许用户定义自定义的字面量，增强代码的可读性。
+
+示例：
+
+```cpp
+复制代码
+long double operator"" _kg(long double x) {
+    return x * 1000;
+}
+auto weight = 3.5_kg; // weight = 3500
+```
+
+**5. 新的字符串字面量**
+
+支持原始字符串（Raw String）和UTF-8、UTF-16、UTF-32字符串字面量。
+
+示例：
+
+```cpp
+复制代码
+std::string raw_str = R"(Line1
+Line2
+Line3)";
+```
+
+**6. 类型推导（decltype）**
+
+decltype关键字用于获取表达式的类型。
+
+示例：
+
+```cpp
+复制代码
+int a = 5;
+decltype(a) b = 10; // b的类型被推导为int
+```
+
+**总结**
+
+C++11作为C++语言的重大更新，引入了众多新特性，提升了语言的表达能力、性能和安全性。这些新特性使得C++编程更加高效、简洁和现代化。熟练掌握C++11的新特性对于提高开发效率和代码质量具有重要意义。
 
 ## 类和对象
 
