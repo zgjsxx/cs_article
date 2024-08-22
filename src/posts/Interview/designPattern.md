@@ -23,6 +23,7 @@ tag:
     - [命令模式](#命令模式)
     - [中介者模式](#中介者模式)
     - [责任链模式](#责任链模式)
+    - [模板方法模式](#模板方法模式)
   - [设计模式的相似的模式的区别](#设计模式的相似的模式的区别)
     - [装饰器模式和代理模式的区别](#装饰器模式和代理模式的区别)
     - [外观模式和适配器模式的区别](#外观模式和适配器模式的区别)
@@ -1800,6 +1801,182 @@ Console::Logger: This is an error information.
 **总结**
 
 责任链模式在解耦请求发送者和接收者之间的依赖方面非常有用，同时还可以通过动态调整责任链来提高系统的灵活性和可扩展性。这个模式特别适合需要多个对象对同一请求进行处理的场景，如日志处理、权限验证等。
+
+### 模板方法模式
+
+**模板方法模式针对的问题**
+
+模板方法模式主要解决了代码复用和算法变体的问题。当你有一组**相似的操作**，它们在**大部分步骤上是相同**的，但在某些步骤上有所不同时，模板方法模式能够帮助你将通用的代码结构提取到基类中，并允许子类重写某些特定步骤。这不仅减少了代码的重复，还让算法的结构和可变部分解耦，使代码更具可读性和可维护性。
+
+不使用模板方法的代码
+
+假设我们有两种饮料（茶和咖啡），它们的制作过程如下：
+- 煮水
+- 冲泡
+- 倒入杯中
+- 添加调料
+
+但是茶和咖啡在“冲泡”和“添加调料”步骤上有所不同。我们来看一下如果不使用模板方法模式的代码会是什么样子。
+
+```cpp
+#include <iostream>
+
+// 茶的制作过程
+class Tea {
+public:
+    void prepareRecipe() {
+        boilWater();
+        steepTeaBag();
+        pourInCup();
+        addLemon();
+    }
+
+private:
+    void boilWater() {
+        std::cout << "Boiling water" << std::endl;
+    }
+
+    void steepTeaBag() {
+        std::cout << "Steeping the tea" << std::endl;
+    }
+
+    void pourInCup() {
+        std::cout << "Pouring into cup" << std::endl;
+    }
+
+    void addLemon() {
+        std::cout << "Adding lemon" << std::endl;
+    }
+};
+
+// 咖啡的制作过程
+class Coffee {
+public:
+    void prepareRecipe() {
+        boilWater();
+        brewCoffeeGrinds();
+        pourInCup();
+        addSugarAndMilk();
+    }
+
+private:
+    void boilWater() {
+        std::cout << "Boiling water" << std::endl;
+    }
+
+    void brewCoffeeGrinds() {
+        std::cout << "Dripping coffee through filter" << std::endl;
+    }
+
+    void pourInCup() {
+        std::cout << "Pouring into cup" << std::endl;
+    }
+
+    void addSugarAndMilk() {
+        std::cout << "Adding sugar and milk" << std::endl;
+    }
+};
+
+int main() {
+    Tea tea;
+    Coffee coffee;
+
+    std::cout << "Making tea..." << std::endl;
+    tea.prepareRecipe();
+
+    std::cout << "\nMaking coffee..." << std::endl;
+    coffee.prepareRecipe();
+
+    return 0;
+}
+```
+
+**不使用模板方法的缺点**
+- 代码重复：boilWater() 和 pourInCup() 方法在 Tea 和 Coffee 类中完全相同，这样的代码在两个类中重复了。
+- 难以维护：如果需要修改煮水或倒水的过程，你必须在每个类中单独修改这些方法。
+- 算法耦合：算法的结构和步骤的实现耦合在一起，不易扩展。
+
+**使用模板方法的代码**
+
+现在我们来看看使用模板方法模式的代码。
+
+```cpp
+#include <iostream>
+
+// 抽象类：饮料
+class Beverage {
+public:
+    // 模板方法：定义算法的步骤
+    void prepareRecipe() {
+        boilWater();
+        brew();          // 子类实现
+        pourInCup();
+        addCondiments(); // 子类实现
+    }
+
+protected:
+    void boilWater() {
+        std::cout << "Boiling water" << std::endl;
+    }
+
+    void pourInCup() {
+        std::cout << "Pouring into cup" << std::endl;
+    }
+
+    // 这两个步骤由子类实现
+    virtual void brew() = 0;
+    virtual void addCondiments() = 0;
+
+    virtual ~Beverage() = default;
+};
+
+// 具体类：茶
+class Tea : public Beverage {
+protected:
+    void brew() override {
+        std::cout << "Steeping the tea" << std::endl;
+    }
+
+    void addCondiments() override {
+        std::cout << "Adding lemon" << std::endl;
+    }
+};
+
+// 具体类：咖啡
+class Coffee : public Beverage {
+protected:
+    void brew() override {
+        std::cout << "Dripping coffee through filter" << std::endl;
+    }
+
+    void addCondiments() override {
+        std::cout << "Adding sugar and milk" << std::endl;
+    }
+};
+
+int main() {
+    Tea tea;
+    Coffee coffee;
+
+    std::cout << "Making tea..." << std::endl;
+    tea.prepareRecipe();
+
+    std::cout << "\nMaking coffee..." << std::endl;
+    coffee.prepareRecipe();
+
+    return 0;
+}
+```
+**使用模板方法的优点**
+- 减少代码重复：boilWater() 和 pourInCup() 方法被提取到基类 Beverage 中，避免了代码重复。
+- 易于维护：如果需要修改煮水或倒水的过程，只需在基类中修改一次。
+- 扩展性更好：如果要添加新的饮料类，只需继承 Beverage 并实现 brew() 和 addCondiments() 方法即可，不需要修改已有的代码。
+- 算法与步骤解耦：算法的步骤顺序（模板方法）与具体实现分离，使得算法框架和具体步骤实现的变化独立。
+
+**总结**
+
+使用模板方法模式后，代码的结构变得更加清晰，复用性和扩展性都得到了提升。这种模式特别适合那些需要定义一组操作步骤但在某些步骤上存在差异的场景。通过模板方法模式，可以在基类中定义通用的算法框架，并让子类实现具体的细节，从而达到了既复用代码又灵活定制的目的。
+
 
 ## 设计模式的相似的模式的区别
 
