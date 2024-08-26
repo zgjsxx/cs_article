@@ -10,6 +10,7 @@ tag:
   - [设计模式的几大原则](#设计模式的几大原则)
   - [创建型模式](#创建型模式)
     - [工厂方法](#工厂方法)
+    - [建造者模式](#建造者模式)
   - [结构型模式](#结构型模式)
     - [适配器模式](#适配器模式)
     - [桥接模式](#桥接模式)
@@ -24,9 +25,10 @@ tag:
     - [中介者模式](#中介者模式)
     - [责任链模式](#责任链模式)
     - [模板方法模式](#模板方法模式)
-  - [设计模式的相似的模式的区别](#设计模式的相似的模式的区别)
+  - [问题](#问题)
     - [装饰器模式和代理模式的区别](#装饰器模式和代理模式的区别)
     - [外观模式和适配器模式的区别](#外观模式和适配器模式的区别)
+    - [说说grpc中的建造者模式](#说说grpc中的建造者模式)
 
 
 # 设计模式面经
@@ -243,6 +245,140 @@ int main() {
 - 简单工厂模式：客户端依赖于具体的工厂类，当工厂类需要修改时，客户端代码也可能需要调整。
 - 工厂方法模式：客户端依赖于抽象工厂接口和产品接口，具体实现类的变化对客户端代码透明，从而提高了系统的灵活性和可扩展性。
 
+### 建造者模式
+
+**什么是建造者模式？**
+
+建造者模式（Builder Pattern）是一种创建型设计模式，它允许我们一步一步地构建复杂对象。与直接用构造函数创建对象不同，建造者模式将对象的创建过程与其表示分离，使得同样的构建过程可以创建不同的表示。
+
+**解决的问题**
+
+在对象创建过程中，某些对象的构造过程可能会变得复杂且繁琐，比如需要设置多个属性或依赖于其他对象。构造函数的参数列表可能会变得过长，不仅难以维护，还容易出现错误。
+
+**建造者模式解决了以下问题**：
+
+- 简化对象创建过程：将复杂对象的创建步骤分解并封装在不同的方法中，使对象的创建过程更加清晰。
+- 解耦对象的创建和表示：将对象的创建过程与它们的最终表示形式分离开来，使得同样的构建过程可以创建不同的对象。
+- 提高代码可读性和维护性：通过将对象的构建步骤分离出来，使代码更具可读性和维护性。
+
+**建造者模式的组成**
+
+建造者模式通常包含以下几部分：
+
+- Builder（抽象建造者）：定义创建复杂对象各个部分的接口。
+- ConcreteBuilder（具体建造者）：实现 Builder 接口，构造和装配各个部分。
+- Director（指挥者）：构建对象时调用具体建造者中的方法，指导建造过程。
+- Product（产品）：最终要构建的复杂对象。
+
+C++ 代码示例
+
+以下是一个使用建造者模式构建复杂对象的 C++ 示例。我们将构建一个 House 对象，House 包含 Walls、Roof 和 Windows 等部件。
+
+```cpp
+#include <iostream>
+#include <string>
+
+// Product类：代表一个复杂对象
+class House {
+public:
+    std::string walls;
+    std::string roof;
+    std::string windows;
+
+    void show() const {
+        std::cout << "House with " << walls << ", " << roof << " and " << windows << std::endl;
+    }
+};
+
+// Builder接口：为创建House的各个部分定义接口
+class HouseBuilder {
+public:
+    virtual ~HouseBuilder() {}
+    virtual void buildWalls() = 0;
+    virtual void buildRoof() = 0;
+    virtual void buildWindows() = 0;
+    virtual House* getHouse() = 0;
+};
+
+// ConcreteBuilder类：实现Builder接口，构造和装配具体产品的各个部分
+class ConcreteHouseBuilder : public HouseBuilder {
+private:
+    House* house;
+public:
+    ConcreteHouseBuilder() {
+        house = new House();
+    }
+
+    void buildWalls() override {
+        house->walls = "Wooden Walls";
+    }
+
+    void buildRoof() override {
+        house->roof = "Tile Roof";
+    }
+
+    void buildWindows() override {
+        house->windows = "Glass Windows";
+    }
+
+    House* getHouse() override {
+        return house;
+    }
+};
+
+// Director类：构建一个使用Builder接口的对象
+class Director {
+private:
+    HouseBuilder* builder;
+public:
+    Director(HouseBuilder* builder) : builder(builder) {}
+
+    void construct() {
+        builder->buildWalls();
+        builder->buildRoof();
+        builder->buildWindows();
+    }
+};
+
+int main() {
+    // 创建一个具体的建造者
+    HouseBuilder* builder = new ConcreteHouseBuilder();
+    // 创建一个指挥者并传入建造者
+    Director director(builder);
+
+    // 使用指挥者构建对象
+    director.construct();
+
+    // 获取最终构建的产品
+    House* house = builder->getHouse();
+    house->show();
+
+    // 释放资源
+    delete builder;
+    delete house;
+
+    return 0;
+}
+```
+
+代码解析
+- Product (House): 表示最终的复杂对象，包含多个部件（walls、roof、windows）。
+- Builder (HouseBuilder): 定义构建 House 各个部分的方法接口（纯虚函数）。
+- ConcreteBuilder (ConcreteHouseBuilder): 实现 HouseBuilder 接口，提供具体的构建 House 部件的方法，并提供获取最终产品的方法。
+- Director (Director): 负责调用 HouseBuilder 中的方法，指导构建过程。
+- Client (main 函数): 创建具体的建造者，并通过指挥者构建最终的产品。
+
+输出
+
+运行上面的程序后，将输出：
+
+```shell
+House with Wooden Walls, Tile Roof and Glass Windows
+```
+
+**总结**
+
+建造者模式提供了一种灵活的方式来创建复杂对象。它将对象的创建过程分解成多个步骤，并允许这些步骤以不同的顺序或方式组合，从而使得同样的构造过程可以生成不同的对象。通过建造者模式，代码的可读性和可维护性得到了提升，并且减少了创建复杂对象时可能出现的错误。
 
 ## 结构型模式
 
@@ -1978,7 +2114,7 @@ int main() {
 使用模板方法模式后，代码的结构变得更加清晰，复用性和扩展性都得到了提升。这种模式特别适合那些需要定义一组操作步骤但在某些步骤上存在差异的场景。通过模板方法模式，可以在基类中定义通用的算法框架，并让子类实现具体的细节，从而达到了既复用代码又灵活定制的目的。
 
 
-## 设计模式的相似的模式的区别
+## 问题
 
 ### 装饰器模式和代理模式的区别
 
@@ -2043,3 +2179,68 @@ int main() {
 **3. 设计结构**
 - 外观模式：外观模式通常涉及创建一个“外观类”（Facade），该类提供了高层的简化接口，并委托实际的工作给系统的子类或模块。
 - 适配器模式：适配器模式通常涉及创建一个“适配器类”（Adapter），该类将目标接口（Target）与被适配类（Adaptee）关联起来。适配器类实现目标接口，并在实现过程中调用被适配类的方法。
+
+### 说说grpc中的建造者模式
+
+gRPC中使用了建造者模式，尤其是在客户端和服务端的配置和调用过程中。这种模式帮助简化了复杂对象的创建过程，并提高了代码的可读性和可维护性。
+
+gRPC 中的建造者模式
+
+**1. Channel 构建**
+
+在 gRPC 中，客户端需要通过一个 Channel 来与服务端通信。创建一个 Channel 通常需要指定目标地址、认证方式、连接参数等。gRPC 使用建造者模式来构建 Channel，使得构建过程更加清晰和可控。
+
+```cpp
+#include <grpcpp/grpcpp.h>
+
+int main() {
+    auto channel = grpc::CreateChannel("localhost:50051", grpc::InsecureChannelCredentials());
+
+    // channel now can be used to create a stub and make RPC calls
+    return 0;
+}
+```
+
+在上面的代码中，CreateChannel 函数通过建造者模式创建了一个 Channel。你可以通过传入不同的参数来配置 Channel 的各个属性，比如目标地址和认证方式。
+
+**2. Server 构建**
+
+在服务端，Server 的创建也是通过建造者模式完成的。gRPC 提供了 ServerBuilder 类来帮助用户一步步地构建一个服务端实例。
+
+```cpp
+#include <grpcpp/grpcpp.h>
+#include "your_service.grpc.pb.h" // 包含生成的服务代码
+
+class YourServiceImpl final : public YourService::Service {
+    // 实现服务端逻辑
+};
+
+int main() {
+    std::string server_address("0.0.0.0:50051");
+    YourServiceImpl service;
+
+    grpc::ServerBuilder builder;
+    builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+    builder.RegisterService(&service);
+
+    std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
+    std::cout << "Server listening on " << server_address << std::endl;
+
+    server->Wait();
+    return 0;
+}
+```
+
+在这个例子中，ServerBuilder 充当了建造者的角色，它提供了一系列的方法来逐步配置和创建 Server 对象：
+- AddListeningPort：指定服务端监听的地址和端口。
+- RegisterService：注册具体的服务实现。
+- BuildAndStart：构建并启动 Server 对象。
+
+**gRPC 中使用建造者模式的优点**
+- 简化配置过程：通过建造者模式，gRPC 提供了简洁且清晰的 API 接口，使得用户可以通过链式调用的方式一步步配置复杂的对象（如 Server 和 Channel）。
+- 增强可读性和可维护性：建造者模式将对象的创建过程分离成多个独立的步骤，每个步骤都负责一个特定的配置项，使代码更加易读且易于维护。
+- 灵活性：用户可以根据需要选择性地配置某些属性，而不必关心其他不相关的配置，从而实现更高的灵活性。
+
+**总结**
+
+gRPC 中广泛使用了建造者模式，特别是在 Channel 和 Server 的构建过程中。通过这种模式，gRPC 简化了复杂对象的创建过程，提高了代码的可读性、可维护性和灵活性。使用建造者模式，开发者可以轻松配置和管理 gRPC 的各类组件，从而专注于服务的实现逻辑。
