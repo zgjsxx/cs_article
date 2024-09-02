@@ -25,6 +25,7 @@ tag:
     - [中介者模式](#中介者模式)
     - [责任链模式](#责任链模式)
     - [模板方法模式](#模板方法模式)
+    - [访问者模式](#访问者模式)
   - [问题](#问题)
     - [装饰器模式和代理模式的区别](#装饰器模式和代理模式的区别)
     - [外观模式和适配器模式的区别](#外观模式和适配器模式的区别)
@@ -2113,6 +2114,123 @@ int main() {
 
 使用模板方法模式后，代码的结构变得更加清晰，复用性和扩展性都得到了提升。这种模式特别适合那些需要定义一组操作步骤但在某些步骤上存在差异的场景。通过模板方法模式，可以在基类中定义通用的算法框架，并让子类实现具体的细节，从而达到了既复用代码又灵活定制的目的。
 
+
+### 访问者模式
+
+访问者模式（Visitor Pattern） 是一种行为型设计模式，它允许你在不修改现有对象结构的前提下，增加新的操作（方法）。访问者模式将对象结构与操作分离，使得新增操作变得更加容易。
+
+访问者模式解决的问题
+
+访问者模式主要解决以下问题：
+
+- 操作扩展：在对象结构（如树形结构、列表等）中，有时需要对其中的每个对象执行一些操作。这些操作可能随着时间的推移而变化或增加。如果将操作直接定义在对象类中，修改或新增操作将导致修改对象类，这不符合开闭原则。
+
+- 对象结构不易修改：对象结构比较稳定或难以修改，但操作可能频繁变化或增加。访问者模式允许在不修改对象结构的情况下，添加新的操作。
+
+- 避免类型判断：在一个对象结构中，不同类型的对象可能需要执行不同的操作。如果不使用访问者模式，通常需要进行类型判断来决定执行哪个操作，这会导致代码复杂且难以维护。访问者模式通过双重分派机制，避免了显式的类型检查。
+
+访问者模式的结构
+
+访问者模式的关键在于将对象结构与要执行的操作分离。它的主要组成部分包括：
+
+- Visitor（访问者）：定义对各类元素的访问操作接口。每种元素类型都有对应的访问方法。
+
+- ConcreteVisitor（具体访问者）：实现访问者接口中的具体操作。每个具体访问者类实现不同的操作。
+
+- Element（元素）：定义一个接受访问者的方法（accept），这个方法将访问者作为参数。
+
+- ConcreteElement（具体元素）：实现元素接口，提供具体的accept方法的实现。在accept方法中调用访问者对应的方法。
+
+- Object Structure（对象结构）：通常是一个包含不同类型元素的集合，可以遍历这些元素并执行访问者的操作。
+
+**访问者模式的示例**
+
+假设我们有一个图形对象结构，其中包含Circle和Rectangle，我们希望对这些图形对象进行不同的操作（如计算面积、绘制等）。
+
+```cpp
+#include <iostream>
+#include <vector>
+#include <memory>
+
+// Forward declaration of Visitor
+class Circle;
+class Rectangle;
+
+class Visitor {
+public:
+    virtual void visit(Circle* circle) = 0;
+    virtual void visit(Rectangle* rectangle) = 0;
+    virtual ~Visitor() = default;
+};
+
+// Element interface
+class Shape {
+public:
+    virtual void accept(Visitor* visitor) = 0;
+    virtual ~Shape() = default;
+};
+
+// ConcreteElement - Circle
+class Circle : public Shape {
+public:
+    void accept(Visitor* visitor) override {
+        visitor->visit(this);
+    }
+    int radius() const { return 5; }  // Example property
+};
+
+// ConcreteElement - Rectangle
+class Rectangle : public Shape {
+public:
+    void accept(Visitor* visitor) override {
+        visitor->visit(this);
+    }
+    int width() const { return 4; }
+    int height() const { return 3; }
+};
+
+// ConcreteVisitor - AreaCalculator
+class AreaCalculator : public Visitor {
+public:
+    void visit(Circle* circle) override {
+        int area = 3.14 * circle->radius() * circle->radius();
+        std::cout << "Circle Area: " << area << std::endl;
+    }
+    void visit(Rectangle* rectangle) override {
+        int area = rectangle->width() * rectangle->height();
+        std::cout << "Rectangle Area: " << area << std::endl;
+    }
+};
+
+// Client code
+int main() {
+    std::vector<std::unique_ptr<Shape>> shapes;
+    shapes.push_back(std::make_unique<Circle>());
+    shapes.push_back(std::make_unique<Rectangle>());
+
+    AreaCalculator calculator;
+    for (auto& shape : shapes) {
+        shape->accept(&calculator);
+    }
+
+    return 0;
+}
+
+```
+
+**代码解析**
+
+- Visitor接口：Visitor接口定义了访问Circle和Rectangle的方法。
+
+- 具体访问者（AreaCalculator）：AreaCalculator实现了访问者接口中的方法，提供了计算图形面积的功能。
+
+- 元素接口和具体元素：Shape类是元素接口，Circle和Rectangle是具体元素类。它们实现了accept方法，并在其中调用了访问者的相应方法。
+
+- 客户端代码：客户端创建了图形对象，并遍历它们，调用每个对象的accept方法。这使得具体的访问者操作（如面积计算）得以应用到每个对象上。
+
+**总结**
+
+访问者模式通过将操作与对象结构分离，使得在不修改对象结构的前提下添加新操作变得容易。它尤其适合于对象结构较为稳定但操作经常变化的场景。通过访问者模式，可以避免繁琐的类型检查和复杂的条件逻辑，增强系统的可扩展性和维护性。
 
 ## 问题
 
