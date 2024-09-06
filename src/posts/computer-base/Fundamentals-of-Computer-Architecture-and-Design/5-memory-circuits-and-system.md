@@ -227,22 +227,31 @@ SDRAM 读取序列同样以系统总线发送```Status = START```、```Write = 0
 
 ![图39：读状态寄存器的时序图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-39-timing-diagram-for-reading-status-register.png)
 
-图39描述的是**完整页面的写入操作**的过程。完整页面数据写入操作由四个任务组合而成。如图40所示。
+图40描述的是**全页面的写入操作**的过程。完整页面数据写入操作由四个任务组合而成。如图40所示。
+
 第一个任务是在$\overline{WE}$（写使能）信号的上升沿输入写入数据缓冲区命令，同时保持$\overline{CE}$（片选）信号为逻辑0。
+
 第二个任务是在$\overline{WE}$信号的上升沿输入页地址和扇区地址，同时保持$\overline{AE}$（地址使能）信号为逻辑0。
-第三个任务是在每个$\overline{WE}$信号的上升沿将从```D(0)```到```D(255)```的整页数据输入到数据缓冲区。在此阶段，$\overline{AE}$和$\overline{CE}$信号都保持为逻辑1。最后一个任务是输入写入到核心内存命令，以便将数据缓冲区中的全部256字节数据传输到内存核心。
-最后一个周期需要相对较长的时间tWRITE来完成整页写入。
 
-图40
+第三个任务是在每个$\overline{WE}$信号的上升沿将从```D(0)```到```D(255)```的整页数据输入到数据缓冲区。在此阶段，$\overline{AE}$和$\overline{CE}$信号都保持为逻辑1。
 
-读取操作由三个与写入操作类似的独立任务组成，如图41所示。
+最后一个任务是输入写入到核心内存命令，以便将数据缓冲区中的全部256字节数据传输到内存核心。最后一个周期需要相对较长的时间${t}_{WRITE}$来完成整页写入。
+
+![图40：全页面写的时序图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-40-timing-diagram-for-fullpage-write.png)
+
+
+图41描述的是**全页面的读取操作**的过程。读取操作由三个与写入操作类似的独立任务组成，如图41所示。
+
 第一个任务是在$\overline{WE}$（写使能）信号的上升沿输入从内存读取命令，同时保持$\overline{CE}$（片选）信号为逻辑0。
-第二个步骤是在每个$\overline{WE}$信号的上升沿输入起始地址，通过指定行、页和扇区地址值，同时保持$\overline{AE}$（地址使能）信号为逻辑0。
+
+第二个任务是在每个$\overline{WE}$信号的上升沿输入起始地址，通过指定行、页和扇区地址值，同时保持$\overline{AE}$（地址使能）信号为逻辑0。
+
 第三个任务是在每个$\overline{RE}$（读使能）信号的下降沿从内存核心读取数据，此时$\overline{CE}$和$\overline{AE}$信号保持为逻辑1。
 
-图41
+![图41：全页面读时序图](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-41-timing-diagram-for-full-page-read.png)
 
-图42描述了一个典型的整页擦除操作。在该图中，首先在$\overline{WE}（写使能）信号的上升沿输入整页擦除命令，同时保持\overline{CE}$（片选）信号为逻辑0。接下来在$\overline{AE}$（地址使能）信号为逻辑0时输入由页地址和扇区地址组成的内存地址。地址输入完成后，在$\overline{CE}$信号为逻辑0时输入擦除核心内存命令。必须使用整页擦除时间周期${t}_{ERASE}$来完成该操作。
+
+图42描述了一个典型的**整页擦除操作**。在该图中，首先在$\overline{WE}（写使能）信号的上升沿输入整页擦除命令，同时保持\overline{CE}$（片选）信号为逻辑0。接下来在$\overline{AE}$（地址使能）信号为逻辑0时输入由页地址和扇区地址组成的内存地址。地址输入完成后，在$\overline{CE}$信号为逻辑0时输入擦除核心内存命令。必须使用整页擦除时间周期${t}_{ERASE}$来完成该操作。
 
 图42
 
