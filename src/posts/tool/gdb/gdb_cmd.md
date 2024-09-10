@@ -6,6 +6,27 @@ tag:
 - C++
 ---
 
+- [gdb的基础命令使用](#gdb的基础命令使用)
+  - [gdb常用命令](#gdb常用命令)
+  - [gdb命令案例详解](#gdb命令案例详解)
+    - [run](#run)
+    - [continue](#continue)
+    - [next](#next)
+    - [step](#step)
+    - [until](#until)
+    - [finish](#finish)
+    - [call](#call)
+    - [break](#break)
+    - [watch](#watch)
+    - [print](#print)
+    - [display](#display)
+    - [backtrace](#backtrace)
+    - [info](#info)
+    - [x命令](#x命令)
+  - [gdb调试STL](#gdb调试stl)
+  - [参考文献](#参考文献)
+
+
 # gdb的基础命令使用
 
 gdb是c/c++程序的调试利器，在日常工作中，十分有利。 
@@ -31,6 +52,7 @@ gdb是c/c++程序的调试利器，在日常工作中，十分有利。
     - [backtrace](#backtrace)
     - [info](#info)
     - [x命令](#x命令)
+  - [gdb调试STL](#gdb调试stl)
   - [参考文献](#参考文献)
 
 ## gdb常用命令
@@ -1281,6 +1303,46 @@ $1 = 0x7fffffffde9f "\377\001"
 0x7fffffffde9f: -1 '\377'
 ```
 
+## gdb调试STL
+
+gdb对于STL容器元素的打印并不友好，如果想要直接输出可以阅读的容器元素，则需要使用gdb python pretty printer插件。
+
+添加下面的代码到```~/.gdbinit```中。
+
+```shell
+python
+import sys
+sys.path.insert(0, '/usr/share/gcc-11/python')
+from libstdcxx.v6.printers import register_libstdcxx_printers
+register_libstdcxx_printers (None)
+end
+```
+
+例如下面的c++代码
+
+```cpp
+#include <iostream>
+#include <map>
+
+int main() {
+    std::map<int, std::string> myMap;
+    myMap[1] = "one";
+    myMap[2] = "two";
+    myMap[3] = "three";
+    return 0;
+}
+```
+
+此时打印map则可以输出map的key-val值。
+
+```shell
+(gdb) p myMap
+$4 = std::map with 3 elements = {[1] = "one", [2] = "two", [3] = "three"}
+(gdb)
+$5 = std::map with 3 elements = {[1] = "one", [2] = "two", [3] = "three"}
+(gdb)
+$6 = std::map with 3 elements = {[1] = "one", [2] = "two", [3] = "three"}
+```
 
 ## 参考文献
 
