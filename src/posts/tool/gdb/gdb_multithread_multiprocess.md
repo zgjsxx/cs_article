@@ -19,7 +19,7 @@ tag:
 |```info threads```|显示当前可调试的所有线程，每个线程会有一个id，带有*标记的是当前调试的线程。|
 |```thread <ID>```|切换当前调试线程为指定的线程|
 |```set scheduler-locking off```|不锁定任何线程，也就是所有线程都执行，这是默认值|
-|```set scheduler-locking on```| 只有当前被调试程序会执行|
+|```set scheduler-locking on```| 只有当前被调试线程会执行|
 |```set scheduler-locking on step```|在单步的时候，除了next过一个函数的情况(熟悉情况的人可能知道，这其实是一个设置断点然后continue的行为)以外，只有当前线程会执行|
 |```thread apply all command```| 让所有被调试线程执行GDB命令command|
 |```thread apply ID1 ID2 command```	|让一个或者多个线程执行GDB命令command|
