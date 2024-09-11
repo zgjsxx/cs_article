@@ -1,7 +1,5 @@
 # GFS
 
-https://zhuanlan.zhihu.com/p/694368973
-
 
 
 **GFS追加写文件**
@@ -26,3 +24,7 @@ https://zhuanlan.zhihu.com/p/694368973
 
 如果client收到错误，client就会重新向master发送请求，重复上面的过程
 Master 发现无法联系到 Primary，会等待租约到期再指定新的 Primary，防止出现脑裂的情况
+
+https://zhuanlan.zhihu.com/p/694368973
+
+https://zhuanlan.zhihu.com/p/424677701
