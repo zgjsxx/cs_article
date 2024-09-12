@@ -21,7 +21,7 @@ $c = {m}^{e} {\kern 5pt} mod {\kern 5pt} n$
 $m = {c}^{d} {\kern 5pt} mod {\kern 5pt} n$
 
 
-为什么解密公式可以恢复原始明文m。
+**为什么解密公式可以恢复原始明文m**
 
 ${c}^{d} {\kern 5pt} mod {\kern 5pt} n 
 = ({m}^{e} - kn)^{d} {\kern 5pt} mod {\kern 5pt} n
