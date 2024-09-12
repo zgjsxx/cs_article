@@ -3,6 +3,7 @@
 - [RSA算法](#rsa算法)
   - [同余](#同余)
   - [加密和解密过程的详细推导](#加密和解密过程的详细推导)
+  - [参考文章](#参考文章)
 
 
 # RSA算法
@@ -90,9 +91,56 @@ $${m^{\phi(n)}}^{k} \times m \equiv {1}^{k} \times m \pmod {n} = m \pmod{n}$$
 
 当m和n不互质时：
 
+因为 n 是质数 p 和 q 的乘积，此时 m 必然为 kp 或者 kq。
+
+以 m = kp 为例，此时 k 必然与 q 互质。因为 n = pq，而 m < n，所以 k 必然小于 q，而 q 是一个质数，在小于 q 的数字当中所有数都与 q 互质。
+
+同时 kp 必然也与 q 互质，如果 kp 和 q 不互质，那么 kp 必然是 q 的倍数，因为 q 不存在其他因子，那么 kp 就是 n 的倍数，因为 n = pq，但是我们的前提是 m < n。
+
+因为 kp 和 q 互质，根据欧拉定理
+
+$${kp}^{q-1} \equiv 1 \pmod(q)$$
+
+所以
+
+$${kp}^{q-1} = tq + 1$$
+
+两边同时进行$h(p-1)$次方
+
+$${kp^{q-1}}^{h(p-1)} = {tq+1}^{h(p-1)}$$
+
+同理根据二项式定理，右边展开除了 1 每一项都含有 q，所以可以得到
+
+$${kp^{q-1}}^{h(p-1)} \equiv 1 \pmod{q}$$
+
+从而得到
+
+$${kp^{q-1}}^{h(p-1)} \times kp \equiv kp \pmod{q}$$
+
+也就是
+
+$${kp}^{ed} \equiv  kp \pmod{q}$$
+
+改写为如下形式
+
+$${kp}^{ed} = kp +tq$$
+
+左边是 p 的倍数，右边 kp 是 p 的倍数，所以 tq 必然是 p 的倍数。而 q 是 p 互质的，因此 t 必然是 p 的倍数，我们记为 t = t’p，代入得到
+
+$${kp}^{ed} = kp +t'pq$$
+
+等同于
+
+$${m}^{ed} = m +t'n$$
+
+也就是:
+
+$${m}^{ed} \equiv m \pmod{n}$$
+
+得证
+
+## 参考文章
 
 https://cjting.me/2020/03/13/rsa/
 
-
-参考文章
 https://www.ruanyifeng.com/blog/2013/07/rsa_algorithm_part_two.html
