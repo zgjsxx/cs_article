@@ -86,7 +86,7 @@ ${m}^{\phi(n)} \equiv 1 {\kern 5pt} (mod {\kern 5pt}n)$
 
 因此
 
-${{m}^{\phi(n)}}^{k} \times m \equiv {1}^{k} \times m {\kern 5pt} (mod {\kern 5pt}n) = m \pmod{n}$
+$${m^{\phi(n)}}^{k} \times m \equiv {1}^{k} \times m \pmod {n} = m \pmod{n}$$
 
 当m和n不互质时：
 
