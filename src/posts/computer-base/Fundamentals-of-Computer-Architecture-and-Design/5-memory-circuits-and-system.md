@@ -270,13 +270,22 @@ SDRAM 读取序列同样以系统总线发送```Status = START```、```Write = 0
 
 ![图44：闪存的内存架构](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-44-Flash-memory-architecture.png)
 
-图45
+
+![图45：flash的主要模式](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/computer-base/Fundamentals-of-Computer-Architecture-and-Design/5/fig-45-main-mode-of-flash-memory.png)
 
 图34所示的存储单元是闪存核心中的基本存储元件。它是一个带浮动栅极的N沟道MOS晶体管，其唯一用途是存储电子电荷。该器件需要远高于电源电压的高电压来生成并传输电子到浮动栅极。为了在短时间内从电源获得更高的直流电压，图44中的控制逻辑包含一个由恒流源和电容器组成的电荷泵电路。当恒流源给电容器充电时，电容器两端的电压随时间线性上升，最终达到高直流电位，以生成浮动栅极所需的电子。电子隧穿到浮动栅极的机制需要时间。因此，与挂起或恢复等简单控制操作相比，写入或擦除操作可能需要许多连续的时钟周期。
 
 图46显示了基本的读取操作，前提是数据已经从内存核心传输到数据缓冲区。一旦发出有效地址，在读取使能信号$\overline{RE}$的下降沿之后的一段时间内，数据将在I/O端口产生。数据在$\overline{RE}$上升沿之后的保持时间th内保留在I/O端口，如下方的时序图所示。实际的读取操作大约需要四个时钟周期，因为从内存核心检索整个数据过程需要时间。这包括感应闪存单元的电压水平、使用感应放大器放大该值，以及将数据从感应放大器传播到数据缓冲区。
 
 图46
+
+与读取操作相比，基本的写入操作遵循图 47 的时序图。在该图中，当使能信号（Enable, EN）和写使能信号（Write Enable, WE）均为逻辑 0 时，有效的地址必须存在于地址端口。满足建立时间（setup time, ts）和保持时间（hold time, th）的有效数据随后被写入数据缓冲区。实际的写入过程可能需要最多四个时钟周期，因为数据需要从 I/O 端口传播到数据缓冲区，然后再从数据缓冲区传播到 Flash 核心。
+
+图47
+
+禁用 I/O 端口以进行读或写操作，因此将设备置于待机模式，需要使能信号（EN）为逻辑 0，如图 48 所示。在这种情况下，I/O 端口将处于浮空状态，并显示为高阻抗（Hi-Z）。
+
+图48
 
 ## 5.串口闪存(Serial Flash Memory)
 
