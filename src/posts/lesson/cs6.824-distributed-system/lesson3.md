@@ -29,6 +29,8 @@ Master 发现无法联系到 Primary，会等待租约到期再指定新的 Prim
 
 好文章：https://zhuanlan.zhihu.com/p/354450124
 
+系列：https://mit-public-courses-cn-translatio.gitbook.io/mit6-824
+
 https://zhuanlan.zhihu.com/p/694368973
 
 https://zhuanlan.zhihu.com/p/424677701
