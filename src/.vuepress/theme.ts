@@ -81,6 +81,7 @@ export default hopeTheme({
     },
   },
 
+  // enable to protect you private article
   encrypt: {
     config: {
       "/posts/demo/encrypt.html": ["1234"],
