@@ -12,6 +12,7 @@ tag:
   - [问题2：如果字符串没有重复字符，打印出所有的非空子串](#问题2如果字符串没有重复字符打印出所有的非空子串)
   - [问题3:如果字符串有重复字符，打印出所有的非空子序列](#问题3如果字符串有重复字符打印出所有的非空子序列)
   - [题目：LRU cache(二面)](#题目lru-cache二面)
+  - [题目： 判断字符串能否划分为多个递增+1的整数(三面)](#题目-判断字符串能否划分为多个递增1的整数三面)
 
 # 小鹏汽车在线笔试真题
 
@@ -235,6 +236,129 @@ int main() {
     std::cout << lruCache.get(1) << std::endl;  // 返回 -1 (未找到)
     std::cout << lruCache.get(3) << std::endl;  // 返回 3
     std::cout << lruCache.get(4) << std::endl;  // 返回 4
+
+    return 0;
+}
+```
+
+## 题目： 判断字符串能否划分为多个递增+1的整数(三面)
+
+例子：
+
+```shell
+"1234" ->  1,2,3,4 OK
+"201202" -> 201, 202
+"201203" -> 201, 203
+```
+
+方法1： 第一个数字的长度区间是1到n/2，在第一个循环以此进行遍历。有了第一个数字以后，那第二个数字的期望值就知道了，将其转化为字符串，然后去源字符串中去寻找，看是否可以匹配上，第二个循环一直这样遍历下去直到字符串结尾。
+
+```cpp
+#include <iostream>
+#include <string>
+using namespace std;
+
+// 辅助函数：将字符串的某个子串转为整数
+long long toInteger(const string &s, int start, int length) {
+    return stoll(s.substr(start, length));
+}
+
+// 判断是否能分割为递增的数字
+bool canSplitIntoConsecutiveNumbers(const string &s) {
+    int n = s.size();
+    
+    // 枚举第一个数字的长度
+    for (int len = 1; len <= n / 2; ++len) {
+        long long prev = toInteger(s, 0, len); // 第一个数字
+        int idx = len; // 当前字符串中的索引
+
+        bool valid = true;
+        
+        // 尝试后续的每个数字是否递增
+        while (idx < n) {
+            // 下一个期望的数字
+            long long next = prev + 1;
+            string nextStr = to_string(next);
+            int nextLen = nextStr.size();
+            
+            // 判断字符串长度是否足够容纳下一个数字
+            if (idx + nextLen > n || s.substr(idx, nextLen) != nextStr) {
+                valid = false;
+                break;
+            }
+            
+            // 更新为下一个数字
+            prev = next;
+            idx += nextLen;
+        }
+        
+        // 如果找到了一个有效的分割
+        if (valid) {
+            return true;
+        }
+    }
+    
+    // 如果所有长度的尝试都失败，返回 false
+    return false;
+}
+
+int main() {
+    string s = "78910";
+    
+    if (canSplitIntoConsecutiveNumbers(s)) {
+        cout << "字符串可以划分为多个递增的整数,每个比前一个大1" << endl;
+    } else {
+        cout << "字符串不能划分为多个递增的整数" << endl;
+    }
+
+    return 0;
+}
+
+```
+
+
+方法2：我们可以先选择第一个数字，然后尝试构建一个与字符串完全匹配的递增+1的数字序列，而不是逐步去尝试每个长度。
+
+```cpp
+#include <iostream>
+#include <string>
+using namespace std;
+
+// 判断是否能分割为递增的数字
+bool canSplitIntoConsecutiveNumbers(const string &s) {
+    int n = s.size();
+    
+    // 尝试不同长度的第一个数字（最多到一半长度）
+    for (int len = 1; len <= n / 2; ++len) {
+        long long firstNum = stoll(s.substr(0, len)); // 第一个数字
+        long long currentNum = firstNum;
+        
+        string expected = to_string(currentNum); // 期望的整个序列
+        int idx = len;
+        
+        // 动态生成后续递增的数字，并和字符串做比较
+        while (expected.size() < n) {
+            currentNum++; // 后一个数字递增1
+            expected += to_string(currentNum); // 拼接生成的序列
+        }
+        
+        // 如果生成的序列与原字符串相等，返回true
+        if (expected == s) {
+            return true;
+        }
+    }
+    
+    // 如果所有长度的尝试都失败，返回 false
+    return false;
+}
+
+int main() {
+    string s= "12356";
+    if (canSplitIntoConsecutiveNumbers(s)) {
+        cout << "字符串可以划分为多个递增的整数，每个比前一个大1" << endl;
+    } else {
+        cout << "字符串不能划分为多个递增的整数" << endl;
+    }
 
     return 0;
 }
