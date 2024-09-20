@@ -27,6 +27,7 @@ tag:
     - [c++11的新特性有哪些？](#c11的新特性有哪些)
     - [std::optional是否需要额外的存储空间](#stdoptional是否需要额外的存储空间)
     - [c++中在一个类中使用using Base::add有什么用](#c中在一个类中使用using-baseadd有什么用)
+    - [如何为private方法写UT](#如何为private方法写ut)
   - [类和对象](#类和对象)
     - [什么是RTTI](#什么是rtti)
   - [STL](#stl)
@@ -1512,6 +1513,38 @@ public:
 **总结**：
 ```using Base::add;``` 的作用是将基类 Base 中的 add 函数引入到派生类 Derived 的作用域，使得基类的重载函数在派生类中也可以被访问。
 这对于避免函数名隐藏以及正确处理函数重载非常重要。
+
+### 如何为private方法写UT
+
+使用友元类 (Friend Class)：
+
+如果你在 C++ 中编写测试，并且确实想要直接访问 private 方法，可以使用 friend 关键字，让你的测试类成为被测类的友元类。友元类可以访问该类的所有 private 和 protected 成员。
+
+```cpp
+// 被测试的类
+class MyClass {
+private:
+    int add(int a, int b) { return a + b; }
+
+public:
+    int publicAdd(int a, int b) { return add(a, b); }
+
+    // 声明友元测试类
+    friend class MyClassTest;
+};
+
+// 测试类
+class MyClassTest {
+public:
+    static void testPrivateAdd() {
+        MyClass obj;
+        int result = obj.add(3, 5);  // 直接访问 private 方法
+        assert(result == 8);
+    }
+};
+```
+
+在这种情况下，MyClassTest 成为 MyClass 的友元类，因此可以直接访问 MyClass 中的 private 方法。
 
 ## 类和对象
 
