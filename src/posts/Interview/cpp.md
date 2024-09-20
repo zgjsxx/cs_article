@@ -26,6 +26,7 @@ tag:
     - [位域是什么？有哪些注意点](#位域是什么有哪些注意点)
     - [c++11的新特性有哪些？](#c11的新特性有哪些)
     - [std::optional是否需要额外的存储空间](#stdoptional是否需要额外的存储空间)
+    - [c++中在一个类中使用using Base::add有什么用](#c中在一个类中使用using-baseadd有什么用)
   - [类和对象](#类和对象)
     - [什么是RTTI](#什么是rtti)
   - [STL](#stl)
@@ -1433,7 +1434,84 @@ std::optional 确实需要额外的存储空间来表示其状态。具体来说
 - 效率：虽然 ```std::optional``` 引入了额外的存储开销，但这种开销通常是可接受的，尤其是当它带来的安全性和代码表达能力的提升被考虑进去时。
 
 **总结**
-```std::optional``` 确实需要额外的存储空间来保存一个标志位，指示其是否包含值。这种额外的空间开销通常是比较小的，但实际的内存占用会受到内存对齐的影响。尽管如此，这种开销相对于提供的功能和代码的清晰性通常是可以接受的
+```std::optional``` 确实需要额外的存储空间来保存一个标志位，指示其是否包含值。这种额外的空间开销通常是比较小的，但实际的内存占用会受到内存对齐的影响。尽管如此，这种开销相对于提供的功能和代码的清晰性通常是可以接受的。
+
+### c++中在一个类中使用using Base::add有什么用
+
+在 C++ 中，```using Base::add``` 主要用于继承上下文中的名称引入。特别是在类继承时，派生类可以通过 using 指定从基类中引入某个函数或符号到派生类的作用域。这样做的常见用途是：
+
+让基类的同名函数可见：当基类和派生类中有同名的函数时，派生类会隐藏基类的同名函数。这意味着派生类的同名函数会覆盖（隐藏）基类的函数。如果希望在派生类中依然可以使用基类的同名函数，就可以通过 using 声明，将基类的同名函数引入派生类的作用域。
+
+避免函数重载被隐藏：在 C++ 中，如果基类中有多个重载的 add 函数，而派生类中定义了一个 add 函数，基类的所有 add 函数都会被隐藏。通过 ```using Base::add```，可以将基类的所有 add 重载引入派生类，确保基类和派生类的 add 函数可以共存，从而实现函数的重载解析。
+
+```cpp
+#include <iostream>
+using namespace std;
+
+class Base {
+public:
+    void add(int a) {
+        cout << "Base::add(int): " << a << endl;
+    }
+
+    void add(double a) {
+        cout << "Base::add(double): " << a << endl;
+    }
+};
+
+class Derived : public Base {
+public:
+    using Base::add;  // 引入 Base 类的 add 函数
+
+    // 派生类定义了一个新的 add 函数
+    void add(string s) {
+        cout << "Derived::add(string): " << s << endl;
+    }
+};
+
+int main() {
+    Derived d;
+    
+    d.add(42);       // 调用 Base::add(int)
+    d.add(3.14);     // 调用 Base::add(double)
+    d.add("Hello");  // 调用 Derived::add(string)
+
+    return 0;
+}
+```
+
+```shell
+Base::add(int): 42
+Base::add(double): 3.14
+Derived::add(string): Hello
+```
+
+**解释**：
+- using Base::add; 将 Base 类中的所有 add 函数引入到 Derived 类的作用域。
+- 由于 Derived 类中有自己的 add(string) 函数，因此可以直接调用该函数处理 string 类型的参数。
+
+同时，```Base::add(int)``` 和 ```Base::add(double)``` 也可以通过 using 语句引入，这样派生类中的 add 函数不会覆盖或隐藏基类中的其他重载版本。
+
+如果不加 using 的效果：
+
+如果我们没有使用 ```using Base::add;```代码会发生如下变化：
+
+```cpp
+class Derived : public Base {
+public:
+    // 没有 using Base::add;
+
+    void add(string s) {
+        cout << "Derived::add(string): " << s << endl;
+    }
+};
+```
+
+在这种情况下，Derived 类中的 add(string) 会完全隐藏 Base 类中的所有 add 函数。因此，调用 d.add(42) 或 d.add(3.14) 会导致编译错误，因为编译器只看到派生类中的 add(string) 函数，而找不到适用于 int 或 double 参数的 add 函数。
+
+**总结**：
+```using Base::add;``` 的作用是将基类 Base 中的 add 函数引入到派生类 Derived 的作用域，使得基类的重载函数在派生类中也可以被访问。
+这对于避免函数名隐藏以及正确处理函数重载非常重要。
 
 ## 类和对象
 
