@@ -13,6 +13,7 @@ tag:
   - [问题3:如果字符串有重复字符，打印出所有的非空子序列](#问题3如果字符串有重复字符打印出所有的非空子序列)
   - [题目：LRU cache(二面)](#题目lru-cache二面)
   - [题目： 判断字符串能否划分为多个递增+1的整数(三面)](#题目-判断字符串能否划分为多个递增1的整数三面)
+  - [题目： 设计LFU cache](#题目-设计lfu-cache)
 
 # 小鹏汽车在线笔试真题
 
@@ -360,6 +361,110 @@ int main() {
         cout << "字符串不能划分为多个递增的整数" << endl;
     }
 
+    return 0;
+}
+```
+
+## 题目： 设计LFU cache
+
+```cpp
+#include <unordered_map>
+#include <list>
+#include <iostream>
+
+using namespace std;
+
+class LFUCache {
+private:
+    // Cache节点结构
+    struct CacheNode {
+        int key;
+        int value;
+        int freq;
+        CacheNode(int k, int v, int f) : key(k), value(v), freq(f) {}
+    };
+
+    int capacity;  // 缓存容量
+    int minFreq;   // 当前最小使用频率
+    unordered_map<int, list<CacheNode>::iterator> keyNodeMap;  // key 到 缓存节点 的映射
+    unordered_map<int, list<CacheNode>> freqListMap;           // 使用频率 到 节点列表 的映射
+
+    // 更新节点的频率
+    void updateFrequency(int key) {
+        auto node = keyNodeMap[key];
+        int freq = node->freq;
+        CacheNode cacheNode = *node;
+
+        // 从旧频率列表中移除节点
+        freqListMap[freq].erase(node);
+        if (freqListMap[freq].empty()) {
+            freqListMap.erase(freq);
+            if (minFreq == freq) {
+                minFreq++;
+            }
+        }
+
+        // 将节点插入到新频率的列表中
+        cacheNode.freq++;
+        freqListMap[cacheNode.freq].push_front(cacheNode);
+        keyNodeMap[key] = freqListMap[cacheNode.freq].begin();
+    }
+
+public:
+    LFUCache(int capacity) {
+        this->capacity = capacity;
+        this->minFreq = 0;
+    }
+
+    int get(int key) {
+        if (keyNodeMap.find(key) == keyNodeMap.end()) {
+            return -1; // 未找到
+        }
+        // 更新节点的频率
+        updateFrequency(key);
+        return keyNodeMap[key]->value;
+    }
+
+    void put(int key, int value) {
+        if (capacity == 0) return; // 缓存容量为 0，直接返回
+
+        // 如果 key 已经存在，更新其值并更新频率
+        if (keyNodeMap.find(key) != keyNodeMap.end()) {
+            keyNodeMap[key]->value = value;
+            updateFrequency(key);
+            return;
+        }
+
+        // 缓存已满，移除最不常用的节点
+        if (keyNodeMap.size() >= capacity) {
+            auto nodeToRemove = freqListMap[minFreq].back();
+            keyNodeMap.erase(nodeToRemove.key);
+            freqListMap[minFreq].pop_back();
+            if (freqListMap[minFreq].empty()) {
+                freqListMap.erase(minFreq);
+            }
+        }
+
+        // 插入新节点
+        minFreq = 1;
+        freqListMap[1].push_front(CacheNode(key, value, 1));
+        keyNodeMap[key] = freqListMap[1].begin();
+    }
+};
+
+// 测试示例
+int main() {
+    LFUCache lfu(2);  // 容量为 2
+    lfu.put(1, 1);
+    lfu.put(2, 2);
+    cout << lfu.get(1) << endl;  // 返回 1
+    lfu.put(3, 3);               // 移除键 2，插入键 3
+    cout << lfu.get(2) << endl;  // 返回 -1 (未找到)
+    cout << lfu.get(3) << endl;  // 返回 3
+    lfu.put(4, 4);               // 移除键 1，插入键 4
+    cout << lfu.get(1) << endl;  // 返回 -1 (未找到)
+    cout << lfu.get(3) << endl;  // 返回 3
+    cout << lfu.get(4) << endl;  // 返回 4
     return 0;
 }
 ```
