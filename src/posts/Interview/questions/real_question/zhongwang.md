@@ -1,6 +1,7 @@
 
 - [中望软件在线笔试真题](#中望软件在线笔试真题)
   - [题目1：树上最长单色路径](#题目1树上最长单色路径)
+  - [题目2：判断一个点是否在一个多边形内部](#题目2判断一个点是否在一个多边形内部)
 
 # 中望软件在线笔试真题
 
@@ -58,4 +59,74 @@ public:
         return std::max(leftPath, rightPath);
     }
 };
+```
+
+
+## 题目2：判断一个点是否在一个多边形内部
+
+经典的判断方法是射线法，就是以判断点作为端点，朝着任意方向绘制一条射线。如果射线与多边形交点为奇数个，就说明此点在多边形内部。如果交点为偶数个，就说明此点在多边形外部。虽然射线的方向可以任意，但我们平时为了计算方便，可以采用水平射线正方向。
+
+这其中需要注意一些特殊情况：交点的 Y 坐标，需要**大于**线段的其中一个端点，**小于等于**另一个端点。使用这个原则来处理与顶点相交的场景。
+
+![pointInPolygon](https://raw.githubusercontent.com/zgjsxx/static-img-repo/main/blog/question/real_question/zhongwang/point.png)
+
+```cpp
+#include <iostream>
+#include <vector>
+using namespace std;
+
+// 定义二维平面上的点
+struct Point {
+    double x, y;
+};
+
+// 定义多边形
+struct Polygon {
+    vector<Point> vertices;  // 存储多边形顶点的数组
+};
+
+// 判断一个点是否在多边形内部的函数
+bool isPointInPolygon(Point p, const Polygon& polygon) {
+    int n = polygon.vertices.size(); // 顶点数
+    int intersectCount = 0;          // 交点计数
+    for (int i = 0; i < n; i++) {
+        // 取多边形的一条边
+        Point p1 = polygon.vertices[i];
+        Point p2 = polygon.vertices[(i + 1) % n]; // 循环获取多边形的边
+
+        // 确保 p1.y <= p2.y
+        if (p1.y > p2.y) swap(p1, p2);
+
+        // 判断射线是否穿过这条边
+        if (p.y > p1.y && p.y <= p2.y && (p.x < p1.x || p.x < p2.x)) {
+            // 计算交点的 x 坐标
+            double xIntersect = (p.y - p1.y) * (p2.x - p1.x) / (p2.y - p1.y) + p1.x;
+            if (p.x < xIntersect) {
+                intersectCount++;
+            }
+        }
+    }
+
+    // 判断交点数是否为奇数
+    return (intersectCount % 2 == 1);
+}
+
+int main() {
+    // 定义多边形
+    Polygon polygon = {
+        {{0, 0}, {4, 0}, {4, 4}, {0, 4}}  // 一个矩形
+    };
+
+    // 测试点
+    Point p = {2, 2};
+
+    // 判断点是否在多边形内部
+    if (isPointInPolygon(p, polygon)) {
+        cout << "点在多边形内部" << endl;
+    } else {
+        cout << "点在多边形外部" << endl;
+    }
+
+    return 0;
+}
 ```
