@@ -22,7 +22,7 @@ tag:
       - [5.3.2 日志的组织方式](#532-日志的组织方式)
       - [5.3.3 提交日志](#533-提交日志)
       - [5.3.4 匹配日志](#534-匹配日志)
-    - [5.3.5 日志不一致的场景](#535-日志不一致的场景)
+      - [5.3.5 日志不一致的场景](#535-日志不一致的场景)
       - [5.3.6 避免 log 不一致：AppendEntries 中的一致性检查](#536-避免-log-不一致appendentries-中的一致性检查)
     - [5.4 安全性](#54-安全性)
       - [5.4.1 限制一：包含所有已提交 entry 的节点才能被选为 leader](#541-限制一包含所有已提交-entry-的节点才能被选为-leader)
@@ -30,6 +30,7 @@ tag:
       - [5.4.3 安全性论证](#543-安全性论证)
     - [5.5 Follower/candidate 故障](#55-followercandidate-故障)
     - [5.6 时序](#56-时序)
+  - [6. 集群成员发生变更](#6-集群成员发生变更)
   - [问题](#问题)
     - [raft算法，有没有可能有多个candidate同时获得了多数票？](#raft算法有没有可能有多个candidate同时获得了多数票)
     - [raft算法中，节点根据什么规则投票?](#raft算法中节点根据什么规则投票)
@@ -166,7 +167,7 @@ Raft 协议保证已提交的条目是持久化的，并且最终将由所有可
 - 在所有前面的条目中这些日志都是相同的。
 
 
-### 5.3.5 日志不一致的场景
+#### 5.3.5 日志不一致的场景
 
 正常情况下，leader 和 follower 的 log 能保持一致，但 leader 挂掉会导致 log 不一致 （leader 还未将其 log 中的 entry 都复制到其他节点就挂了）。 这些不一致会导致一系列复杂的 leader 和 follower crash。 Figure 7 展示了 follower log 与新的 leader log 的几种可能不同：
 
@@ -278,6 +279,10 @@ broadcastTime 和 MTBF 都是底层系统的特性，而 electionTimeout 是我�
 - Raft 一般要求接收方将请求持久化到稳定存储中，因此取决于存储技术，broadcastTime 可能需要 0.5ms ~ 20ms。
 - 因此，electionTimeout 通常选择 10ms ~ 500ms。
 - 典型的节点 MTBF 是几个月或更长时间，因此很容易满足时序要求。
+
+## 6. 集群成员发生变更
+
+![节点成员发生改变](https://github.com/zgjsxx/static-img-repo/raw/main/blog/lesson/6.824/member-changes.png)
 
 ## 问题
 
