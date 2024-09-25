@@ -81,7 +81,7 @@ Raft 在很多方面与现有的共识算法相似（最值得注意的是，与
 
 ## 2. 复制式状态机
 
-![复制状态机架构](https://github.com/zgjsxx/static-img-repo/raw/main/blog/lesson/6.824/replicated-state-machine.png)
+![复制状态机架构](https://github.com/zgjsxx/static-img-repo/raw/main/blog/lesson/6.824/raft/replicated-state-machine.png)
 
 ## 3. Paxos的问题
 
@@ -121,13 +121,13 @@ Paxos算法的缺点如下：
 
 下图展示了这些状态及其转换：
 
-![raft服务器状态](https://github.com/zgjsxx/static-img-repo/raw/main/blog/lesson/6.824/raft-server-state.png)
+![raft服务器状态](https://github.com/zgjsxx/static-img-repo/raw/main/blog/lesson/6.824/raft/raft-server-state.png)
 
 #### 5.1.2 raft任期
 
 下一个要介绍的概念是**任期**。Raft 算法将时间划分为任意长度的任期，任期用**连续的整数编号**。每个任期都以一次选举开始，在选举中，一个或多个候选人尝试成为领导者。如果一个候选人在选举中获胜，那么它将在该任期的剩余时间里担任领导者。在某些情况下，选举会导致选票分散。在这种情况下，该任期将结束且没有领导者；一个新的任期（伴随着新的选举）很快就会开始。Raft 算法确保在一个特定任期内最多只有一个领导者。
 
-![raft任期](https://github.com/zgjsxx/static-img-repo/raw/main/blog/lesson/6.824/raft-term.png)
+![raft任期](https://github.com/zgjsxx/static-img-repo/raw/main/blog/lesson/6.824/raft/raft-term.png)
 
 关于raft，有以下几点需要说明：
 - 每个任期的开始都是从**选举**开始，选举时可能有多个都试图成为leader。
@@ -195,7 +195,7 @@ Raft 使用**随机化的选举超时时间**来确保选票分散（split votes
 
 日志的组织方式下图所示。每个日志条目存储一个状态机命令，以及该条目被领导者接收时的任期编号。日志条目中的任期编号用于检测日志之间的不一致性。每个日志条目还拥有一个整数索引，用于标识其在日志中的位置。
 
-![raft日志项](https://github.com/zgjsxx/static-img-repo/raw/main/blog/lesson/6.824/raft-logs-entries.png)
+![raft日志项](https://github.com/zgjsxx/static-img-repo/raw/main/blog/lesson/6.824/raft/raft-logs-entries.png)
 
 #### 5.3.3 提交日志
 
@@ -216,7 +216,7 @@ Raft 协议保证已提交的条目是持久化的，并且最终将由所有可
 
 正常情况下，leader 和 follower 的 log 能保持一致，但 leader 挂掉会导致 log 不一致 （leader 还未将其 log 中的 entry 都复制到其他节点就挂了）。 这些不一致会导致一系列复杂的 leader 和 follower crash。 Figure 7 展示了 follower log 与新的 leader log 的几种可能不同：
 
-![raft日志不一致的场景](https://github.com/zgjsxx/static-img-repo/raw/main/blog/lesson/6.824/raft-log-not-consistent-case.png)
+![raft日志不一致的场景](https://github.com/zgjsxx/static-img-repo/raw/main/blog/lesson/6.824/raft/raft-log-not-consistent-case.png)
 
 在上图中：
 - 每个方框代表一个日志项
@@ -261,7 +261,7 @@ Raft 采取了一种更简单的方式：除非前面所有 term 内的已提交
 
 下面是一个时间序列展示了为什么领导者不能使用旧任期的日志条目来确定提交状态。
 
-![leader节点不能直接提交旧的任期的日志](https://github.com/zgjsxx/static-img-repo/raw/main/blog/lesson/6.824/safety-commit.png)
+![leader节点不能直接提交旧的任期的日志](https://github.com/zgjsxx/static-img-repo/raw/main/blog/lesson/6.824/raft/safety-commit.png)
 
 对于该图的解释如下：
 
@@ -297,7 +297,7 @@ Raft 采取了一种更简单的方式：除非前面所有 term 内的已提交
 
 - 9. 日志匹配属性保证了未来的领导者也将包含间接提交的条目，例如图 8 (d) 中的索引 2。
 
-![必有一个节点既接受append日志又接受Leader投票](https://github.com/zgjsxx/static-img-repo/raw/main/blog/lesson/6.824/safey-argument.png)
+![必有一个节点既接受append日志又接受Leader投票](https://github.com/zgjsxx/static-img-repo/raw/main/blog/lesson/6.824/raft/safey-argument.png)
 
 ### 5.5 Follower/candidate 故障
 
@@ -327,7 +327,7 @@ broadcastTime 和 MTBF 都是底层系统的特性，而 electionTimeout 是我�
 
 ## 6. 集群成员发生变更
 
-![节点成员发生改变](https://github.com/zgjsxx/static-img-repo/raw/main/blog/lesson/6.824/member-changes.png)
+![节点成员发生改变](https://github.com/zgjsxx/static-img-repo/raw/main/blog/lesson/6.824/raft/member-changes.png)
 
 ## 7. 日志压缩
 
