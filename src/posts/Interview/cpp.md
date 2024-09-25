@@ -9,11 +9,6 @@ tag:
   - [c++基础](#c基础)
     - [c++和python的区别](#c和python的区别)
     - [const关键字的作用](#const关键字的作用)
-    - [const成员的初始化方法](#const成员的初始化方法)
-    - [const成员引用如何初始化](#const成员引用如何初始化)
-    - [委托构造和继承构造是什么？](#委托构造和继承构造是什么)
-    - [const成员函数内部需要修改成员变量如何解决？](#const成员函数内部需要修改成员变量如何解决)
-    - [虚函数的返回值可以不一样吗？](#虚函数的返回值可以不一样吗)
     - [dynamic\_cast失败会怎么样？](#dynamic_cast失败会怎么样)
     - [多重继承时，指向子类的指针转化为基类，指针会变吗?](#多重继承时指向子类的指针转化为基类指针会变吗)
     - [static方法可以是const吗?](#static方法可以是const吗)
@@ -27,9 +22,15 @@ tag:
     - [std::optional是否需要额外的存储空间](#stdoptional是否需要额外的存储空间)
     - [c++中在一个类中使用using Base::add有什么用](#c中在一个类中使用using-baseadd有什么用)
     - [如何为private方法写UT](#如何为private方法写ut)
+    - [std::move的作用是什么](#stdmove的作用是什么)
   - [类和对象](#类和对象)
     - [什么是RTTI](#什么是rtti)
     - [带有虚函数的多重继承的内存分布](#带有虚函数的多重继承的内存分布)
+    - [const成员的初始化方法](#const成员的初始化方法)
+    - [const成员引用如何初始化](#const成员引用如何初始化)
+    - [委托构造和继承构造是什么？](#委托构造和继承构造是什么)
+    - [const成员函数内部需要修改成员变量如何解决？](#const成员函数内部需要修改成员变量如何解决)
+    - [虚函数的返回值可以不一样吗？](#虚函数的返回值可以不一样吗)
   - [STL](#stl)
     - [map和unordered\_map的区别? 各自使用场景是什么？](#map和unordered_map的区别-各自使用场景是什么)
   - [参考](#参考)
@@ -167,289 +168,6 @@ const std::string& getName() const {
 
 const 是C++中的一个重要关键字，广泛用于定义常量、常量指针、常量引用、常量成员函数等。它不仅有助于防止数据的意外修改，还提高了代码的安全性和可读性。在设计类和函数接口时合理使用 const 可以帮助创建更可靠和维护友好的代码。
 
-### const成员的初始化方法
-
-- 构造函数的初始化列表中初始化
-
-```cpp
-class MyClass {
-private:
-    const int myConst;
-
-public:
-    // 构造函数的初始化列表中初始化const成员
-    MyClass(int value) : myConst(value) {
-        // 构造函数体中不能再对myConst赋值
-    }
-
-    void display() const {
-        std::cout << "The value of myConst is: " << myConst << std::endl;
-    }
-};
-```
-
-- 直接在成员定义时初始化(c++11)
-
-```c
-class MyClass {
-private:
-    const int myConst = 42;  // 直接在类定义中初始化
-
-public:
-    MyClass() {
-        // 构造函数中不需要再初始化myConst
-    }
-
-    void display() const {
-        std::cout << "The value of myConst is: " << myConst << std::endl;
-    }
-};
-```
-
-
-### const成员引用如何初始化
-
-在C++中，const成员引用必须在构造函数的初始化列表中进行初始化。这是因为引用一旦绑定到某个对象或变量上，就不能再指向别的对象或变量，因此必须在对象创建时明确绑定到某个对象上。
-
-```cpp
-#include <iostream>
-
-class MyClass {
-private:
-    const int& ref;  // const成员引用
-
-public:
-    // 构造函数，使用初始化列表初始化ref
-    MyClass(const int& r) : ref(r) {
-    }
-
-    void display() const {
-        std::cout << "The value of ref is: " << ref << std::endl;
-    }
-};
-
-int main() {
-    int value = 42;
-    MyClass obj(value);  // 创建对象时传入引用的变量
-    obj.display();  // 输出：The value of ref is: 42
-
-    return 0;
-}
-```
-
-### 委托构造和继承构造是什么？
-
-在C++中，委托构造和继承构造是两种与构造函数相关的技术，它们用于简化代码和提高代码复用性，尤其是在处理构造函数链时。
-
-**1. 委托构造（Delegating Constructors）**
-
-委托构造是指一个构造函数调用同一个类中另一个构造函数来完成对象的初始化。这在C++11标准中引入，是为了减少重复代码并简化构造函数的实现。
-
-示例代码
-
-```cpp
-class MyClass {
-public:
-    MyClass(int x, int y) : a(x), b(y) {
-        // 初始化其他成员或执行其他操作
-    }
-
-    // 委托构造函数，只接受一个参数
-    MyClass(int x) : MyClass(x, 0) { // 委托给另一个构造函数
-        // 这里可以添加额外的初始化代码
-    }
-
-private:
-    int a, b;
-};
-```
-
-在上面的例子中，MyClass(int x)构造函数委托给MyClass(int x, int y)构造函数。通过这种方式，MyClass(int x)可以复用已有的初始化逻辑，而不必重复编写代码。
-
-**优点**
-
-- 减少重复代码：如果多个构造函数具有相同或类似的初始化逻辑，可以通过委托构造减少代码重复。
-- 简化维护：逻辑集中在一个地方，使得代码更容易维护。
-
-**2. 继承构造（Inherited Constructors）**
-
-继承构造是指在派生类中使用基类的构造函数，而不需要在派生类中重新定义这些构造函数。C++11引入了这一特性，使得派生类可以直接继承基类的构造函数，从而简化派生类的代码。
-
-示例代码
-
-```cpp
-class Base {
-public:
-    Base(int x) : a(x) {}
-    Base(int x, int y) : a(x), b(y) {}
-
-private:
-    int a, b;
-};
-
-class Derived : public Base {
-public:
-    using Base::Base;  // 继承基类的构造函数
-};
-
-int main() {
-    Derived obj1(10);      // 使用 Base(int x) 构造函数
-    Derived obj2(10, 20);  // 使用 Base(int x, int y) 构造函数
-}
-```
-
-在这个例子中，Derived类继承了Base类的构造函数，这意味着可以像使用Base构造函数一样来创建Derived对象，而不需要在Derived中手动定义这些构造函数。
-
-**优点**
-- 代码复用：派生类无需重新实现基类的构造函数，直接复用基类已有的构造函数逻辑。
-- 简化代码：减少在派生类中定义构造函数的代码量。
-
-**3. 委托构造和继承构造的区别**
-
-- 委托构造：是同一个类内部构造函数之间的调用。它允许一个构造函数委托另一个构造函数来执行部分或全部初始化工作。
-- 继承构造：是派生类直接使用基类的构造函数。它允许派生类无需重新实现基类的构造函数，而直接使用它们。
-
-**总结**
-- 委托构造：用于在同一个类中，减少构造函数间的重复代码，使得构造函数可以相互调用。
-- 继承构造：用于在派生类中，直接复用基类的构造函数，简化派生类的代码编写。
-
-这两种技术都为代码复用和简化提供了有效的手段，在实际开发中能够显著提高代码的可读性和可维护性。
-
-### const成员函数内部需要修改成员变量如何解决？
-
-- 使用mutable关键字
-
-mutable关键字可以用于类的成员变量，使得这个变量即使在const成员函数中也可以被修改。
-
-例子：使用mutable在const成员函数中修改成员变量
-
-```cpp
-#include <iostream>
-
-class MyClass {
-private:
-    mutable int mutableCounter;  // 可变成员，即使在const函数中也可以修改
-    int normalCounter;
-
-public:
-    MyClass() : mutableCounter(0), normalCounter(0) {}
-
-    void incrementCounters() const {
-        mutableCounter++;  // 可以修改，因为mutableCounter是mutable的
-        // normalCounter++;  // 错误：不能修改非mutable的成员
-    }
-
-    void displayCounters() const {
-        std::cout << "Mutable Counter: " << mutableCounter << std::endl;
-        std::cout << "Normal Counter: " << normalCounter << std::endl;
-    }
-};
-
-int main() {
-    MyClass obj;
-    obj.incrementCounters();  // 调用const成员函数
-    obj.displayCounters();  // 输出：Mutable Counter: 1, Normal Counter: 0
-
-    return 0;
-}
-```
-
-- 使用const_cast进行类型转换
-
-const_cast是C++中的一种类型转换操作符，它可以用于去除对象的const属性，从而允许修改const对象的成员。但这种方法应该谨慎使用，因为它可能破坏const的语义，导致代码的可维护性和可读性下降。
-
-示例：使用const_cast去除const属性
-
-```cpp
-#include <iostream>
-
-class MyClass {
-private:
-    int counter;
-
-public:
-    MyClass() : counter(0) {}
-
-    void incrementCounter() const {
-        // 使用const_cast去除this指针的const属性，允许修改counter
-        const_cast<MyClass*>(this)->counter++;
-        // 使用一个指针指向该成员，使用const_cast去除const属性
-        int* temp =const_cast<int*>(&counter);
-        (*temp)++;
-    }
-
-    void displayCounter() const {
-        std::cout << "Counter: " << counter << std::endl;
-    }
-};
-
-int main() {
-    MyClass obj;
-    obj.incrementCounter();  // 调用const成员函数
-    obj.displayCounter();  // 输出：Counter: 1
-
-    return 0;
-}
-```
-
-在这个例子中，incrementCounter 是一个 const 成员函数，但通过 const_cast，我们可以去除 this 指针的 const 属性，从而修改 counter 成员变量。
-
-注意：这种方法应谨慎使用，只有在明确知道这样做是安全的情况下才使用 const_cast。如果滥用它，可能会导致难以发现的错误和未定义行为。
-
-### 虚函数的返回值可以不一样吗？
-
-在C++中，虚函数的返回值可以有所不同，但只能在特定情况下实现。通常情况下，虚函数在基类和派生类中的返回类型必须是相同的，但有一个例外：协变返回类型（covariant return types）。
-
-协变返回类型
-协变返回类型允许派生类中的虚函数返回类型与基类中的虚函数返回类型不同，但前提是派生类的返回类型必须是基类返回类型的派生类。换句话说，派生类中的返回类型必须是基类中返回类型的“子类型”。
-
-示例：协变返回类型
-
-```cpp
-#include <iostream>
-
-class Base {
-public:
-    virtual Base* clone() const {
-        std::cout << "Base clone" << std::endl;
-        return new Base(*this);
-    }
-
-    virtual ~Base() = default;
-};
-
-class Derived : public Base {
-public:
-    // 返回类型是Base*的派生类型Derived*
-    Derived* clone() const override {
-        std::cout << "Derived clone" << std::endl;
-        return new Derived(*this);
-    }
-};
-
-int main() {
-    Base* base = new Base();
-    Base* derived = new Derived();
-
-    Base* baseClone = base->clone();  // 调用Base的clone方法
-    Base* derivedClone = derived->clone();  // 调用Derived的clone方法
-
-    delete base;
-    delete derived;
-    delete baseClone;
-    delete derivedClone;
-
-    return 0;
-}
-```
-
-在这个例子中，基类 Base 有一个虚函数 clone，它返回一个指向 Base 类型的指针（Base*）。派生类 Derived 重写了 clone 函数，并将返回类型更改为 Derived*，这是允许的，因为 Derived* 是 Base* 的派生类型。
-
-**关键点总结**
-- 协变返回类型允许派生类中的虚函数返回类型与基类中的不同，但前提是派生类中的返回类型必须是基类返回类型的派生类型。
-- 返回类型之间的关系必须是基类与派生类的关系，即派生类中的返回类型必须是基类返回类型的派生类。
-- 除了协变返回类型之外，虚函数在基类和派生类中的返回类型必须严格相同。
-- 使用协变返回类型可以在面向对象编程中实现更灵活的多态性，尤其是在需要返回派生类对象的场景中。
 
 ### dynamic_cast失败会怎么样？
 
@@ -1446,6 +1164,22 @@ public:
 
 在这种情况下，MyClassTest 成为 MyClass 的友元类，因此可以直接访问 MyClass 中的 private 方法。
 
+### std::move的作用是什么
+
+```cpp
+template<typename T>                            //在std命名空间
+typename remove_reference<T>::type&&
+move(T&& param)
+{
+    using ReturnType =                          //别名声明，见条款9
+        typename remove_reference<T>::type&&;
+
+    return static_cast<ReturnType>(param);
+}
+```
+
+该函数返回类型的&&部分表明```std::move```函数返回的是一个右值引用，但是，正如Item28所解释的那样，如果类型T恰好是一个左值引用，那么T&&将会成为一个左值引用。为了避免如此，```type trait```（见Item9）```std::remove_reference```应用到了类型T上，因此确保了&&被正确的应用到了一个不是引用的类型上。这保证了```std::move```返回的真的是右值引用，这很重要，因为**函数返回的右值引用是右值**。因此，```std::move```将它的实参转换为一个右值，这就是它的全部作用。
+
 ## 类和对象
 
 ### 什么是RTTI
@@ -1596,6 +1330,291 @@ Derived 的部分：
 **总结**
 
 虚函数使得每个类的对象需要存储虚函数表指针 vptr，并且在多重继承的情况下，每个父类都会有自己的虚函数表指针。这样，内存布局不仅包含数据成员的顺序，还包含指向虚函数表的指针，这些指针在动态多态中起到关键作用。
+
+### const成员的初始化方法
+
+- 构造函数的初始化列表中初始化
+
+```cpp
+class MyClass {
+private:
+    const int myConst;
+
+public:
+    // 构造函数的初始化列表中初始化const成员
+    MyClass(int value) : myConst(value) {
+        // 构造函数体中不能再对myConst赋值
+    }
+
+    void display() const {
+        std::cout << "The value of myConst is: " << myConst << std::endl;
+    }
+};
+```
+
+- 直接在成员定义时初始化(c++11)
+
+```c
+class MyClass {
+private:
+    const int myConst = 42;  // 直接在类定义中初始化
+
+public:
+    MyClass() {
+        // 构造函数中不需要再初始化myConst
+    }
+
+    void display() const {
+        std::cout << "The value of myConst is: " << myConst << std::endl;
+    }
+};
+```
+
+
+### const成员引用如何初始化
+
+在C++中，const成员引用必须在构造函数的初始化列表中进行初始化。这是因为引用一旦绑定到某个对象或变量上，就不能再指向别的对象或变量，因此必须在对象创建时明确绑定到某个对象上。
+
+```cpp
+#include <iostream>
+
+class MyClass {
+private:
+    const int& ref;  // const成员引用
+
+public:
+    // 构造函数，使用初始化列表初始化ref
+    MyClass(const int& r) : ref(r) {
+    }
+
+    void display() const {
+        std::cout << "The value of ref is: " << ref << std::endl;
+    }
+};
+
+int main() {
+    int value = 42;
+    MyClass obj(value);  // 创建对象时传入引用的变量
+    obj.display();  // 输出：The value of ref is: 42
+
+    return 0;
+}
+```
+
+### 委托构造和继承构造是什么？
+
+在C++中，委托构造和继承构造是两种与构造函数相关的技术，它们用于简化代码和提高代码复用性，尤其是在处理构造函数链时。
+
+**1. 委托构造（Delegating Constructors）**
+
+委托构造是指一个构造函数调用同一个类中另一个构造函数来完成对象的初始化。这在C++11标准中引入，是为了减少重复代码并简化构造函数的实现。
+
+示例代码
+
+```cpp
+class MyClass {
+public:
+    MyClass(int x, int y) : a(x), b(y) {
+        // 初始化其他成员或执行其他操作
+    }
+
+    // 委托构造函数，只接受一个参数
+    MyClass(int x) : MyClass(x, 0) { // 委托给另一个构造函数
+        // 这里可以添加额外的初始化代码
+    }
+
+private:
+    int a, b;
+};
+```
+
+在上面的例子中，MyClass(int x)构造函数委托给MyClass(int x, int y)构造函数。通过这种方式，MyClass(int x)可以复用已有的初始化逻辑，而不必重复编写代码。
+
+**优点**
+
+- 减少重复代码：如果多个构造函数具有相同或类似的初始化逻辑，可以通过委托构造减少代码重复。
+- 简化维护：逻辑集中在一个地方，使得代码更容易维护。
+
+**2. 继承构造（Inherited Constructors）**
+
+继承构造是指在派生类中使用基类的构造函数，而不需要在派生类中重新定义这些构造函数。C++11引入了这一特性，使得派生类可以直接继承基类的构造函数，从而简化派生类的代码。
+
+示例代码
+
+```cpp
+class Base {
+public:
+    Base(int x) : a(x) {}
+    Base(int x, int y) : a(x), b(y) {}
+
+private:
+    int a, b;
+};
+
+class Derived : public Base {
+public:
+    using Base::Base;  // 继承基类的构造函数
+};
+
+int main() {
+    Derived obj1(10);      // 使用 Base(int x) 构造函数
+    Derived obj2(10, 20);  // 使用 Base(int x, int y) 构造函数
+}
+```
+
+在这个例子中，Derived类继承了Base类的构造函数，这意味着可以像使用Base构造函数一样来创建Derived对象，而不需要在Derived中手动定义这些构造函数。
+
+**优点**
+- 代码复用：派生类无需重新实现基类的构造函数，直接复用基类已有的构造函数逻辑。
+- 简化代码：减少在派生类中定义构造函数的代码量。
+
+**3. 委托构造和继承构造的区别**
+
+- 委托构造：是同一个类内部构造函数之间的调用。它允许一个构造函数委托另一个构造函数来执行部分或全部初始化工作。
+- 继承构造：是派生类直接使用基类的构造函数。它允许派生类无需重新实现基类的构造函数，而直接使用它们。
+
+**总结**
+- 委托构造：用于在同一个类中，减少构造函数间的重复代码，使得构造函数可以相互调用。
+- 继承构造：用于在派生类中，直接复用基类的构造函数，简化派生类的代码编写。
+
+这两种技术都为代码复用和简化提供了有效的手段，在实际开发中能够显著提高代码的可读性和可维护性。
+
+### const成员函数内部需要修改成员变量如何解决？
+
+- 使用mutable关键字
+
+mutable关键字可以用于类的成员变量，使得这个变量即使在const成员函数中也可以被修改。
+
+例子：使用mutable在const成员函数中修改成员变量
+
+```cpp
+#include <iostream>
+
+class MyClass {
+private:
+    mutable int mutableCounter;  // 可变成员，即使在const函数中也可以修改
+    int normalCounter;
+
+public:
+    MyClass() : mutableCounter(0), normalCounter(0) {}
+
+    void incrementCounters() const {
+        mutableCounter++;  // 可以修改，因为mutableCounter是mutable的
+        // normalCounter++;  // 错误：不能修改非mutable的成员
+    }
+
+    void displayCounters() const {
+        std::cout << "Mutable Counter: " << mutableCounter << std::endl;
+        std::cout << "Normal Counter: " << normalCounter << std::endl;
+    }
+};
+
+int main() {
+    MyClass obj;
+    obj.incrementCounters();  // 调用const成员函数
+    obj.displayCounters();  // 输出：Mutable Counter: 1, Normal Counter: 0
+
+    return 0;
+}
+```
+
+- 使用const_cast进行类型转换
+
+const_cast是C++中的一种类型转换操作符，它可以用于去除对象的const属性，从而允许修改const对象的成员。但这种方法应该谨慎使用，因为它可能破坏const的语义，导致代码的可维护性和可读性下降。
+
+示例：使用const_cast去除const属性
+
+```cpp
+#include <iostream>
+
+class MyClass {
+private:
+    int counter;
+
+public:
+    MyClass() : counter(0) {}
+
+    void incrementCounter() const {
+        // 使用const_cast去除this指针的const属性，允许修改counter
+        const_cast<MyClass*>(this)->counter++;
+        // 使用一个指针指向该成员，使用const_cast去除const属性
+        int* temp =const_cast<int*>(&counter);
+        (*temp)++;
+    }
+
+    void displayCounter() const {
+        std::cout << "Counter: " << counter << std::endl;
+    }
+};
+
+int main() {
+    MyClass obj;
+    obj.incrementCounter();  // 调用const成员函数
+    obj.displayCounter();  // 输出：Counter: 1
+
+    return 0;
+}
+```
+
+在这个例子中，incrementCounter 是一个 const 成员函数，但通过 const_cast，我们可以去除 this 指针的 const 属性，从而修改 counter 成员变量。
+
+注意：这种方法应谨慎使用，只有在明确知道这样做是安全的情况下才使用 const_cast。如果滥用它，可能会导致难以发现的错误和未定义行为。
+
+### 虚函数的返回值可以不一样吗？
+
+在C++中，虚函数的返回值可以有所不同，但只能在特定情况下实现。通常情况下，虚函数在基类和派生类中的返回类型必须是相同的，但有一个例外：协变返回类型（covariant return types）。
+
+协变返回类型
+协变返回类型允许派生类中的虚函数返回类型与基类中的虚函数返回类型不同，但前提是派生类的返回类型必须是基类返回类型的派生类。换句话说，派生类中的返回类型必须是基类中返回类型的“子类型”。
+
+示例：协变返回类型
+
+```cpp
+#include <iostream>
+
+class Base {
+public:
+    virtual Base* clone() const {
+        std::cout << "Base clone" << std::endl;
+        return new Base(*this);
+    }
+
+    virtual ~Base() = default;
+};
+
+class Derived : public Base {
+public:
+    // 返回类型是Base*的派生类型Derived*
+    Derived* clone() const override {
+        std::cout << "Derived clone" << std::endl;
+        return new Derived(*this);
+    }
+};
+
+int main() {
+    Base* base = new Base();
+    Base* derived = new Derived();
+
+    Base* baseClone = base->clone();  // 调用Base的clone方法
+    Base* derivedClone = derived->clone();  // 调用Derived的clone方法
+
+    delete base;
+    delete derived;
+    delete baseClone;
+    delete derivedClone;
+
+    return 0;
+}
+```
+
+在这个例子中，基类 Base 有一个虚函数 clone，它返回一个指向 Base 类型的指针（Base*）。派生类 Derived 重写了 clone 函数，并将返回类型更改为 Derived*，这是允许的，因为 Derived* 是 Base* 的派生类型。
+
+**关键点总结**
+- 协变返回类型允许派生类中的虚函数返回类型与基类中的不同，但前提是派生类中的返回类型必须是基类返回类型的派生类型。
+- 返回类型之间的关系必须是基类与派生类的关系，即派生类中的返回类型必须是基类返回类型的派生类。
+- 除了协变返回类型之外，虚函数在基类和派生类中的返回类型必须严格相同。
+- 使用协变返回类型可以在面向对象编程中实现更灵活的多态性，尤其是在需要返回派生类对象的场景中。
+
 
 ## STL
 
