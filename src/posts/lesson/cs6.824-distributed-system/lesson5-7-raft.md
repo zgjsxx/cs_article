@@ -26,6 +26,7 @@ tag:
       - [5.3.4 匹配日志](#534-匹配日志)
       - [5.3.5 日志不一致的场景](#535-日志不一致的场景)
       - [5.3.6 避免 log 不一致：AppendEntries 中的一致性检查](#536-避免-log-不一致appendentries-中的一致性检查)
+      - [5.3.7 客户端提交一条操作到集群的过程](#537-客户端提交一条操作到集群的过程)
     - [5.4 安全性](#54-安全性)
       - [5.4.1 限制一：包含所有已提交 entry 的节点才能被选为 leader](#541-限制一包含所有已提交-entry-的节点才能被选为-leader)
       - [5.4.2 限制二：](#542-限制二)
@@ -45,6 +46,7 @@ tag:
   - [10. 相关工作](#10-相关工作)
   - [11. 结论](#11-结论)
   - [问题](#问题)
+    - [Raft协议中，client端发送请求到Raft集群的leader节点之后，什么时候会返回client端？](#raft协议中client端发送请求到raft集群的leader节点之后什么时候会返回client端)
     - [raft算法，有没有可能有多个candidate同时获得了多数票？](#raft算法有没有可能有多个candidate同时获得了多数票)
     - [raft算法中，节点根据什么规则投票?](#raft算法中节点根据什么规则投票)
     - [Raft 算法在 CAP 理论中属于哪种系统](#raft-算法在-cap-理论中属于哪种系统)
@@ -241,6 +243,13 @@ Raft 处理不一致的方式是强制 follower 复制一份 leader 的 log， �
 - 找到 leader 和 follower 的最后一个共同认可的 entry，
 - 将 follower log 中从这条 entry 开始往后的 entries 全部删掉，
 - 将 leader log 中从这条记录开始往后的所有 entries 同步给 follower
+
+#### 5.3.7 客户端提交一条操作到集群的过程
+
+该节是论文中没有过多提到的一部分，主要讨论客户端和raft集群的交互过程：
+
+![客户端提交日志到服务端的过程](https://github.com/zgjsxx/static-img-repo/raw/main/blog/lesson/6.824/raft/client-server-reaction.png)
+
 
 ### 5.4 安全性
 
@@ -447,6 +456,12 @@ Raft 的性能与其他共识算法（如 Paxos）类似。对于性能来说，
 ## 问题
 
 以下是我在读论文过程中产生的疑问，大多数问题可以在读完论文以后得到解答。
+
+### Raft协议中，client端发送请求到Raft集群的leader节点之后，什么时候会返回client端？
+
+当Leader收到客户端的写请求，到将执行结果返回给客户端的这个过程，从Leader视角来看经历了以下步骤：
+
+
 
 ### raft算法，有没有可能有多个candidate同时获得了多数票？
 
