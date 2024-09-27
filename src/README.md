@@ -34,15 +34,5 @@ projects:
     desc: Linux-0.11完全解读
     link: http://oldlinux.org/download/clk011c-3.0-toc.pdf
 
-  - icon: friend
-    name: 伙伴名称
-    desc: 伙伴详细介绍
-    link: https://你的伙伴链接
-
-  - icon: /logo.svg
-    name: 自定义项目
-    desc: 自定义详细介绍
-    link: https://你的自定义链接
-
 footer: Code Building
 ---
