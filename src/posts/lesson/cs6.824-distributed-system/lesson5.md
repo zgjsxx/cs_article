@@ -12,6 +12,10 @@ tag:
     - [闭包2](#闭包2)
     - [周期性执行程序](#周期性执行程序)
     - [周期性执行程序2](#周期性执行程序2)
+    - [互斥锁](#互斥锁)
+    - [互斥锁2](#互斥锁2)
+    - [](#)
+    - [条件变量](#条件变量)
 
 # cs-6.824第5讲 Go，Threads and Raft
 
@@ -142,3 +146,277 @@ func periodic() {
 **助教回答**：
 
 这里其实```return```之后，程序就会退出了，没有```Unlock```也不会有什么影响。不过最好还是在return之前进行```Unlock```。
+
+```go
+    mu.Lock()
+    if done {
+    mu.Unlock()
+        return
+    }
+    mu.Unlock()
+```
+
+### 互斥锁
+
+```go
+package main
+import "time"
+
+func main() {
+    counter := 0
+    for i := 0; i < 1000; i++ {
+        go func() {
+            counter = counter + 1
+        }()
+    }
+    time.Sleep(1 * time.Second)
+    println(counter)
+}
+```
+
+[在线运行](https://www.programiz.com/online-compiler/4I99lR5loblTn)
+
+在这个例子中，它声明了一个计数器，并随后启动了一个goroutine，实际上启动了1000个goroutines，每个goroutines都会将计数器的值递增1。你可能希望程序可以打印出1000，但是实际上程序打印出的值往往小于1000。
+
+解决该问题也很简单，只需要添加上锁，锁住临界区即可。
+
+```go
+package main
+import "time"
+import "sync"
+
+func main() {
+    counter := 0
+    var mu sync.Mutex
+    for i := 0; i < 1000; i++ {
+        go func() {
+            mu.Lock()
+            defer mu.Unlock()
+            counter = counter + 1
+        }()
+    }
+    time.Sleep(1 * time.Second)
+    mu.Lock()
+    println(counter)
+    mu.Unlock()
+}
+```
+
+在Raft的实验中，RPC处理程序通常会操作RAFT结构上进行读取或者写入数据，这些更新应该要与其他并发进行的更新保持同步。因此在RPC处理程序的场景模式是：获取锁，延迟解锁，然后在内部执行一些工作。
+
+
+### 互斥锁2
+
+```go
+package main
+
+import "sync"
+import "time"
+import "fmt"
+
+func main() {
+    alice := 10000
+    bob := 10000
+    var mu sync.Mutex
+
+    total := alice + bob
+    go func() {
+        for i := 0; i < 1000; i++ {
+            mu.Lock()
+            alice -= 1
+            mu.Unlock()
+            mu.Lock()
+            bob += 1
+            mu.Unlock()
+        }
+    }()
+    go func() {
+        for i := 0; i < 1000; i++ {
+            mu.Lock()
+            bob -= 1
+            mu.Unlock()
+            mu.Lock()
+            alice += 1
+            mu.Unlock()
+        }
+    }()
+
+    start := time.Now()
+    for time.Since(start) < 1*time.Second {
+        mu.Lock()
+        if alice+bob != total {
+            fmt.Printf("observed violation, alice = %v, bob = %v, sum = %v\n",alice,bob,alice+bob)
+        }
+        mu.Unlock()
+    }
+}
+```
+
+这个例子所要演示的内容是，递增和递减两个操作应该要以原子方式发生。而上面的例子是原子递增加原子递减。
+
+这个例子希望对于锁的理解是可以保护一些不变性，而不是只作用于变量。例如这里alice+bob的总数值应该是20000。
+
+在高层次上理解锁，在访问共享数据时，需要进行加锁。另一个重要的规则时，锁会保护一些"不变量"。
+
+### 
+
+```go
+package main
+func main() {
+    rand.Seed(time.Now().UnixNano())
+    count := 0
+    finished := 0
+
+    for i := 0; i < 10; i++ {
+        go func() {
+            vote := requestVote()
+            if vote {
+                count++
+            }
+            finished++
+        }()
+    }
+    for count < 5 && finished != 10 {
+
+    }
+
+    if count >= 5 {
+        println("received 5+ votes!")
+    } else {
+        println("lost")
+    }
+}
+
+func requestVote() {
+
+}
+```
+
+```go
+package main
+import "sync"
+import "time"
+import "math/rand"
+func main() {
+    rand.Seed(time.Now().UnixNano())
+    count := 0
+    finished := 0
+    var mu sync.Mutex
+
+    for i := 0; i < 10; i++ {
+        go func() {
+            vote := requestVote()
+            mu.Lock()
+            defer mu.Unlock()
+            if vote {
+                count++
+            }
+            finished++
+        }()
+    }
+    for {
+        mu.Lock()
+        if count >= 5 && finished == 10 {
+            break
+        }
+        mu.Unlock()
+    }
+
+    if count >= 5 {
+        println("received 5+ votes!")
+    } else {
+        println("lost")
+    }
+    mu.Unlock()
+}
+
+func requestVote() bool {
+    return true
+}
+```
+
+上述代码的问题：
+
+下面的代码会造成CPU 100%
+```go
+    for {
+        mu.Lock()
+        if count >= 5 && finished == 10 {
+            break
+        }
+        mu.Unlock()
+    }
+```
+
+```go
+    for {
+        mu.Lock()
+        if count >= 5 && finished == 10 {
+            break
+        }
+        mu.Unlock()
+        time.Sleep(50 * time.Millisecond)
+    }
+```
+
+
+### 条件变量
+
+```go
+package main
+import "sync"
+import "time"
+import "math/rand"
+func main() {
+    rand.Seed(time.Now().UnixNano())
+    count := 0
+    finished := 0
+    var mu sync.Mutex
+    cond := sync.NewCond(&mu)
+
+    for i := 0; i < 10; i++ {
+        go func() {
+            vote := requestVote()
+            mu.Lock()
+            defer mu.Unlock()
+            if vote {
+                count++
+            }
+            finished++
+            cond.Broadcast()
+        }()
+    }
+
+    mu.Lock()
+    for count < 5 && finished != 10{
+        cond.Wait()
+    }
+
+    if count >= 5 {
+        println("received 5+ votes!")
+    } else {
+        println("lost")
+    }
+    mu.Unlock()
+}
+
+func requestVote() bool {
+    return true
+}
+```
+
+条件变量使用的范式如下：
+
+```go
+mu.Lock()
+cond.Broadcast()
+mu.Unlock()
+
+---
+
+mu.Lock()
+while condition == false {
+    cond.Wait()
+}
+mu.Unlock()
+```
