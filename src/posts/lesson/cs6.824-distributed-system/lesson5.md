@@ -16,6 +16,8 @@ tag:
     - [互斥锁2](#互斥锁2)
     - [](#)
     - [条件变量](#条件变量)
+    - [go channels](#go-channels)
+  - [助教2： Raft相关内容](#助教2-raft相关内容)
 
 # cs-6.824第5讲 Go，Threads and Raft
 
@@ -420,3 +422,242 @@ while condition == false {
 }
 mu.Unlock()
 ```
+
+### go channels
+
+go语言中的channels比较类似于队列，但是不太像直觉中的队列的表现行为。
+
+如果你有两个go协程，他们将在一个通道上进行发送和接受操作。如果有人在channel上尝试发送数据而无人接收，那么这个线程将会阻塞，直到有人准备好接收。
+
+```go
+package main
+import "time"
+import "fmt"
+
+func main(){
+    c := make(chan bool)
+    go func(){
+        time.Sleep(1 * time.Second)
+        <-c
+    }()
+    start := time.Now()
+    c <- true
+    fmt.Printf("send took %v\n",time.Since(start))
+}
+```
+
+下面这个例子会触发死锁检查。
+
+```go
+package main
+func main() {
+    c := make(chan bool)
+    c <- true
+    <-c
+}
+```
+
+下面这个例子，会陷入无限的等待中，因为没有其他协程往这个channel中发送数据。
+
+```go
+package main
+func main() {
+    go func(){
+        for {}
+    }()
+    c := make(chan bool)
+    c <- true
+    <-c
+}
+```
+
+从高层次来讲，我们应该避免使用带缓冲的channel，因为本质上并未解决任何问题。
+
+channel通常用于"生产者-消费者"模型中。
+
+```go
+package main
+
+import "time"
+import "math/rand"
+
+func main() {
+    c := make(chan int)
+
+    for i := 0; i < 4 ; i++ {
+        go doWork(c)
+    }
+
+    for {
+        v := <-c
+        println(v)
+    }
+}
+
+func doWork(c chan int) {
+    for {
+        time.Sleep(time.Duration(rand.Intn(1000)) * time.Millisecond)
+        c <- rand.Int()
+    }
+}
+```
+
+channel还可以用于实现类似于WaitGroup的功能。
+
+```go
+package main
+
+func main() {
+    done := make(chan bool)
+    for i := 0; i < 5; i++ {
+        go func(x int) {
+            sendRPC(x)
+            done <- true
+        }(i)
+    }
+
+    for i := 0; i < 5; i++ {
+        <-done
+    }
+}
+func sendRPC(i int) {
+    println(i)
+}
+```
+
+## 助教2： Raft相关内容
+
+两种常见的raft实现错误
+
+```go
+package main
+import "sync"
+import "time"
+
+type State string
+
+const {
+    Follower State = "follower"
+    Candidate State = "candidate"
+    Leader State = "leader"
+}
+
+type Raft struct {
+    mu sync.Mutex
+    me int
+    peers []int
+    state State
+    currentTerm int
+    votedFor int
+}
+
+func (rf *Raft) AttemptElection() {
+    rf.mu.Lock()
+    rf.state = Candidate
+    rf.currentTerm++
+    rf.votedFor = rf.me
+    log.Printf("[%d] attempting an election at term %d", rf.me, rf.currentTerm)
+    rf.mu.Unlock()
+
+    for _, server := range rf.peers {
+        if server == rf.me {
+            continue
+        }
+        go func(server int){
+            voteGranted := rf.CallRequestVote(server)
+            if !voteGranted {
+                return
+            }
+        }(server)
+    } 
+}
+
+func (rf *Raft) CallRequestVote(server int) bool {
+    rf.mu.Lock()
+    defer rf.mu.Unlock()
+    log.Printf("[%d] sending request vote to %d", rf.me, server)
+    args := RequestVoteArgs {
+        Term: rf.currentTerm,
+        CandidateID: rf.me
+    }
+    var reply RequestVoteReply
+    ok := rf.sendRequestVote(server, &args, &reply)
+    log.Printf("[%d] finish sending request vote to %d", rf.me, server)
+    if !ok {
+        return false
+    }
+}
+
+func (rf* Raft) HandleRequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
+    log.Printf("[%d] received request vote from %d", rf.me, args.CandidateID)
+    rf.mu.Lock()
+    defer rf.mu.Unlock()
+    log.Printf("[%d] handling request vote from %d", rf.me, args.CandidateID)
+    // ...
+}
+
+```
+
+
+```shell
+2020/02/20 13:55:17 [1] attempting an election at term 1
+2020/02/20 13:55:17 [1] sending request vote to 2
+2020/02/20 13:55:17 [0] attempting an election at term 1
+2020/02/20 13:55:17 [0] sending request vote to 2
+2020/02/20 13:55:17 [2] received request vote from 0
+2020/02/20 13:55:17 [2] handling request vote from 0
+2020/02/20 13:55:17 [0] finish sending request vote to 2
+2020/02/20 13:55:17 [0] sending request vote to 1
+2020/02/20 13:55:17 [2] received request vote from 1
+2020/02/20 13:55:17 [2] handling request vote from 1
+2020/02/20 13:55:17 [1] finish sending request vote to 2
+2020/02/20 13:55:17 [1] sending request vote to 0
+2020/02/20 13:55:17 [0] sending request vote from 1
+2020/02/20 13:55:17 [1] received request vote from 1
+fatal error: all goroutines are asleep - deadlock
+```
+
+![死锁的原因](https://github.com/zgjsxx/static-img-repo/raw/main/blog/lesson/6.824/lesson5/raft-issue.png)
+
+修改方法
+
+
+```go
+func (rf *Raft) AttemptElection() {
+    rf.mu.Lock()
+    rf.state = Candidate
+    rf.currentTerm++
+    rf.votedFor = rf.me
+    term := rf.currentTerm
+    log.Printf("[%d] attempting an election at term %d", rf.me, rf.currentTerm)
+    rf.mu.Unlock()
+
+    for _, server := range rf.peers {
+        if server == rf.me {
+            continue
+        }
+        go func(server int){
+            voteGranted := rf.CallRequestVote(server, term)
+            if !voteGranted {
+                return
+            }
+        }(server)
+    } 
+}
+
+func (rf *Raft) CallRequestVote(server int， term int) bool {
+    log.Printf("[%d] sending request vote to %d", rf.me, server)
+    args := RequestVoteArgs {
+        Term: term,
+        CandidateID: rf.me
+    }
+    var reply RequestVoteReply
+    ok := rf.sendRequestVote(server, &args, &reply)
+    log.Printf("[%d] finish sending request vote to %d", rf.me, server)
+    if !ok {
+        return false
+    }
+}
+```
+
+助教建议： 在准备参数或者处理响应时，可能会需要锁。在等待另一方响应RPC调用时，不应该持有锁。
