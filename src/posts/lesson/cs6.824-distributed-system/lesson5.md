@@ -18,6 +18,7 @@ tag:
     - [条件变量](#条件变量)
     - [go channels](#go-channels)
   - [助教2： Raft相关内容](#助教2-raft相关内容)
+  - [助教3 Raft debugging](#助教3-raft-debugging)
 
 # cs-6.824第5讲 Go，Threads and Raft
 
@@ -661,3 +662,110 @@ func (rf *Raft) CallRequestVote(server int， term int) bool {
 ```
 
 助教建议： 在准备参数或者处理响应时，可能会需要锁。在等待另一方响应RPC调用时，不应该持有锁。
+
+
+```go
+func (rf *Raft) AttemptElection() {
+    rf.mu.Lock()
+    rf.state = Candidate
+    rf.currentTerm++
+    rf.votedFor = rf.me
+    log.Printf("[%d] attempting an election at term %d", rf.me, rf.currentTerm)
+    votes := 1
+    done := false
+    term := rf.currentTerm
+    rf.mu.Unlock()
+
+    for _, server := range rf.peers {
+        if server == rf.me {
+            continue
+        }
+        go func(server int){
+            voteGranted := rf.CallRequestVote(server)
+            if !voteGranted {
+                return
+            }
+            rf.mu.Lock()
+            defer rf.mu.Unlock()
+            votes++
+            log.Printf("[%d] got vote from %d", rf.me, server)
+            if done || votes <= len(rf.peers)/2 {
+                return
+            }
+            done = true
+            log.Printf("[%d] we got enough votes, we are now the leader (currentTerm=%d)",rf.me, rf.currentTerm)
+            rf.state = Leader
+        }(server)
+    } 
+}
+```
+
+上面的代码会导致在一个term里面选举出了两个Leader，这显然是不可以接受的。
+
+```shell
+2020/02/20 14:01:40 [0] attempting an election at term 1
+2020/02/20 14:01:40 [2] granting vote for 0 on term 1
+2020/02/20 14:01:40 [1] granting vote for 0 on term 1
+2020/02/20 14:01:40 [1] attempting an election at term 2
+2020/02/20 14:01:40 [2] granting vote for 0 on term 2
+2020/02/20 14:01:40 [0] granting vote for 0 on term 2
+2020/02/20 14:01:40 [0] got vote from 1
+2020/02/20 14:01:40 [0] we got enough votes, we are now the leader(currentTerm=2)!
+2020/02/20 14:01:40 [0] got vote from 2
+2020/02/20 14:01:40 [1] got vote from 2
+2020/02/20 14:01:40 [1] we got enough votes, we are now the leader(currentTerm=2)!
+2020/02/20 14:01:40 [1] got vote from 0
+```
+
+修改方式：
+
+```go
+func (rf *Raft) AttemptElection() {
+    rf.mu.Lock()
+    rf.state = Candidate
+    rf.currentTerm++
+    rf.votedFor = rf.me
+    log.Printf("[%d] attempting an election at term %d", rf.me, rf.currentTerm)
+    votes := 1
+    done := false
+    term := rf.currentTerm
+    rf.mu.Unlock()
+
+    for _, server := range rf.peers {
+        if server == rf.me {
+            continue
+        }
+        go func(server int){
+            voteGranted := rf.CallRequestVote(server)
+            if !voteGranted {
+                return
+            }
+            rf.mu.Lock()
+            defer rf.mu.Unlock()
+            votes++
+            log.Printf("[%d] got vote from %d", rf.me, server)
+            if done || votes <= len(rf.peers)/2 {
+                return
+            }
+            done = true
+            // 这里要加上double check
+            if rf.state != Candidate || rf.currentTerm != term {
+                return
+            }
+            log.Printf("[%d] we got enough votes, we are now the leader (currentTerm=%d)",rf.me, rf.currentTerm)
+            rf.state = Leader
+        }(server)
+    } 
+}
+```
+
+## 助教3 Raft debugging
+
+如果程序卡住了，可以使用util.go中的DPrintf打印日志
+
+CTRL + \  可以查看程序堆栈 从而可以找到程序卡住的位置
+
+```go
+go test -race -run 2A
+```
+
