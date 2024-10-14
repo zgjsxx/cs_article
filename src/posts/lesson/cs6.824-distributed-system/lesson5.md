@@ -408,6 +408,18 @@ func requestVote() bool {
 }
 ```
 
+本人是写c++的，看到这里时，觉得还存在问题，因为只需要大于5个线程投赞成票，主线程就会返回了。也就意味着当主线程返回时，可能还有子线程还在运行，并且引用了栈变量```count```和```finished```。
+
+通过搜索了解到了go语言的逃逸机制，栈变量经过编译可能会重新放到堆区。
+
+通过```go run -gcflags="-m" yourfile.go```可以确定逃逸情况，下面的输出日志显示，```count```和```finished```逃逸到了堆区，由垃圾管理器管理。
+
+```shell
+./main.go:7:5: moved to heap: count
+./main.go:8:5: moved to heap: finished
+./main.go:9:9: moved to heap: mu
+```
+
 条件变量使用的范式如下：
 
 ```go
@@ -761,7 +773,7 @@ func (rf *Raft) AttemptElection() {
 
 ## 助教3 Raft debugging
 
-如果程序卡住了，可以使用util.go中的DPrintf打印日志
+如果程序卡住了, 可以使用util.go中的DPrintf打印日志
 
 CTRL + \  可以查看程序堆栈 从而可以找到程序卡住的位置
 
