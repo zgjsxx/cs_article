@@ -11,6 +11,7 @@ tag:
   - [多线程的挑战](#多线程的挑战)
     - [竞争](#竞争)
     - [协作(Coordination)](#协作coordination)
+    - [实际案例](#实际案例)
 
 # cs-6.824第2讲 RPC and Threads
 
@@ -110,6 +111,290 @@ mu.Unlock()
 
 在go语言中， 通道channels， 条件变量condition， 等待组(waitGroup)是常用的协作工具。
 
+
+### 实际案例
+
 接下来以网络爬虫为例，探讨一些关于线程的内容。
 
-36:04
+关于爬虫，需要注意避免两次获取同一个页面。
+
+同时对于不同的页面应该需要进行并发获取。
+
+串行爬虫
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+)
+
+//
+// Several solutions to the crawler exercise from the Go tutorial
+// https://tour.golang.org/concurrency/10
+//
+
+//
+// Serial crawler
+//
+
+func Serial(url string, fetcher Fetcher, fetched map[string]bool) {
+	if fetched[url] {
+		return
+	}
+	fetched[url] = true
+	urls, err := fetcher.Fetch(url)
+	if err != nil {
+		return
+	}
+	for _, u := range urls {
+		Serial(u, fetcher, fetched)
+	}
+	return
+}
+
+//
+// Concurrent crawler with shared state and Mutex
+//
+
+type fetchState struct {
+	mu      sync.Mutex
+	fetched map[string]bool
+}
+
+func ConcurrentMutex(url string, fetcher Fetcher, f *fetchState) {
+	f.mu.Lock()
+	already := f.fetched[url]
+	f.fetched[url] = true
+	f.mu.Unlock()
+
+	if already {
+		return
+	}
+
+	urls, err := fetcher.Fetch(url)
+	if err != nil {
+		return
+	}
+	var done sync.WaitGroup
+	for _, u := range urls {
+		done.Add(1)
+    u2 := u
+		go func() {
+			defer done.Done()
+			ConcurrentMutex(u2, fetcher, f)
+		}()
+		//go func(u string) {
+		//	defer done.Done()
+		//	ConcurrentMutex(u, fetcher, f)
+		//}(u)
+	}
+	done.Wait()
+	return
+}
+
+func makeState() *fetchState {
+	f := &fetchState{}
+	f.fetched = make(map[string]bool)
+	return f
+}
+
+//
+// Concurrent crawler with channels
+//
+
+func worker(url string, ch chan []string, fetcher Fetcher) {
+	urls, err := fetcher.Fetch(url)
+	if err != nil {
+		ch <- []string{}
+	} else {
+		ch <- urls
+	}
+}
+
+func master(ch chan []string, fetcher Fetcher) {
+	n := 1
+	fetched := make(map[string]bool)
+	for urls := range ch {
+		for _, u := range urls {
+			if fetched[u] == false {
+				fetched[u] = true
+				n += 1
+				go worker(u, ch, fetcher)
+			}
+		}
+		n -= 1
+		if n == 0 {
+			break
+		}
+	}
+}
+
+func ConcurrentChannel(url string, fetcher Fetcher) {
+	ch := make(chan []string)
+	go func() {
+		ch <- []string{url}
+	}()
+	master(ch, fetcher)
+}
+
+//
+// main
+//
+
+func main() {
+	fmt.Printf("=== Serial===\n")
+	Serial("http://golang.org/", fetcher, make(map[string]bool))
+
+	fmt.Printf("=== ConcurrentMutex ===\n")
+	ConcurrentMutex("http://golang.org/", fetcher, makeState())
+
+	fmt.Printf("=== ConcurrentChannel ===\n")
+	ConcurrentChannel("http://golang.org/", fetcher)
+}
+
+//
+// Fetcher
+//
+
+type Fetcher interface {
+	// Fetch returns a slice of URLs found on the page.
+	Fetch(url string) (urls []string, err error)
+}
+
+// fakeFetcher is Fetcher that returns canned results.
+type fakeFetcher map[string]*fakeResult
+
+type fakeResult struct {
+	body string
+	urls []string
+}
+
+func (f fakeFetcher) Fetch(url string) ([]string, error) {
+	if res, ok := f[url]; ok {
+		fmt.Printf("found:   %s\n", url)
+		return res.urls, nil
+	}
+	fmt.Printf("missing: %s\n", url)
+	return nil, fmt.Errorf("not found: %s", url)
+}
+
+// fetcher is a populated fakeFetcher.
+var fetcher = fakeFetcher{
+	"http://golang.org/": &fakeResult{
+		"The Go Programming Language",
+		[]string{
+			"http://golang.org/pkg/",
+			"http://golang.org/cmd/",
+		},
+	},
+	"http://golang.org/pkg/": &fakeResult{
+		"Packages",
+		[]string{
+			"http://golang.org/",
+			"http://golang.org/cmd/",
+			"http://golang.org/pkg/fmt/",
+			"http://golang.org/pkg/os/",
+		},
+	},
+	"http://golang.org/pkg/fmt/": &fakeResult{
+		"Package fmt",
+		[]string{
+			"http://golang.org/",
+			"http://golang.org/pkg/",
+		},
+	},
+	"http://golang.org/pkg/os/": &fakeResult{
+		"Package os",
+		[]string{
+			"http://golang.org/",
+			"http://golang.org/pkg/",
+		},
+	},
+}
+
+```
+
+
+学生提问： 锁和对象必须要绑定在一起吗?
+
+回答：不是
+
+学生提问： 引用传递或值传递的规则是什么?
+
+在 Go 语言中，map本质上是一个指针，类型是引用类型，即传递的是引用，而不是值的副本。这意味着当一个 map 被传递到一个函数或被赋值给另一个变量时，实际上传递的是对同一底层数据的引用，而不是数据的副本。
+
+```go
+package main
+
+import "fmt"
+
+// 修改 map 的值
+func modifyMap(m map[string]int) {
+    m["a"] = 100
+}
+
+func main() {
+    // 初始化 map
+    originalMap := map[string]int{"a": 1, "b": 2}
+
+    fmt.Println("Before modifying:", originalMap)
+
+    // 传递 map 给函数
+    modifyMap(originalMap)
+
+    fmt.Println("After modifying:", originalMap)
+}
+```
+
+而string则是一个值类型。
+
+
+学生提问： 如果go线程失败了，无法达到waitGroup怎么办？
+
+回答： 使用defer操作，确保Done()被执行。
+
+学生提问： 为什么waitGroup的Done操作无需加锁
+
+回答：其内部必然有互斥锁或者类似的机制进行保护。
+
+学生提问： 第56行的u能否不用传参
+
+回答：不可以
+
+
+如果ConcurrentMutex这里去掉锁，会怎么样？
+
+```go
+func ConcurrentMutex(url string, fetcher Fetcher, f *fetchState) {
+	// f.mu.Lock()
+	already := f.fetched[url]
+	f.fetched[url] = true
+	// f.mu.Unlock()
+```
+
+可以使用--race来检测多线程之间的竞争。
+
+```go
+go run --race crawler.go
+```
+
+其原理是使用影子内存。
+
+
+回答：如果未执行某些代码，那么竞态检测器对此一无所知。它并非是一种静态检测，它实际上是观察这个特定程序运行时的发生情况。如果该程序此次运行没有执行读写共享数据耳朵相关代码，那么竞态检测器将无从得知代码可能存在竞态条件。
+
+最后一种方式是基于go channel。其思路是启动一个worker线程，在其页面抓取完整之后，通过channel将页面的url发送给master线程。master则从channel中获取url，然后启动worker线程进行获取。
+
+这种方式下，master线程和worker线程不共享任何对象，我们不需要担心关于锁的问题。
+
+
+学生提问：
+
+回答：ch是一个通道，通道具有发送和接受功能。channel的内部必然有互斥锁。
+
+
+学生提问：第89行是一个循环，如果worker程序速度过慢，还没有来得急把url塞到channel中，那么程序就会提前退出，这如何解决。
+
+回答： 第89行的循环，当channel没有数据时，会一直阻塞，不会直接跳出循环。
