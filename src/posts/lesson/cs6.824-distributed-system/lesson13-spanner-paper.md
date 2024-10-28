@@ -61,7 +61,7 @@ Spanner 的主要重点是管理跨数据中心的复制数据，但我们也在
 
 Spanner 被组织为一组 zone，其中每个zone大致类似于一个 Bigtable 服务器的部署。zone是管理部署的单位。zone集合也是数据可以被复制的位置集合。随着新的数据中心投入使用和旧的数据中心关闭，区域可以分别被添加到正在运行的系统中或从其中移除。Zone也是物理隔离的单位：例如，在一个数据中心中可能有一个或多个Zone，如果不同应用程序的数据必须在同一个数据中心的不同服务器集合之间进行分区的话。
 
-![Spanner服务器状态](https://github.com/zgjsxx/static-img-repo/raw/main/blog/lesson/6.824/spanner/fig1-spanner-server-organization.png)
+![Spanner服务器状态](https://github.com/zgjsxx/static-img-repo/raw/main/blog/lesson/6.824/lesson13/paper/fig1-spanner-server-organization.png)
 
 图 1 展示了 Spanner universe 中的服务器。一个zone有一个zonemaster以及在一百到几千个 Spanner server之间。前者将数据分配给 Spanner server；后者为客户端提供数据服务。每个zone的location proxy被客户端用来定位被分配为其提供数据服务的 Spanner server。
 
