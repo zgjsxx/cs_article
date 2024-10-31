@@ -85,6 +85,39 @@ ProxyCommand "C:\APP\Git\mingw64\bin\connect" -S 127.0.0.1:51837 -a none %h %p
 #MacOS用户用下方这条命令，注意替换你的端口号
 #ProxyCommand nc -v -x 127.0.0.1:51837 %h %p
 
+example如下：
+
+```shell
+Host 192.168.26.11
+  HostName 192.168.26.11
+  User root
+
+Host 192.168.26.10
+  HostName 192.168.26.10
+  User root
+
+Host 192.168.26.10
+  HostName 192.168.26.10
+  User root
+
+Host github.com
+  User git
+  Port 22
+  Hostname github.com
+  # 注意修改路径为你的路径
+  IdentityFile "C:\Users\xxx\.ssh\id_rsa"
+  TCPKeepAlive yes
+  ProxyCommand "C:\Users\xxx\E\Git\mingw64\bin\connect" -S 127.0.0.1:1080 -a none %h %p
+
+Host ssh.github.com
+  User git
+  Port 443
+  Hostname ssh.github.com
+  # 注意修改路径为你的路径
+  IdentityFile "C:\Users\xxx\.ssh\id_rsa"
+  TCPKeepAlive yes
+  ProxyCommand "C:\Users\xxx\E\Git\mingw64\bin\connect" -S 127.0.0.1:1080 -a none %h %p
+```
 
 # 测试是否设置成功
 ssh -T git@github.com
