@@ -18,6 +18,7 @@ lesson3：
 - GFS read
 
 lesson4：
+- vmware FT
 
 lesson5：助教课
 - go并发源语
@@ -31,6 +32,15 @@ lesson7：
 
 lesson8：
 - zookeeper协议
+
+lesson9：
+- CRAQ
+
+lesson10：
+- amazon aurora
+
+lesson11：
+- Frangipani
 
 lesson12: 
 - 分布式事务如何实现
