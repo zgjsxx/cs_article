@@ -16,9 +16,12 @@ tag:
   - [4.并发控制](#4并发控制)
     - [4.1 时间管理](#41-时间管理)
       - [4.1.1 Paxos 领导者租约](#411-paxos-领导者租约)
+    - [4.1.2 为读写事务分配时间戳](#412-为读写事务分配时间戳)
+      - [4.1.3 在某时间戳处提供读取服务](#413-在某时间戳处提供读取服务)
       - [4.1.4 为只读事务分配时间戳](#414-为只读事务分配时间戳)
     - [4.2 细节](#42-细节)
       - [4.2.1 读写事务](#421-读写事务)
+  - [8. 结论](#8-结论)
 
 # Spanner：Google 的全球分布式数据库
 
@@ -145,6 +148,12 @@ INTERLEAVE IN PARENT Users ON DELETE CASCADE
 
 TrueTime在底层使用的参考时间为GPS和原子时钟。TrueTime使用了两种形式的参考时间，因为它们有不同的故障模式。GPS参考源的弱点有天线和接收器故障、本地无线电干扰、相关故障（例如，如闰秒处理不正确的设计故障、和欺骗等）、和GPS系统停机。原子时钟可能会以与GPS和彼此不相关的方式发生故障，且在长时间后会由于频繁错误而发生明显的漂移。
 
+TrueTime通过每个数据中心的time server机器集合和每个机器的timeslave daemon的实现。大多数的master都有带专用天线的GPS接收器；这些master在物理上被划分开，以减少天线故障、无线电干扰、和欺骗的影响。其余的master（我们称其为Armageddon master）配备了原子时钟。原子时钟并没有那么贵：Armageddon master的成本与GPS master的成本在同一数量级。所有master的参考时间通常彼此不同。每个master还会通过它自己的本地时钟较差验证其参考时间提前的速率，如果二者有实质性的分期，则自己退出集合。在同步期间，Armageddom master会保守地给出从最坏的情况下的时钟漂移得出的缓慢增长的时间不确定性。GPS master会给出通常接近零的的不确定性。
+
+每个daemon会轮询各种master来减少任意一个master的错误的影响。一些是从就近的数据中心选取的GPS master，一些是从更远的数据中心的GPS master，对Armageddon master来说也是一样。daemon使用一种Marzullo算法的变体来检测并拒绝说谎者，并与没说谎的机器同步本地的机器时钟。为了防止本地时钟故障，应该淘汰掉发生偏移频率大于从组件规格和操作环境得出的界限的机器。
+
+在同步期间，daemon会给出缓慢增长的时间不确定性。$\epsilon$保守地从最坏的本地市中偏移得出。$\epilson$还依赖time master的不确定性和到time master的通信延迟。在我们的生产环境中，$\epsilon$通常是时间的锯齿波函数（sawtooth functon），每次轮询的间隔大概在1ms到7ms间。因此，大部分时间里$\bar{\epsilon}$为4ms。目前，daemon的轮询间隔为30秒，且当前的漂移速率被设置为200ms/s，二者一起组成了0到6ms的锯齿边界。剩下的1ms来自于到time master的通信延迟。在出现故障时，锯齿波可能会出现偏移。例如，偶尔的time master的不可用可能导致数据中心范围的$\epsilon$增加。同样，机器和网络连接过载可能导致$\epsilon$偶尔出现局部峰值。
+
 ## 4.并发控制
 
 本节描述了如何使用 TrueTime 来保证围绕并发控制的正确性属性，以及如何使用这些属性来实现诸如外部一致的事务、无锁只读事务以及过去的非阻塞读取等功能。例如，这些功能确保了在时间戳 t 进行的全数据库审计读取将准确看到在时间 t 为止已提交的每个事务的效果。
@@ -169,6 +178,50 @@ Spanner 依赖于以下互斥不变性：对于每个 Paxos 组，每个 Paxos �
 Spanner 的实现允许 Paxos 领导者通过解除其从节点的租约投票来退位。为了保持互斥不变性，Spanner 对何时允许退位进行了限制。定义 ${s}_{max}$ 为领导者使用的最大时间戳。后续部分将描述何时推进 ${s}_{max}$。在退位之前，领导者必须等待直到 TT.after (${s}_{max}$) 为真。
 
 
+### 4.1.2 为读写事务分配时间戳
+
+事务的读写使用两阶段锁。因此，可以在已经获取了所有锁之后与任何锁被释放之前的任意时间里为其分配时间戳。对一个给定的事务，Spanner为其分配的时间戳是Paxos为Paxos write分配的表示事务提交的时间戳。
+
+Spanner依赖如下的单调定理：在每个Paxos group内，Spanner以单调增加的顺序为Paxos write分配时间戳，即使跨leader也是如此。单个leader副本可以单调递增地分配时间戳。通过使用不相交定理，可以在跨leader的情况下保证该定理：leader必须仅在它的leader租约的期限内分配时间戳。注意，每当时间戳$s$被分配时，$s_{max}$会增大到$s$，以保持不相交性。
+
+Spanner还保证了如下的的外部一致性定理：如果事务$T_2$在事务$T_1$提交之后开始，那么$T_2$的提交时间戳一定比$T_1$的提交时间戳大。
+
+定义事务$T_i$的开始事件与提交事件分别为$e_i^{start}$和$e_i^{commit}$、事务$T_i$的提交时间戳为$s_i$。该定理可以使用$t_{abs}(e_1^{commit}) < t_{abs}(e_2^{start}) \implies s_1 < s_2$表示。这一用来执行事务与分配时间戳的协议遵循两条规则，二者共同保证了定理，如下所示。定义写入事务$T_i$的提交请求到达coordinator leader的事件为$e_i^{server}$。
+
+**开始（Start）**： 写入事务$T_i$的coordinator leader在$e_i^{server}$会为其计算并分配值不小于$TT.now().latest$的时间戳$s_i$。注意，participant leader于此无关；章节4.2.1描述了participant如何参与下一条规则的实现。
+
+**提交等待（Commit Wait）**： coordinator leader确保了客户端在$TT.after(s_i)$为true之前无法看到任何由$T_i$提交的数据。提交等待确保了$s_i$比$T_i$的提交的绝对时间小，或者说$s_i < t_{abs}(e_i^{commit})$。该提交等待的实现在章节4.2.1中描述。证明：
+
+$$ s_1 < t_{abs}(e_1^{commit}) \tag{commit wait} $$
+$$ t_{abs}(e_1^{commit}) < t_{abs}(e_2^{start}) \tag{assumption} $$
+$$ t_{abs}(e_2^{start}) \le t_{abs}(e_2^{server}) \tag{causality} $$
+$$ t_{abs}(e_2^{server}) \le s_2 \tag{start} $$
+$$ s_1 < s_2 \tag{transitivity} $$
+
+这里的理解很关键，论文中使用了公式进行了严谨的表达，这里将其将其画在一条时间轴上，这样更容易理解。
+
+![读写事务的时间戳](https://github.com/zgjsxx/static-img-repo/raw/main/blog/lesson/6.824/lesson13/paper/read-write-trx.png)
+
+对于一个client端，如果其已知事务$T_2$在事务$T_1$提交之后开始，也就是说$T_2$和$T_1$存在一个明确的先后关系。
+- $s_1 < t_{abs}(e_1^{commit})$：在获得提交时间$s_1$之后，系统会不停调用$TT.after(s_1)$,直到返回true。因此事务实际的提交的绝对时间要晚于事务分配的之间戳。
+- $t_{abs}(e_1^{commit}) < t_{abs}(e_2^{start})$：这个点很容易得到，即e1提交的绝对时间要早于e2开始的绝对时间，这个结论来源于假设的前提，$T_2$和$T_1$的先后关系。
+- $t_{abs}(e_2^{start}) \le t_{abs}(e_2^{server})$：这个不等式来源于因果关系，事务协调器发起事务提交的时间一定晚于事务的开始时间。
+- $t_{abs}(e_2^{server}) \le s_2$: $e_i^{server}$被定义为写入事务$T_i$的提交请求到达coordinator leader的事件，其会为其计算并分配值不小于$TT.now().latest$的时间戳$s_i$，因为取的是latest，根据True Time的定义很容易获得。
+- $s_1 < s_2$： 这个结论来源于不等式的传递。
+
+因此通过这样的推到我们的得到的结论是，如果事务$T_2$在事务$T_1$提交之后开始，那么$T_2$的提交时间戳一定比$T_1$的提交时间戳大。
+
+该结论用公式表达，就是：
+
+$$t_{abs}(e_1^{commit}) < t_{abs}(e_2^{start}) \implies s_1 < s_2$$
+
+#### 4.1.3 在某时间戳处提供读取服务
+
+章节4.1.2中描述的单调性定理让Spanner能够正确地确定副本的状态对一个读取操作来说是否足够新。每个副本会追踪一个被称为safe time（安全时间） 的值$t_{safe}$，它是最新的副本中的最大时间戳。如果读操作的时间戳为$t$，那么当$t \le t_{safe}$时，副本可以满足该读操作。
+定义$t_{safe} = \min(t_{safe}^{Paxos},t_{safe}^{TM})$，其中每个Paxos状态机有safe time $t_{safe}^{Paxos}$，每个transaction manager有safe time $t_{safe}^{TM}$。$t_{safe}^{Paxos}$简单一些：它是被应用的序号最高的Paxos write的时间戳。因为时间戳单调增加，且写入操作按顺序应用，对于Paxos来说，写入操作不会发生在$t_{safe}^{Paxos}$或更低的时间。
+如果没有就绪（prepared）的（还没提交的）事务（即处于两阶段提交的两个阶段中间的事务），那么$t_{safe}^{TM}$为$\infty$。（对于participant slave，$t_{safe}^{TM}$实际上表示副本的leader的transaction manager的safe time，slave可以通过Paxos write中传递的元数据来推断其状态。）如果有任何的这样的事务存在，那么受这些事务影响的状态是不确定的：particaipant副本还不知道这样的事务是否将会提交。如我们在章节4.2.1中讨论的那样，提交协议确保了每个participant知道就绪事务的时间戳的下界。对group $g$来说，每个事务$T_i$的participant leader会给其就绪记录（prepare record）分配一个就绪时间戳（prepare timestamp）$s_{i,g}^{prepare}$。coordinator leader确保了在整个participant group $g$中，事务的提交时间戳$s_i \ge s_{i,g}^{prepare} $。因此，对于group $g$中的每个副本，对$g$中的所有事务$T_i$，$t_{safe}^{TM} = \min_i(s_{i,g^{prepare}})-1$。
+
+
 #### 4.1.4 为只读事务分配时间戳
 
 只读事务分两个阶段执行：分配一个时间戳 ${s}_{read}$，然后在 ${s}_{read}$ 处将事务的读取作为快照读取执行。快照读取可以在任何足够新的副本上执行。
@@ -191,6 +244,16 @@ Spanner 的实现允许 Paxos 领导者通过解除其从节点的租约投票�
 
 在允许任何协调者副本应用提交记录之前，协调者领导者等待直到 TT.after (s)，以遵守 4.1.2 节中描述的提交等待规则。因为协调者领导者基于 TT.now ().latest 选择了 s，并且现在等待直到那个时间戳被保证在过去，所以预期的等待时间至少是 2×ε。这个等待通常与 Paxos 通信重叠。在提交等待之后，协调者将提交时间戳发送给客户端和所有其他参与者领导者。每个参与者领导者通过 Paxos 记录事务的结果。所有参与者在同一时间戳应用并然后释放锁。
 
+## 8. 结论
+
+总而言之，Spanner结合并扩展了两个研究领域的观点：在更接近的数据库领域，需要易用的半结构化接口、事务、和基于SQL的查询语言；在系统领域，需要可伸缩、自动分片、容错、一致性副本、外部一致性、和广域分布。自从Spanner诞生以来，我们花了5年多的时间迭代设计与实现。这漫长的迭代部分原因是，人们很久才意识到Spanner应该做的不仅仅是解决全球化多副本命名空间的问题，还应该着眼于Bigtable锁缺少的数据库特性。
+
+我们的设计中的一方面十分重要：Spanner的特性的关键是TrueTime。我们证明了，通过消除时间API中的始终不确定度，=能够构建时间语义更强的分布式系统。此外，因为底层系统对时钟不确定度做了更严格的限制，所以实现更强的语义的开销减少了。在这一领域中，在设计分布式算法时，我们应该不再依赖宽松的时钟同步和较弱的时间API。
+
+
+
 https://blog.mrcroxx.com/posts/paper-reading/spanner-osdi2012/#2-%E5%AE%9E%E7%8E%B0
 
 https://blog.csdn.net/qq_40229166/article/details/129676187
+
+https://blog.mrcroxx.com/posts/paper-reading/spanner-osdi2012/#421-%E8%AF%BB%E5%86%99%E4%BA%8B%E5%8A%A1
