@@ -45,8 +45,7 @@ Frangipani 构建在 Petal 之上，Petal 是一个易于管理的分布式存�
 
 图 1 说明了 Frangipani 系统中的层次结构。多个可互换的 Frangipani 服务器通过在共享的 Petal 虚拟磁盘之上运行来提供对相同文件的访问，它们使用锁来协调其操作以确保一致性。文件系统层可以通过添加 Frangipani 服务器来进行扩展。它通过从服务器故障中自动恢复并继续使用幸存的服务器来实现容错。通过将文件系统负载拆分并转移到正在使用文件的机器上，它比集中式网络文件服务器提供了更好的负载均衡。Petal 和锁服务也为了可扩展性、容错性和负载均衡而进行分布式部署。
 
-图1：贴图
-
+![图1：Frangipani分层](https://github.com/zgjsxx/static-img-repo/raw/main/blog/lesson/6.824/lesson11/paper/fig1-frangipani-layer.png)
 
 Frangipani 服务器相互信任、信任 Petal 服务器以及锁服务。Frangipani 被设计为在单个管理域内的工作站集群中良好运行，尽管 Frangipani 文件系统可以被导出到其他域。因此，Frangipani 可以被视为一个集群文件系统。
 
