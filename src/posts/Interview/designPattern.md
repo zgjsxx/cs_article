@@ -1,4 +1,3 @@
-
 ---
 category: 
 - 面经
@@ -511,154 +510,134 @@ int main() {
 
 ### 桥接模式
 
-**桥接模式的作用**
-桥接模式的核心作用是将**抽象部分与实现部分**分离，从而使它们可以独立地进行扩展和变化。这种分离提供了更好的灵活性和可维护性：
+桥接模式的主要作用是解耦抽象和实现，使得它们可以独立地变化和扩展。通过桥接模式，可以在实现高层结构的灵活性的同时，避免类的爆炸性增长，增强系统的可扩展性和维护性。以下是桥接模式的具体作用：
+- 分离抽象与实现。避免了直接依赖具体实现。这样在不影响抽象接口的情况下，可以自由更换实现。
+- 支持独立扩展和变化。在桥接模式中，抽象和实现都可以独立扩展，不会相互影响。
+- 如果不使用桥接模式，通常需要为每个具体组合创建一个子类，比如"红色圆形"、"绿色矩形"等，可能导致大量的组合类。桥接模式通过将不同维度的实现进行组合，可以大大减少类的数量。
+- 提高系统的可维护性和扩展性。桥接模式的松耦合特性使得代码更易维护，因为抽象和实现彼此独立。更新实现或新增实现时，不需要更改抽象部分。
+- 实现运行时动态组合。桥接模式支持运行时动态组合，抽象部分可以在运行时选择不同的实现。通过组合不同的实现，系统可以实现不同的行为和效果，具有极大的灵活性。
+- 适合跨平台的系统设计。桥接模式可以隐藏不同平台的差异，将平台的具体实现细节封装在实现部分。通过这一模式，可以轻松地在不同平台上使用不同的实现，而不影响系统的抽象部分。
 
-- 解耦抽象与实现：在传统的继承结构中，抽象和实现是紧密耦合的，这意味着每当抽象部分发生变化时，实现部分也可能需要改变。而桥接模式通过引入一个实现接口，将两者解耦，从而允许它们独立地演化。
-
-- 增强系统的可扩展性：使用桥接模式后，可以在不修改现有代码的情况下，增加新的实现方式或新的抽象类型。这使得系统更容易扩展和维护。
-
-- 提高灵活性：由于桥接模式将抽象与实现部分分离，客户端可以在运行时选择不同的实现部分，而无需了解实现的具体细节。
-
-**桥接模式的使用场景**
-
-桥接模式适用于以下场景：
-
-- 当一个类存在多个可能的扩展方向，并且每种扩展都可能有不同的实现时。例如，在一个图形绘制系统中，可以有不同的图形类型（如圆形、矩形等）和不同的绘制方式（如矢量绘制、光栅绘制等），桥接模式允许你在不影响客户端代码的情况下独立扩展图形类型和绘制方式。不使用桥接模式时，则需要使用图形类型的个数*光栅绘制个数的类去进行管理。
-
-- 需要在不同的实现之间进行切换时。例如，如果一个系统需要在不同的平台或环境（如Windows、Linux等）下运行，每个平台有不同的实现细节，桥接模式可以让你在不修改抽象部分的情况下轻松切换实现。
-
-- 避免类的继承层次过于复杂时。当系统需要继承多个维度的类时，传统的继承会导致类爆炸（即类的数量过多且结构复杂），使用桥接模式可以将这些维度分开，减少类的数量和复杂度。
-
-当系统需要在运行时动态切换实现时，桥接模式允许系统在运行时绑定具体实现，而不需要重新编译。
-
-假设我们有一个图形绘制系统，支持不同类型的图形（如圆形和矩形），同时可以使用不同的绘制方式（如用矢量图形绘制和用光栅图形绘制）。使用桥接模式，可以将“图形类型”和“绘制方式”分开，使得两者可以独立变化。
+例如，我们有一个图形绘制系统，支持不同的颜色(如绿色和红色)，支持不同类型的形状（如圆形和矩形），支持不同的材料(如木制和金属)。使用桥接模式，可以将颜色、形状以及材料分开，使得三者可以独立变化。
 
 ```cpp
 #include <iostream>
+#include <memory>
 
-// 实现接口（Implementor）
-class DrawingImplementor {
+// 第一个维度：颜色
+class Color {
 public:
-    virtual void drawCircle(double x, double y, double radius) = 0;
-    virtual void drawRectangle(double x1, double y1, double x2, double y2) = 0;
-    virtual ~DrawingImplementor() = default;
+    virtual void applyColor() = 0;
+    virtual ~Color() = default;
 };
 
-// 具体实现类（ConcreteImplementor） - 矢量绘图实现
-class VectorDrawingImplementor : public DrawingImplementor {
+class RedColor : public Color {
 public:
-    void drawCircle(double x, double y, double radius) override {
-        std::cout << "Vector drawing: Circle at (" << x << ", " << y << ") with radius " << radius << std::endl;
-    }
-
-    void drawRectangle(double x1, double y1, double x2, double y2) override {
-        std::cout << "Vector drawing: Rectangle from (" << x1 << ", " << y1 << ") to (" << x2 << ", " << y2 << ")" << std::endl;
+    void applyColor() override {
+        std::cout << "Applying Red Color";
     }
 };
 
-// 具体实现类（ConcreteImplementor） - 光栅绘图实现
-class RasterDrawingImplementor : public DrawingImplementor {
+class GreenColor : public Color {
 public:
-    void drawCircle(double x, double y, double radius) override {
-        std::cout << "Raster drawing: Circle at (" << x << ", " << y << ") with radius " << radius << std::endl;
-    }
-
-    void drawRectangle(double x1, double y1, double x2, double y2) override {
-        std::cout << "Raster drawing: Rectangle from (" << x1 << ", " << y1 << ") to (" << x2 << ", " << y2 << ")" << std::endl;
+    void applyColor() override {
+        std::cout << "Applying Green Color";
     }
 };
 
-// 抽象类（Abstraction）
+// 第二个维度：材质
+class Material {
+public:
+    virtual void applyMaterial() = 0;
+    virtual ~Material() = default;
+};
+
+class WoodMaterial : public Material {
+public:
+    void applyMaterial() override {
+        std::cout << " with Wood Material" << std::endl;
+    }
+};
+
+class MetalMaterial : public Material {
+public:
+    void applyMaterial() override {
+        std::cout << " with Metal Material" << std::endl;
+    }
+};
+
+// 第三个维度：形状
 class Shape {
 protected:
-    DrawingImplementor* implementor;  // 持有实现部分的引用
+    std::shared_ptr<Color> color;        // 持有颜色的实现
+    std::shared_ptr<Material> material;  // 持有材质的实现
 
 public:
-    Shape(DrawingImplementor* imp) : implementor(imp) {}
-    virtual void draw() = 0;  // 抽象方法，交由具体类实现
+    Shape(std::shared_ptr<Color> c, std::shared_ptr<Material> m) 
+        : color(c), material(m) {}
+
+    virtual void draw() = 0;
     virtual ~Shape() = default;
 };
 
-// 扩展抽象类（RefinedAbstraction） - 圆形
 class Circle : public Shape {
-private:
-    double x, y, radius;
-
 public:
-    Circle(DrawingImplementor* imp, double x, double y, double radius)
-        : Shape(imp), x(x), y(y), radius(radius) {}
+    Circle(std::shared_ptr<Color> c, std::shared_ptr<Material> m) 
+        : Shape(c, m) {}
 
     void draw() override {
-        implementor->drawCircle(x, y, radius);  // 调用实现部分的方法
+        std::cout << "Drawing Circle with ";
+        color->applyColor();
+        material->applyMaterial();
     }
 };
 
-// 扩展抽象类（RefinedAbstraction） - 矩形
 class Rectangle : public Shape {
-private:
-    double x1, y1, x2, y2;
-
 public:
-    Rectangle(DrawingImplementor* imp, double x1, double y1, double x2, double y2)
-        : Shape(imp), x1(x1), y1(y1), x2(x2), y2(y2) {}
+    Rectangle(std::shared_ptr<Color> c, std::shared_ptr<Material> m) 
+        : Shape(c, m) {}
 
     void draw() override {
-        implementor->drawRectangle(x1, y1, x2, y2);  // 调用实现部分的方法
+        std::cout << "Drawing Rectangle with ";
+        color->applyColor();
+        material->applyMaterial();
     }
 };
 
 int main() {
-    // 使用矢量绘图实现
-    DrawingImplementor* vectorDrawer = new VectorDrawingImplementor();
-    Shape* vectorCircle = new Circle(vectorDrawer, 10, 10, 5);
-    Shape* vectorRectangle = new Rectangle(vectorDrawer, 0, 0, 15, 15);
+    // 创建颜色和材质的具体实现
+    std::shared_ptr<Color> red = std::make_shared<RedColor>();
+    std::shared_ptr<Color> green = std::make_shared<GreenColor>();
 
-    vectorCircle->draw();
-    vectorRectangle->draw();
+    std::shared_ptr<Material> wood = std::make_shared<WoodMaterial>();
+    std::shared_ptr<Material> metal = std::make_shared<MetalMaterial>();
 
-    // 使用光栅绘图实现
-    DrawingImplementor* rasterDrawer = new RasterDrawingImplementor();
-    Shape* rasterCircle = new Circle(rasterDrawer, 20, 20, 10);
-    Shape* rasterRectangle = new Rectangle(rasterDrawer, 5, 5, 25, 25);
+    // 组合不同的形状、颜色和材质
+    std::shared_ptr<Shape> woodenRedCircle = std::make_shared<Circle>(red, wood);
+    std::shared_ptr<Shape> metalGreenRectangle = std::make_shared<Rectangle>(green, metal);
 
-    rasterCircle->draw();
-    rasterRectangle->draw();
+    // 使用组合
+    woodenRedCircle->draw();
+    // 输出：Drawing Circle with Applying Red Color with Wood Material
 
-    delete vectorCircle;
-    delete vectorRectangle;
-    delete rasterCircle;
-    delete rasterRectangle;
-    delete vectorDrawer;
-    delete rasterDrawer;
+    metalGreenRectangle->draw();
+    // 输出：Drawing Rectangle with Applying Green Color with Metal Material
+
+    // 动态改变材质和颜色
+    std::shared_ptr<Shape> metalRedCircle = std::make_shared<Circle>(red, metal);
+    metalRedCircle->draw();
+    // 输出：Drawing Circle with Applying Red Color with Metal Material
 
     return 0;
 }
 ```
 
 **代码解析**
-
-- Implementor接口 (DrawingImplementor)：定义了绘制操作的接口，如绘制圆形和矩形的方法。
-- ConcreteImplementor类 (VectorDrawingImplementor 和 RasterDrawingImplementor)：分别实现了矢量绘图和光栅绘图的具体操作。
-- Abstraction类 (Shape)：定义了形状的抽象接口，并持有 DrawingImplementor 的引用。
-- RefinedAbstraction类 (Circle 和 Rectangle)：具体实现了不同形状的类，它们通过调用 DrawingImplementor 的具体实现来完成绘图操作。
-
-在前面的例子中，图形绘制系统通过桥接模式将**图形的抽象部分（如Circle和Rectangle）与绘制的实现部分（如VectorDrawingImplementor和RasterDrawingImplementor）**分离：
-
-- 抽象部分 (Shape) 定义了图形的公共接口，它并不直接实现绘制操作，而是依赖于实现部分 (DrawingImplementor) 来执行具体的绘制。
-- 实现部分 提供了具体的绘制方法，可以有不同的实现方式，如矢量绘图和光栅绘图。
-
-这种设计使得你可以很容易地添加新的图形类型或新的绘制方式，而不需要修改现有的代码。例如，添加一个新的图形 Triangle 或者一个新的绘制实现 OpenGLDrawingImplementor，只需要分别扩展 Shape 和 DrawingImplementor 即可。
-
-**桥接模式的实际应用**
-
-桥接模式在许多领域都有广泛应用，特别是在以下系统中：
-
-- GUI工具库：如Java的AWT和Swing，使用桥接模式分离了图形控件和它们的绘制实现。
-- 数据库访问层：桥接模式可以用于分离数据库访问接口和具体的数据库实现，使得支持多种数据库变得容易。
-- 设备控制软件：例如，支持多种硬件设备的驱动程序中，桥接模式可以将设备接口与具体的设备实现分开，以支持不同类型的设备。
-
-通过以上的总结和具体的应用场景说明，可以更清楚地理解桥接模式在解耦、扩展性和灵活性方面的重要性。
+从Implementor、ConcreteImplementor、Abstraction、和RefinedAbstraction这四个角色的角度去解析上述代码：
+- Implementor： Color类就是Implementor，它定义了applyColor()接口；Material类也是Implementor，它定义了applyMaterial()接口
+- ConcreteImplementor： RedColor和GreenColor就是Color类的具体实现；WoodMaterial和MetalMaterial就是Material的具体实现。
+- Abstraction：Shape类是Abstraction，它持有一个指向Color的指针和一个指向Material类的指针，并且定义了draw()方法作为抽象接口。
+- RefinedAbstraction： Circle和Rectangle类是RefinedAbstraction，它们继承自Shape（Abstraction），并实现了具体的draw()方法。实现了不同颜色和不同材质的绘制效果。
 
 ### 组合模式
 
