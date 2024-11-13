@@ -384,7 +384,12 @@ House with Wooden Walls, Tile Roof and Glass Windows
 
 ### 适配器模式
 
-适配器模式可以分为对象适配器模式（Object Adapter）和类适配器模式（Class Adapter）两种。
+适配器模式的核心作用是将一个类的接口转换为客户端所期望的另一个接口，使得原本接口不兼容的类可以一起工作。其主要作用表现为如下三点：
+- 解决接口不兼容的问题
+- 重用已有的类
+- 增强系统的灵活性和可扩展性
+
+适配器模式可以分为对象适配器模式(has-a)和类适配器模式(is-a)两种。
 
 **1.对象适配器模式（Object Adapter Pattern）**
 
@@ -641,141 +646,91 @@ int main() {
 
 ### 组合模式
 
-不使用组合模式的情况
-假设我们有一个系统需要处理图形对象，比如椭圆 (Ellipse) 和矩形 (Rectangle)，并且还需要处理由这些图形对象组成的图形组 (GraphicGroup)。
+组合模式（Composite Pattern）允许你将对象组合成树形结构来表示"部分-整体"的层次结构。组合模式使得客户端可以以统一的方式对待单个对象和对象集合，能够让客户端在不关心组合对象内部结构的情况下，像操作单个对象一样操作整个对象树。
 
-如果不使用组合模式，我们可能会设计如下的类：
+组合模式解决的问题
+- 统一管理对象： 组合模式将单个对象和由对象组合而成的复合对象统一成相同的接口，允许客户端以相同的方式处理单个对象和对象集合。这样，客户端可以方便地处理树形结构中的所有元素，而无需关心这些元素是简单对象还是复合对象。
+- 构建层次结构： 组合模式特别适用于树形结构的对象，如文件系统、UI组件等。通过组合模式，可以方便地创建这种层次结构。
+- 递归结构： 组合模式使得递归结构的管理和操作变得非常简单。例如，树形结构的每个节点（无论是叶子节点还是复合节点）都可以统一地进行遍历、添加、删除等操作。
 
-```cpp
-#include <iostream>
-#include <vector>
+我们以一个文件系统为例，其中包含文件和文件夹。文件夹可以包含多个文件或子文件夹，文件夹和文件都可以统一处理成“文件系统元素”。这个场景适合使用组合模式。
 
-class Ellipse {
-public:
-    void draw() const {
-        std::cout << "Drawing an Ellipse" << std::endl;
-    }
-};
-
-class Rectangle {
-public:
-    void draw() const {
-        std::cout << "Drawing a Rectangle" << std::endl;
-    }
-};
-
-class GraphicGroup {
-public:
-    void addEllipse(const Ellipse& ellipse) {
-        ellipses.push_back(ellipse);
-    }
-
-    void addRectangle(const Rectangle& rectangle) {
-        rectangles.push_back(rectangle);
-    }
-
-    void draw() const {
-        for (const auto& ellipse : ellipses) {
-            ellipse.draw();
-        }
-        for (const auto& rectangle : rectangles) {
-            rectangle.draw();
-        }
-    }
-
-private:
-    std::vector<Ellipse> ellipses;
-    std::vector<Rectangle> rectangles;
-};
-
-int main() {
-    Ellipse e1, e2;
-    Rectangle r1;
-
-    GraphicGroup group;
-    group.addEllipse(e1);
-    group.addEllipse(e2);
-    group.addRectangle(r1);
-
-    group.draw();
-
-    return 0;
-}
-```
-问题：
-- GraphicGroup只能处理特定的图形对象（如 Ellipse 和 Rectangle），不能扩展到处理其他类型的图形。
-- 如果你添加更多的图形类型，你需要修改 GraphicGroup 的代码以适应这些新类型，这违反了开闭原则（OCP）。
-
-**使用组合模式的情况**
-
-使用组合模式时，我们可以创建一个统一的抽象类 Graphic，并让 Ellipse、Rectangle 和 GraphicGroup 都继承这个抽象类。这样，客户端代码可以一致地处理单个图形和图形组。
+步骤：
+- 定义一个 Component 抽象类，表示文件系统中的所有元素（文件或文件夹）。
+- 定义 Leaf 类（文件），实现 Component 接口。
+- 定义 Composite 类（文件夹），实现 Component 接口，并且可以包含多个子元素（文件或文件夹）。
 
 ```cpp
 #include <iostream>
 #include <vector>
+#include <string>
 #include <memory>
 
-// 抽象基类
-class Graphic {
+// Component: 文件系统元素基类
+class IFileSystem {
 public:
-    virtual void draw() const = 0;
-    virtual ~Graphic() = default;
+    virtual ~IFileSystem() {}
+    virtual void show(int indent = 0) const = 0;
 };
 
-// 具体图形类：椭圆
-class Ellipse : public Graphic {
+// Leaf: 叶子节点类（文件）
+class File : public IFileSystem {
+private:
+    std::string name;
 public:
-    void draw() const override {
-        std::cout << "Drawing an Ellipse" << std::endl;
+    File(const std::string& name) : name(name) {}
+    
+    void show(int indent = 0) const override {
+        std::string indentation(indent, ' ');
+        std::cout << indentation << "File: " << name << std::endl;
     }
 };
 
-// 具体图形类：矩形
-class Rectangle : public Graphic {
-public:
-    void draw() const override {
-        std::cout << "Drawing a Rectangle" << std::endl;
-    }
-};
+// Composite: 组合节点类（文件夹）
+class Folder : public IFileSystem {
+private:
+    std::string name;
+    std::vector<std::shared_ptr<IFileSystem>> children;  // 子元素
 
-// 组合类：图形组
-class GraphicGroup : public Graphic {
 public:
-    void add(std::shared_ptr<Graphic> graphic) {
-        children.push_back(graphic);
+    Folder(const std::string& name) : name(name) {}
+    
+    void add(std::shared_ptr<FileSystemElement> element) {
+        children.push_back(element);
     }
 
-    void draw() const override {
+    void show(int indent = 0) const override {
+        std::string indentation(indent, ' ');
+        std::cout << indentation << "Folder: " << name << std::endl;
         for (const auto& child : children) {
-            child->draw();
+            child->show(indent + 2);  // 子元素的缩进增加
         }
     }
-
-private:
-    std::vector<std::shared_ptr<Graphic>> children;
 };
 
 int main() {
-    std::shared_ptr<Graphic> e1 = std::make_shared<Ellipse>();
-    std::shared_ptr<Graphic> e2 = std::make_shared<Ellipse>();
-    std::shared_ptr<Graphic> r1 = std::make_shared<Rectangle>();
+    // 创建文件和文件夹
+    auto file1 = std::make_shared<File>("file1.txt");
+    auto file2 = std::make_shared<File>("file2.txt");
+    
+    auto folder1 = std::make_shared<Folder>("Folder1");
+    folder1->add(file1);
+    folder1->add(file2);
+    
+    auto folder2 = std::make_shared<Folder>("Folder2");
+    auto file3 = std::make_shared<File>("file3.txt");
+    folder2->add(file3);
+    
+    auto root = std::make_shared<Folder>("RootFolder");
+    root->add(folder1);
+    root->add(folder2);
 
-    std::shared_ptr<GraphicGroup> group = std::make_shared<GraphicGroup>();
-    group->add(e1);
-    group->add(e2);
-    group->add(r1);
-
-    group->draw();
+    // 展示文件系统结构
+    root->show();
 
     return 0;
 }
 ```
-使用组合模式的优势：
-
-- 统一接口： 所有图形类 (Ellipse, Rectangle, GraphicGroup) 都实现了相同的接口 Graphic，因此客户端代码可以一致地处理单个对象和组合对象。
-- 扩展性强： 可以轻松添加新的图形类型，而无需修改现有的组合类 (GraphicGroup)。
-- 简化客户端代码： 客户端不需要区分处理单个对象和组合对象，可以用相同的方式调用 draw() 方法。
-- 通过组合模式，我们可以将单个对象和组合对象统一起来，从而简化客户端代码并提高系统的灵活性和可扩展性。
 
 ### 装饰模式
 
