@@ -8,7 +8,10 @@ tag:
 - [设计模式面经](#设计模式面经)
   - [设计模式的几大原则](#设计模式的几大原则)
   - [创建型模式](#创建型模式)
+    - [单例模式](#单例模式)
     - [工厂方法](#工厂方法)
+    - [抽象工厂方法](#抽象工厂方法)
+    - [原型模式](#原型模式)
     - [建造者模式](#建造者模式)
   - [结构型模式](#结构型模式)
     - [适配器模式](#适配器模式)
@@ -26,6 +29,7 @@ tag:
     - [模板方法模式](#模板方法模式)
     - [访问者模式](#访问者模式)
   - [问题](#问题)
+    - [工厂方法和抽象工厂方法的区别](#工厂方法和抽象工厂方法的区别)
     - [装饰器模式和代理模式的区别](#装饰器模式和代理模式的区别)
     - [外观模式和适配器模式的区别](#外观模式和适配器模式的区别)
     - [说说grpc中的建造者模式](#说说grpc中的建造者模式)
@@ -75,175 +79,444 @@ tag:
 
 ## 创建型模式
 
-### 工厂方法
+### 单例模式
 
-工厂方法模式（Factory Method Pattern）定义了一个创建对象的接口，但由子类决定实例化哪一个类。工厂方法将对象的实例化推迟到子类。
+单例模式（Singleton Pattern）是一种创建型设计模式，确保一个类只有一个实例，并提供全局访问点。
 
-1.定义 Shape 接口
-
-```cpp
-// Shape.h
-#ifndef SHAPE_H
-#define SHAPE_H
-
-class Shape {
-public:
-    virtual void draw() = 0;  // 纯虚函数
-    virtual ~Shape() {}
-};
-
-#endif // SHAPE_H
-
-```
-
-2.定义 Circle 类
+使用 C++11 引入的 ```std::once_flag``` 和 ```std::call_once```，可以实现线程安全的单例模式。```std::once_flag``` 是 C++ 标准库中的同步工具，用于确保某段代码只执行一次，通常用于初始化。
 
 ```cpp
-// Circle.h
-#ifndef CIRCLE_H
-#define CIRCLE_H
-
-#include "Shape.h"
 #include <iostream>
+#include <mutex>
+#include <memory> // std::unique_ptr
 
-class Circle : public Shape {
+class Singleton {
+private:
+    static std::unique_ptr<Singleton> instance; // 静态实例指针
+    static std::once_flag initFlag;            // 用于线程安全初始化的标志
+
+    // 私有构造函数，防止直接实例化
+    Singleton() {
+        std::cout << "Singleton constructor called!" << std::endl;
+    }
+
 public:
-    void draw() override {
-        std::cout << "Drawing Circle" << std::endl;
+    // 禁用拷贝构造和赋值运算符
+    Singleton(const Singleton&) = delete;
+    Singleton& operator=(const Singleton&) = delete;
+
+    // 获取单例实例的方法
+    static Singleton* getInstance() {
+        // 保证初始化代码只执行一次
+        std::call_once(initFlag, []() {
+            instance.reset(new Singleton());
+        });
+        return instance.get();
+    }
+
+    // 业务方法
+    void doSomething() {
+        std::cout << "Singleton instance doing something!" << std::endl;
     }
 };
 
-#endif // CIRCLE_H
-```
-
-3.定义 Square 类
-
-```cpp
-// Square.h
-#ifndef SQUARE_H
-#define SQUARE_H
-
-#include "Shape.h"
-#include <iostream>
-
-class Square : public Shape {
-public:
-    void draw() override {
-        std::cout << "Drawing Square" << std::endl;
-    }
-};
-
-#endif // SQUARE_H
-
-```
-
-4.定义工厂接口 ShapeFactory
-
-```cpp
-// ShapeFactory.h
-#ifndef SHAPEFACTORY_H
-#define SHAPEFACTORY_H
-
-#include "Shape.h"
-
-class ShapeFactory {
-public:
-    virtual Shape* createShape() = 0;  // 纯虚函数
-    virtual ~ShapeFactory() {}
-};
-
-#endif // SHAPEFACTORY_H
-```
-
-5.定义具体工厂类 CircleFactory 和 SquareFactory
-
-```cpp
-// CircleFactory.h
-#ifndef CIRCLEFACTORY_H
-#define CIRCLEFACTORY_H
-
-#include "ShapeFactory.h"
-#include "Circle.h"
-
-class CircleFactory : public ShapeFactory {
-public:
-    Shape* createShape() override {
-        return new Circle();
-    }
-};
-
-#endif // CIRCLEFACTORY_H
-
-// SquareFactory.h
-#ifndef SQUAREFACTORY_H
-#define SQUAREFACTORY_H
-
-#include "ShapeFactory.h"
-#include "Square.h"
-
-class SquareFactory : public ShapeFactory {
-public:
-    Shape* createShape() override {
-        return new Square();
-    }
-};
-
-#endif // SQUAREFACTORY_H
-
-```
-
-6.测试工厂方法模式
-
-```cpp
-// main.cpp
-#include <iostream>
-#include "ShapeFactory.h"
-#include "CircleFactory.h"
-#include "SquareFactory.h"
+// 初始化静态成员
+std::unique_ptr<Singleton> Singleton::instance = nullptr;
+std::once_flag Singleton::initFlag;
 
 int main() {
-    ShapeFactory* factory;
+    // 获取单例实例
+    Singleton* s1 = Singleton::getInstance();
+    Singleton* s2 = Singleton::getInstance();
 
-    // 创建 Circle 对象
-    factory = new CircleFactory();
-    Shape* shape1 = factory->createShape();
-    shape1->draw();
-    delete shape1;
-    delete factory;
+    // 调用方法
+    s1->doSomething();
 
-    // 创建 Square 对象
-    factory = new SquareFactory();
-    Shape* shape2 = factory->createShape();
-    shape2->draw();
-    delete shape2;
-    delete factory;
+    // 验证实例是否相同
+    if (s1 == s2) {
+        std::cout << "s1 and s2 are the same instance!" << std::endl;
+    }
 
     return 0;
 }
 ```
 
-相对于简单工厂模式，工厂方法模式（Factory Method Pattern）有以下几个主要好处：
+### 工厂方法
 
-1.遵循开闭原则
+工厂方法模式（Factory Method Pattern）定义了一个创建对象的接口，但由子类决定实例化哪一个类。工厂方法将对象的实例化推迟到子类。
 
-开闭原则（Open/Closed Principle）是面向对象设计的重要原则之一，它要求软件实体（类、模块、函数等）应该对扩展开放，对修改关闭。工厂方法模式遵循开闭原则，而简单工厂模式则不完全遵循。
+```cpp
+//1. 定义按钮接口（抽象产品类）
+#include <iostream>
+#include <memory>
 
-- 简单工厂模式：当需要添加新的产品类型时，必须修改工厂类以添加新产品的创建逻辑。这意味着工厂类需要修改，从而违反了开闭原则。
-- 工厂方法模式：当需要添加新的产品类型时，只需创建一个新的具体工厂类和相应的产品类，无需修改现有的工厂接口和客户端代码。这使得系统更易于扩展。
+// 按钮接口
+class Button {
+public:
+    virtual ~Button() = default;
+    virtual void render() = 0;  // 渲染按钮
+    virtual void onClick() = 0; // 按钮点击事件
+};
 
-2.更好的代码组织和管理
+// 2. 创建具体按钮类（具体产品类）
+// Windows 风格按钮
+class WindowsButton : public Button {
+public:
+    void render() override {
+        std::cout << "Rendering Windows Button" << std::endl;
+    }
+    void onClick() override {
+        std::cout << "Windows Button Clicked!" << std::endl;
+    }
+};
 
-工厂方法模式将产品创建逻辑封装在不同的具体工厂类中，每个具体工厂类负责一种产品的创建。
+// Mac 风格按钮
+class MacButton : public Button {
+public:
+    void render() override {
+        std::cout << "Rendering Mac Button" << std::endl;
+    }
+    void onClick() override {
+        std::cout << "Mac Button Clicked!" << std::endl;
+    }
+};
 
-- 简单工厂模式：所有产品的创建逻辑集中在一个工厂类中，随着产品种类的增加，工厂类会变得庞大且复杂，不利于代码的维护和管理。
-- 工厂方法模式：将不同产品的创建逻辑分散在各自的具体工厂类中，每个工厂类的职责单一，代码更加清晰易懂，便于管理和维护。
 
-3.更高的灵活性和可扩展性
+工厂方法模式（Factory Method Pattern） 讲解
+工厂方法模式是一种创建型设计模式，用于定义一个用于创建对象的接口，但让子类决定实例化哪一个具体类。它通过延迟到子类的实现，达到解耦客户端代码与具体产品类的目的。
 
-工厂方法模式通过引入抽象工厂接口，使得客户端代码依赖于抽象而非具体实现，从而提高了系统的灵活性。
+需求背景
+我们以 UI 控件（按钮 Button） 为例：
 
-- 简单工厂模式：客户端依赖于具体的工厂类，当工厂类需要修改时，客户端代码也可能需要调整。
-- 工厂方法模式：客户端依赖于抽象工厂接口和产品接口，具体实现类的变化对客户端代码透明，从而提高了系统的灵活性和可扩展性。
+系统需要支持多种平台（如 Windows 和 Mac）。
+不同平台的按钮具有不同的外观和行为。
+客户端代码应该与按钮的具体实现无关，只需调用按钮的通用接口。
+工厂方法模式的核心思路
+将创建按钮的逻辑抽象为一个工厂方法，让子类工厂决定创建哪种具体按钮。
+客户端只需通过工厂接口创建按钮，无需了解具体按钮的实现细节。
+工厂方法模式代码实现
+1. 定义按钮接口（抽象产品类）
+cpp
+复制代码
+#include <iostream>
+#include <memory>
+
+// 按钮接口
+class Button {
+public:
+    virtual ~Button() = default;
+    virtual void render() = 0;  // 渲染按钮
+    virtual void onClick() = 0; // 按钮点击事件
+};
+2. 创建具体按钮类（具体产品类）
+cpp
+复制代码
+// Windows 风格按钮
+class WindowsButton : public Button {
+public:
+    void render() override {
+        std::cout << "Rendering Windows Button" << std::endl;
+    }
+    void onClick() override {
+        std::cout << "Windows Button Clicked!" << std::endl;
+    }
+};
+
+// Mac 风格按钮
+class MacButton : public Button {
+public:
+    void render() override {
+        std::cout << "Rendering Mac Button" << std::endl;
+    }
+    void onClick() override {
+        std::cout << "Mac Button Clicked!" << std::endl;
+    }
+};
+
+// 3. 创建按钮工厂接口（抽象工厂类）
+// 按钮工厂接口
+class ButtonFactory {
+public:
+    virtual ~ButtonFactory() = default;
+    virtual std::unique_ptr<Button> createButton() = 0; // 工厂方法：创建按钮
+};
+
+// 4. 创建具体工厂类（具体工厂类）
+// Windows 按钮工厂
+class WindowsButtonFactory : public ButtonFactory {
+public:
+    std::unique_ptr<Button> createButton() override {
+        return std::make_unique<WindowsButton>();
+    }
+};
+
+// Mac 按钮工厂
+class MacButtonFactory : public ButtonFactory {
+public:
+    std::unique_ptr<Button> createButton() override {
+        return std::make_unique<MacButton>();
+    }
+};
+
+int main() {
+    // 创建 Windows 风格按钮的工厂
+    std::unique_ptr<ButtonFactory> factory = std::make_unique<WindowsButtonFactory>();
+    auto button = factory->createButton(); // 使用工厂方法创建按钮
+    button->render();
+    button->onClick();
+
+    // 创建 Mac 风格按钮的工厂
+    factory = std::make_unique<MacButtonFactory>();
+    button = factory->createButton(); // 使用工厂方法创建按钮
+    button->render();
+    button->onClick();
+
+    return 0;
+}
+```
+
+工厂方法模式的特点和分析
+- 封装对象创建：客户端代码只与工厂接口和产品接口交互，不关心具体产品类的实现。
+- 扩展性好：新增产品（如 Linux 按钮）时，只需添加对应的具体产品类和具体工厂类，无需修改现有代码。
+- 符合开闭原则：扩展具体产品和具体工厂时，不需要修改抽象工厂和抽象产品的定义。
+
+### 抽象工厂方法
+
+抽象工厂模式（Abstract Factory Pattern）是一种创建型设计模式，提供一个接口，用于创建一组相关或相互依赖的对象，而无需指定具体类。
+
+核心思想
+- 抽象工厂：定义创建对象的接口。
+- 具体工厂：实现接口，负责生成具体产品。
+- 产品接口：定义具体产品的通用方法。
+- 具体产品：实现产品接口，表示具体的产品实例。
+- 客户端：通过抽象工厂使用产品，而不依赖具体工厂或产品的实现。
+
+抽象工厂模式的优势是将产品族的创建与使用分离，方便扩展。
+
+使用场景
+- 需要生成一组相关或相互依赖的对象（例如不同风格的按钮和文本框）。
+- 需要避免依赖具体类，隐藏对象创建的实现细节。
+- 需要支持产品族的扩展。
+
+以下是使用抽象工厂模式的 C++ 实现示例。假设我们要创建两种风格的用户界面组件：Windows 风格和 Mac 风格。
+
+```cpp
+#include <iostream>
+#include <memory>
+
+// 产品接口：按钮
+class Button {
+public:
+    virtual ~Button() = default;
+    virtual void render() = 0; // 渲染按钮
+};
+
+// 产品接口：文本框
+class TextBox {
+public:
+    virtual ~TextBox() = default;
+    virtual void render() = 0; // 渲染文本框
+};
+
+// 具体产品：Windows 按钮
+class WindowsButton : public Button {
+public:
+    void render() override {
+        std::cout << "Rendering Windows Button" << std::endl;
+    }
+};
+
+// 具体产品：Windows 文本框
+class WindowsTextBox : public TextBox {
+public:
+    void render() override {
+        std::cout << "Rendering Windows TextBox" << std::endl;
+    }
+};
+
+// 具体产品：Mac 按钮
+class MacButton : public Button {
+public:
+    void render() override {
+        std::cout << "Rendering Mac Button" << std::endl;
+    }
+};
+
+// 具体产品：Mac 文本框
+class MacTextBox : public TextBox {
+public:
+    void render() override {
+        std::cout << "Rendering Mac TextBox" << std::endl;
+    }
+};
+
+// 抽象工厂：UI 工厂
+class UIFactory {
+public:
+    virtual ~UIFactory() = default;
+    virtual std::unique_ptr<Button> createButton() = 0;   // 创建按钮
+    virtual std::unique_ptr<TextBox> createTextBox() = 0; // 创建文本框
+};
+
+// 具体工厂：Windows UI 工厂
+class WindowsUIFactory : public UIFactory {
+public:
+    std::unique_ptr<Button> createButton() override {
+        return std::make_unique<WindowsButton>();
+    }
+    std::unique_ptr<TextBox> createTextBox() override {
+        return std::make_unique<WindowsTextBox>();
+    }
+};
+
+// 具体工厂：Mac UI 工厂
+class MacUIFactory : public UIFactory {
+public:
+    std::unique_ptr<Button> createButton() override {
+        return std::make_unique<MacButton>();
+    }
+    std::unique_ptr<TextBox> createTextBox() override {
+        return std::make_unique<MacTextBox>();
+    }
+};
+
+// 客户端
+void renderUI(UIFactory& factory) {
+    auto button = factory.createButton();   // 创建按钮
+    auto textBox = factory.createTextBox(); // 创建文本框
+
+    button->render();
+    textBox->render();
+}
+
+int main() {
+    WindowsUIFactory windowsFactory;
+    MacUIFactory macFactory;
+
+    std::cout << "Rendering Windows UI:" << std::endl;
+    renderUI(windowsFactory); // 使用 Windows 工厂
+
+    std::cout << "\nRendering Mac UI:" << std::endl;
+    renderUI(macFactory); // 使用 Mac 工厂
+
+    return 0;
+}
+
+```
+
+代码解析
+- 产品接口：
+  - Button 和 TextBox 是两个独立的产品接口，分别定义了按钮和文本框的通用行为。
+- 具体产品：
+  - WindowsButton 和 MacButton 分别是 Windows 和 Mac 风格的按钮实现。
+  - WindowsTextBox 和 MacTextBox 分别是 Windows 和 Mac 风格的文本框实现。
+- 抽象工厂：
+  - UIFactory 定义了创建按钮和文本框的方法。
+- 具体工厂：
+  - WindowsUIFactory 和 MacUIFactory 实现了具体的产品创建逻辑。
+- 客户端：
+  - renderUI 函数通过抽象工厂接口创建按钮和文本框，而不依赖于具体工厂或具体产品。
+
+### 原型模式
+
+原型模式允许通过复制现有对象来创建新对象，而不是直接实例化类。这种模式提供了一种简化对象创建的方式，尤其是在对象的创建过程非常复杂时。
+
+组成部分:
+- 原型接口（Prototype）：定义一个 clone 方法，用于克隆自身。
+- 具体原型（Concrete Prototype）：实现 clone 方法，定义如何复制自身。
+- 客户端（Client）：使用原型接口创建新对象。
+
+适用场景:
+- 创建对象的成本较高，直接创建对象不够高效（例如需要大量计算或访问数据库）。
+- 系统需要大量相似对象，且对象的状态可通过复制得到。
+- 想隐藏具体类的实现细节，通过抽象接口操作对象。
+
+
+C++实现示例:
+
+假设我们有一个复杂的图形类需要频繁创建，例如一个带有位置和颜色的形状对象。
+
+```cpp
+#include <iostream>
+#include <string>
+#include <memory>
+
+// 原型接口
+class Shape {
+public:
+    virtual ~Shape() = default;
+    virtual Shape* clone() const = 0;  // 克隆方法
+    virtual void draw() const = 0;     // 展示形状信息
+};
+
+// 具体原型：圆形
+class Circle : public Shape {
+private:
+    int x_, y_, radius_;
+    std::string color_;
+
+public:
+    Circle(int x, int y, int radius, const std::string& color)
+        : x_(x), y_(y), radius_(radius), color_(color) {}
+
+    // 实现克隆方法
+    Circle* clone() const override {
+        return new Circle(*this); // 使用拷贝构造函数实现深拷贝
+    }
+
+    void draw() const override {
+        std::cout << "Circle: Position(" << x_ << ", " << y_ 
+                  << "), Radius: " << radius_ 
+                  << ", Color: " << color_ << std::endl;
+    }
+};
+
+// 具体原型：矩形
+class Rectangle : public Shape {
+private:
+    int x_, y_, width_, height_;
+    std::string color_;
+
+public:
+    Rectangle(int x, int y, int width, int height, const std::string& color)
+        : x_(x), y_(y), width_(width), height_(height), color_(color) {}
+
+    // 实现克隆方法
+    Rectangle* clone() const override {
+        return new Rectangle(*this); // 使用拷贝构造函数实现深拷贝
+    }
+
+    void draw() const override {
+        std::cout << "Rectangle: Position(" << x_ << ", " << y_ 
+                  << "), Width: " << width_ 
+                  << ", Height: " << height_ 
+                  << ", Color: " << color_ << std::endl;
+    }
+};
+
+// 客户端
+int main() {
+    // 创建一个圆形原型
+    Shape* circlePrototype = new Circle(10, 20, 15, "Red");
+    Shape* rectanglePrototype = new Rectangle(5, 5, 30, 40, "Blue");
+
+    // 克隆圆形对象
+    Shape* clonedCircle = circlePrototype->clone();
+    Shape* clonedRectangle = rectanglePrototype->clone();
+
+    // 显示克隆对象信息
+    clonedCircle->draw();
+    clonedRectangle->draw();
+
+    // 清理资源
+    delete circlePrototype;
+    delete rectanglePrototype;
+    delete clonedCircle;
+    delete clonedRectangle;
+
+    return 0;
+}
+```
 
 ### 建造者模式
 
@@ -265,116 +538,177 @@ int main() {
 
 建造者模式通常包含以下几部分：
 
-- Builder（抽象建造者）：定义创建复杂对象各个部分的接口。
-- ConcreteBuilder（具体建造者）：实现 Builder 接口，构造和装配各个部分。
-- Director（指挥者）：构建对象时调用具体建造者中的方法，指导建造过程。
-- Product（产品）：最终要构建的复杂对象。
+- 产品（Product）：最终构建出来的复杂对象。通常是一个包含多个部分的对象。
+- 抽象建造者（Builder）：定义创建产品各个部分的抽象方法。
+- 具体建造者（ConcreteBuilder）：实现抽象建造者接口，负责具体构建产品的各个部分，并提供一个用于获取最终产品的接口。
+- 指挥者（Director）：负责管理构建过程。它使用建造者来构建产品，通常会按照特定的顺序构建产品的各个部分。
+- 客户端（Client）：使用建造者来构建产品，但不需要关心产品的具体构建细节。
 
-C++ 代码示例
+C++ 代码示例:
 
-以下是一个使用建造者模式构建复杂对象的 C++ 示例。我们将构建一个 House 对象，House 包含 Walls、Roof 和 Windows 等部件。
+假设我们需要构建一个复杂的对象，表示一个“汽车”对象，包含发动机、车轮和车身等部件。我们使用建造者模式来解耦汽车的构建过程。
 
 ```cpp
 #include <iostream>
 #include <string>
 
-// Product类：代表一个复杂对象
-class House {
+// 产品类：汽车
+class Car {
 public:
-    std::string walls;
-    std::string roof;
-    std::string windows;
-
-    void show() const {
-        std::cout << "House with " << walls << ", " << roof << " and " << windows << std::endl;
+    void setEngine(const std::string& engine) {
+        engine_ = engine;
     }
-};
 
-// Builder接口：为创建House的各个部分定义接口
-class HouseBuilder {
-public:
-    virtual ~HouseBuilder() {}
-    virtual void buildWalls() = 0;
-    virtual void buildRoof() = 0;
-    virtual void buildWindows() = 0;
-    virtual House* getHouse() = 0;
-};
+    void setWheels(int wheels) {
+        wheels_ = wheels;
+    }
 
-// ConcreteBuilder类：实现Builder接口，构造和装配具体产品的各个部分
-class ConcreteHouseBuilder : public HouseBuilder {
+    void setBody(const std::string& body) {
+        body_ = body;
+    }
+
+    void show() {
+        std::cout << "Car details: " << std::endl;
+        std::cout << "Engine: " << engine_ << std::endl;
+        std::cout << "Wheels: " << wheels_ << std::endl;
+        std::cout << "Body: " << body_ << std::endl;
+    }
+
 private:
-    House* house;
+    std::string engine_;
+    int wheels_;
+    std::string body_;
+};
+
+// 抽象建造者：建造者类
+class CarBuilder {
 public:
-    ConcreteHouseBuilder() {
-        house = new House();
+    virtual void buildEngine() = 0;
+    virtual void buildWheels() = 0;
+    virtual void buildBody() = 0;
+    virtual Car* getResult() = 0;
+    virtual ~CarBuilder() = default;
+};
+
+// 具体建造者：构建具体汽车
+class SportsCarBuilder : public CarBuilder {
+private:
+    Car* car;
+
+public:
+    SportsCarBuilder() {
+        car = new Car();
     }
 
-    void buildWalls() override {
-        house->walls = "Wooden Walls";
+    void buildEngine() override {
+        car->setEngine("V8 Engine");
     }
 
-    void buildRoof() override {
-        house->roof = "Tile Roof";
+    void buildWheels() override {
+        car->setWheels(4);  // 运动型车需要四个轮子
     }
 
-    void buildWindows() override {
-        house->windows = "Glass Windows";
+    void buildBody() override {
+        car->setBody("Sports Body");
     }
 
-    House* getHouse() override {
-        return house;
+    Car* getResult() override {
+        return car;
+    }
+
+    ~SportsCarBuilder() {
+        delete car;
     }
 };
 
-// Director类：构建一个使用Builder接口的对象
-class Director {
+// 具体建造者：构建SUV
+class SUVCarBuilder : public CarBuilder {
 private:
-    HouseBuilder* builder;
-public:
-    Director(HouseBuilder* builder) : builder(builder) {}
+    Car* car;
 
+public:
+    SUVCarBuilder() {
+        car = new Car();
+    }
+
+    void buildEngine() override {
+        car->setEngine("V6 Engine");
+    }
+
+    void buildWheels() override {
+        car->setWheels(4);  // SUV车也需要四个轮子
+    }
+
+    void buildBody() override {
+        car->setBody("SUV Body");
+    }
+
+    Car* getResult() override {
+        return car;
+    }
+
+    ~SUVCarBuilder() {
+        delete car;
+    }
+};
+
+// 指挥者：指导建造过程
+class CarDirector {
+private:
+    CarBuilder* builder;
+
+public:
+    CarDirector(CarBuilder* builder) : builder(builder) {}
+
+    // 指挥者负责建造整个汽车
     void construct() {
-        builder->buildWalls();
-        builder->buildRoof();
-        builder->buildWindows();
+        builder->buildEngine();
+        builder->buildWheels();
+        builder->buildBody();
+    }
+
+    Car* getCar() {
+        return builder->getResult();
     }
 };
 
+// 客户端
 int main() {
-    // 创建一个具体的建造者
-    HouseBuilder* builder = new ConcreteHouseBuilder();
-    // 创建一个指挥者并传入建造者
-    Director director(builder);
+    // 选择建造者
+    CarBuilder* builder = new SportsCarBuilder();
+    CarDirector director(builder);
 
-    // 使用指挥者构建对象
     director.construct();
+    Car* car = director.getCar();
+    car->show();
 
-    // 获取最终构建的产品
-    House* house = builder->getHouse();
-    house->show();
-
-    // 释放资源
+    // 清理资源
+    delete car;
     delete builder;
-    delete house;
+
+    // 构建另一种类型的车
+    builder = new SUVCarBuilder();
+    director = CarDirector(builder);
+
+    director.construct();
+    car = director.getCar();
+    car->show();
+
+    delete car;
+    delete builder;
 
     return 0;
 }
+
 ```
 
 代码解析
-- Product (House): 表示最终的复杂对象，包含多个部件（walls、roof、windows）。
-- Builder (HouseBuilder): 定义构建 House 各个部分的方法接口（纯虚函数）。
-- ConcreteBuilder (ConcreteHouseBuilder): 实现 HouseBuilder 接口，提供具体的构建 House 部件的方法，并提供获取最终产品的方法。
-- Director (Director): 负责调用 HouseBuilder 中的方法，指导构建过程。
-- Client (main 函数): 创建具体的建造者，并通过指挥者构建最终的产品。
+- Car 是产品类，它包含汽车的多个部分（如发动机、车轮和车身）。
+- CarBuilder 是抽象建造者，定义了构建汽车各个部分的接口。
+- SportsCarBuilder 和 SUVCarBuilder 是具体建造者，负责实现如何构建不同类型的汽车。
+- CarDirector 是指挥者，负责协调构建过程并决定构建的顺序。
+- Client 使用建造者模式来创建具体的汽车。
 
-输出
-
-运行上面的程序后，将输出：
-
-```shell
-House with Wooden Walls, Tile Roof and Glass Windows
-```
 
 **总结**
 
@@ -2167,6 +2501,47 @@ int main() {
 访问者模式通过将操作与对象结构分离，使得在不修改对象结构的前提下添加新操作变得容易。它尤其适合于对象结构较为稳定但操作经常变化的场景。通过访问者模式，可以避免繁琐的类型检查和复杂的条件逻辑，增强系统的可扩展性和维护性。
 
 ## 问题
+
+### 工厂方法和抽象工厂方法的区别
+
+抽象工厂模式和工厂方法模式都是设计模式中的创建型模式，它们用于封装对象的创建过程。然而，这两者之间存在显著的区别，主要体现在以下几个方面：
+
+- 1.目的
+  
+    工厂方法模式
+    - 目的是定义一个用于创建对象的接口，由子类决定要实例化的具体类。它针对的是单一产品，强调延迟到子类来实现创建过程。
+
+    抽象工厂模式
+    - 目的是提供一个接口，用于创建一组相关或相互依赖的对象，而不指定它们的具体类。它针对的是产品族，强调创建一组产品的过程是相互关联的。
+
+- 2. 结构
+
+    工厂方法模式
+    - 每个具体产品对应一个具体工厂类。每个具体工厂类负责生产一种具体产品。
+
+    示例结构：
+
+    ```shell
+    工厂方法
+    ├── 抽象工厂类（Creator）
+    ├── 抽象产品类（Product）
+    ├── 具体工厂类（ConcreteCreator1, ConcreteCreator2）
+    └── 具体产品类（ConcreteProduct1, ConcreteProduct2）
+    ```
+
+    抽象工厂模式
+    - 一个具体工厂类可以生产多个相关的产品。工厂接口定义了一组方法，每个方法负责创建一个产品族中的某个产品。
+
+    示例结构：
+    ```shell
+    抽象工厂
+    ├── 抽象工厂类（AbstractFactory）
+    │   ├── 创建产品 A（createProductA）
+    │   └── 创建产品 B（createProductB）
+    ├── 抽象产品类（ProductA, ProductB）
+    ├── 具体工厂类（ConcreteFactory1, ConcreteFactory2）
+    └── 具体产品类（ConcreteProductA1, ConcreteProductB1, ConcreteProductA2, ConcreteProductB2）
+    ```
 
 ### 装饰器模式和代理模式的区别
 
