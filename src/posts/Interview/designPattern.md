@@ -28,6 +28,7 @@ tag:
     - [责任链模式](#责任链模式)
     - [模板方法模式](#模板方法模式)
     - [访问者模式](#访问者模式)
+    - [备忘录模式](#备忘录模式)
   - [问题](#问题)
     - [工厂方法和抽象工厂方法的区别](#工厂方法和抽象工厂方法的区别)
     - [装饰器模式和代理模式的区别](#装饰器模式和代理模式的区别)
@@ -2497,6 +2498,109 @@ int main() {
 **总结**
 
 访问者模式通过将操作与对象结构分离，使得在不修改对象结构的前提下添加新操作变得容易。它尤其适合于对象结构较为稳定但操作经常变化的场景。通过访问者模式，可以避免繁琐的类型检查和复杂的条件逻辑，增强系统的可扩展性和维护性。
+
+### 备忘录模式
+
+备忘录模式（Memento Pattern）是一种行为型设计模式，主要用于在不破坏封装的前提下捕获对象的内部状态，并在以后需要时恢复到该状态。它广泛应用于需要撤销（undo）操作的场景，例如文本编辑器、游戏的存档系统等。
+
+备忘录模式的关键点是将状态存储到一个备忘录对象中，同时确保这些状态对外部是透明且不可直接修改的。
+
+备忘录模式通常包含以下三个主要角色：
+
+- Originator（发起者）：
+  - 定义需要保存状态的对象。
+  - 能创建一个备忘录以存储其当前状态。
+  - 能使用备忘录恢复其状态。
+
+- Memento（备忘录）：
+  - 存储发起者的内部状态。
+  - 对外部提供只读接口，防止被外部修改。
+
+- Caretaker（负责人）：
+  - 负责保存和管理备忘录对象。
+  - 不对备忘录的内容进行修改或访问。
+
+```cpp
+#include <iostream>
+#include <string>
+#include <stack> // 用于保存备忘录
+
+// 备忘录类：保存状态
+class Memento {
+private:
+    std::string state; // 保存的状态
+public:
+    Memento(const std::string& state) : state(state) {}
+    std::string getState() const { return state; }
+};
+
+// 发起者类：需要保存和恢复状态的对象
+class Originator {
+private:
+    std::string state; // 当前状态
+public:
+    void setState(const std::string& newState) {
+        state = newState;
+        std::cout << "State set to: " << state << std::endl;
+    }
+
+    std::string getState() const { return state; }
+
+    // 保存当前状态到备忘录
+    Memento saveStateToMemento() {
+        return Memento(state);
+    }
+
+    // 从备忘录恢复状态
+    void restoreStateFromMemento(const Memento& memento) {
+        state = memento.getState();
+        std::cout << "State restored to: " << state << std::endl;
+    }
+};
+
+// 负责人类：管理备忘录
+class Caretaker {
+private:
+    std::stack<Memento> mementoStack; // 使用栈管理备忘录
+public:
+    void save(const Memento& memento) {
+        mementoStack.push(memento);
+    }
+
+    Memento undo() {
+        if (!mementoStack.empty()) {
+            Memento memento = mementoStack.top();
+            mementoStack.pop();
+            return memento;
+        } else {
+            throw std::runtime_error("No mementos to undo!");
+        }
+    }
+};
+
+int main() {
+    Originator editor;
+    Caretaker history;
+
+    // 初始状态
+    editor.setState("Version 1");
+    history.save(editor.saveStateToMemento()); // 保存状态
+
+    // 修改状态
+    editor.setState("Version 2");
+    history.save(editor.saveStateToMemento()); // 保存状态
+
+    // 再次修改状态
+    editor.setState("Version 3");
+
+    // 撤销操作
+    editor.restoreStateFromMemento(history.undo());
+    editor.restoreStateFromMemento(history.undo());
+
+    return 0;
+}
+```
+
 
 ## 问题
 
