@@ -29,6 +29,7 @@ tag:
     - [模板方法模式](#模板方法模式)
     - [访问者模式](#访问者模式)
     - [备忘录模式](#备忘录模式)
+    - [状态模式](#状态模式)
   - [问题](#问题)
     - [工厂方法和抽象工厂方法的区别](#工厂方法和抽象工厂方法的区别)
     - [装饰器模式和代理模式的区别](#装饰器模式和代理模式的区别)
@@ -2601,6 +2602,230 @@ int main() {
 }
 ```
 
+### 状态模式
+
+**状态模式（State Pattern）** 是一种行为设计模式，它允许对象在内部状态发生改变时改变其行为，使得对象看起来好像修改了它的类。
+
+它的核心思想是：将与特定状态相关的行为抽取到独立的状态类中，并让上下文（Context）对象通过组合不同的状态类来切换行为。
+
+状态模式的结构
+状态模式由以下几个部分组成：
+
+- 1.上下文（Context）：维护当前状态实例，可以根据内部状态变化切换到不同的状态。
+- 2.抽象状态类（State）：定义状态的公共接口。
+- 3.具体状态类（ConcreteState）：实现具体的状态相关行为。
+
+适用场景
+- 对象的行为依赖于它的状态，并且需要在运行时根据状态切换行为。
+- 避免在对象中使用大量的条件语句（if 或 switch）来管理状态。
+
+
+用C++实现状态模式
+
+我们以一个简单的例子来说明：设计一个文档的工作流状态管理系统。文档有三种状态：
+- 1.草稿（Draft）
+- 2.审核中（Moderation）
+- 3.已发布（Published）
+
+每个状态下有不同的行为，例如提交审核和发布。
+
+```cpp
+#include <iostream>
+#include <string>
+#include <memory>
+
+// 抽象状态类
+class State {
+public:
+    virtual ~State() = default;
+
+    // 状态相关的行为接口
+    virtual void submitReview(class Document* doc) = 0;
+    virtual void publish(class Document* doc) = 0;
+    virtual std::string getStateName() const = 0;
+};
+
+// 前置声明
+class Document;
+
+// 草稿状态
+class DraftState : public State {
+public:
+    void submitReview(Document* doc) override;
+    void publish(Document* doc) override {
+        std::cout << "草稿状态不能直接发布。\n";
+    }
+    std::string getStateName() const override {
+        return "草稿状态";
+    }
+};
+
+// 审核中状态
+class ModerationState : public State {
+public:
+    void submitReview(Document* doc) override {
+        std::cout << "文档已经在审核中。\n";
+    }
+    void publish(Document* doc) override;
+    std::string getStateName() const override {
+        return "审核中状态";
+    }
+};
+
+// 已发布状态
+class PublishedState : public State {
+public:
+    void submitReview(Document* doc) override {
+        std::cout << "已发布的文档不能提交审核。\n";
+    }
+    void publish(Document* doc) override {
+        std::cout << "文档已经是发布状态。\n";
+    }
+    std::string getStateName() const override {
+        return "已发布状态";
+    }
+};
+
+// 上下文类
+class Document {
+private:
+    std::unique_ptr<State> state; // 当前状态
+public:
+    Document(std::unique_ptr<State> initState) : state(std::move(initState)) {}
+
+    void setState(std::unique_ptr<State> newState) {
+        state = std::move(newState);
+    }
+
+    void submitReview() {
+        state->submitReview(this);
+    }
+
+    void publish() {
+        state->publish(this);
+    }
+
+    std::string getCurrentState() const {
+        return state->getStateName();
+    }
+};
+
+// 各具体状态实现状态转换
+void DraftState::submitReview(Document* doc) {
+    std::cout << "文档从草稿状态提交到审核中状态。\n";
+    doc->setState(std::make_unique<ModerationState>());
+}
+
+void ModerationState::publish(Document* doc) {
+    std::cout << "文档从审核中状态变为已发布状态。\n";
+    doc->setState(std::make_unique<PublishedState>());
+}
+
+// 主函数测试
+int main() {
+    // 创建文档，并初始化为草稿状态
+    Document doc(std::make_unique<DraftState>());
+
+    std::cout << "当前状态: " << doc.getCurrentState() << "\n";
+    doc.submitReview();
+
+    std::cout << "当前状态: " << doc.getCurrentState() << "\n";
+    doc.publish();
+
+    std::cout << "当前状态: " << doc.getCurrentState() << "\n";
+    doc.submitReview();
+}
+```
+
+代码解析
+- 1.抽象状态类 State 定义了两个行为接口（submitReview 和 publish），具体行为由子类实现。
+- 2.上下文类 Document 维护一个指向状态的指针，并通过 setState 方法动态切换状态。
+- 3.每个具体状态类实现了特定状态下的行为，并负责在条件满足时改变上下文的状态。
+
+通过状态模式，避免了在 Document 类中使用大量的 if-else 逻辑，从而使代码更清晰、易扩展。
+
+如果不用状态模式，处理多种状态下的行为逻辑通常会集中在一个类中，通过条件语句（如 if-else 或 switch-case）来处理不同状态对应的行为。这种方式在简单场景下是可以接受的，但随着状态的增加，代码的复杂度会显著提升，变得难以维护和扩展。
+
+以下是不用状态模式实现文档工作流的代码版本。
+
+如果不用状态模式，代码可能是下面这样的：
+
+```cpp
+#include <iostream>
+#include <string>
+
+// 定义状态枚举
+enum class DocumentState {
+    Draft,       // 草稿状态
+    Moderation,  // 审核中状态
+    Published    // 已发布状态
+};
+
+// 文档类
+class Document {
+private:
+    DocumentState state; // 当前状态
+
+public:
+    Document() : state(DocumentState::Draft) {}
+
+    // 提交审核操作
+    void submitReview() {
+        switch (state) {
+            case DocumentState::Draft:
+                std::cout << "文档从草稿状态提交到审核中状态。\n";
+                state = DocumentState::Moderation;
+                break;
+            case DocumentState::Moderation:
+                std::cout << "文档已经在审核中，不能重复提交。\n";
+                break;
+            case DocumentState::Published:
+                std::cout << "已发布的文档不能提交审核。\n";
+                break;
+        }
+    }
+
+    // 发布操作
+    void publish() {
+        switch (state) {
+            case DocumentState::Draft:
+                std::cout << "草稿状态不能直接发布。\n";
+                break;
+            case DocumentState::Moderation:
+                std::cout << "文档从审核中状态变为已发布状态。\n";
+                state = DocumentState::Published;
+                break;
+            case DocumentState::Published:
+                std::cout << "文档已经是发布状态。\n";
+                break;
+        }
+    }
+
+    // 获取当前状态
+    std::string getCurrentState() const {
+        switch (state) {
+            case DocumentState::Draft: return "草稿状态";
+            case DocumentState::Moderation: return "审核中状态";
+            case DocumentState::Published: return "已发布状态";
+        }
+        return "未知状态";
+    }
+};
+
+// 测试代码
+int main() {
+    Document doc;
+
+    std::cout << "当前状态: " << doc.getCurrentState() << "\n";
+    doc.submitReview();
+
+    std::cout << "当前状态: " << doc.getCurrentState() << "\n";
+    doc.publish();
+
+    std::cout << "当前状态: " << doc.getCurrentState() << "\n";
+    doc.submitReview();
+}
+```
 
 ## 问题
 
