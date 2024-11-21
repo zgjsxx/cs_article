@@ -30,6 +30,8 @@ tag:
     - [访问者模式](#访问者模式)
     - [备忘录模式](#备忘录模式)
     - [状态模式](#状态模式)
+    - [迭代器模式](#迭代器模式)
+    - [观察者模式简介](#观察者模式简介)
   - [问题](#问题)
     - [工厂方法和抽象工厂方法的区别](#工厂方法和抽象工厂方法的区别)
     - [装饰器模式和代理模式的区别](#装饰器模式和代理模式的区别)
@@ -2313,10 +2315,10 @@ class Beverage {
 public:
     // 模板方法：定义算法的步骤
     void prepareRecipe() {
-        boilWater();
-        brew();          // 子类实现
-        pourInCup();
-        addCondiments(); // 子类实现
+        boilWater();     // 烧水
+        brew();          // 冲泡饮品 子类实现
+        pourInCup();     // 倒入杯中
+        addCondiments(); // 添加调料 子类实现
     }
 
 protected:
@@ -2826,6 +2828,263 @@ int main() {
     doc.submitReview();
 }
 ```
+
+### 迭代器模式
+
+迭代器模式是一种行为型设计模式，主要目的是提供一种方法，可以顺序访问一个集合对象中的各个元素，而无需暴露其内部的实现细节。
+
+它的核心思想是：将遍历行为抽象为一个迭代器类，使集合对象和遍历算法分离。这样既可以使用不同的迭代器实现多种遍历方式，也可以轻松地更改和扩展集合的遍历方法。
+
+迭代器模式的组成
+- 1迭代器接口 (Iterator): 定义了访问和遍历集合的方法（如next()、hasNext()等）。
+- 2.具体迭代器 (Concrete Iterator): 实现迭代器接口，维护遍历的状态（如当前索引位置）。
+- 3.集合接口 (Aggregate): 定义创建迭代器的方法。
+- 4.具体集合 (Concrete Aggregate): 实现集合接口，返回一个具体迭代器的实例。
+
+C++ 中的迭代器模式实现
+
+以下用一个简单的例子展示如何用 C++ 实现迭代器模式：创建一个数字集合，并实现一个可以顺序遍历的迭代器。
+
+```cpp
+#include <iostream>
+#include <vector>
+using namespace std;
+
+// 迭代器接口
+class Iterator {
+public:
+    virtual bool hasNext() = 0;  // 是否还有下一个元素
+    virtual int next() = 0;      // 获取下一个元素
+    virtual ~Iterator() = default;
+};
+
+// 集合接口
+class Aggregate {
+public:
+    virtual Iterator* createIterator() = 0; // 创建迭代器
+    virtual ~Aggregate() = default;
+};
+
+// 具体迭代器
+class ConcreteIterator : public Iterator {
+private:
+    vector<int>& collection; // 引用集合
+    size_t index;            // 当前索引位置
+public:
+    explicit ConcreteIterator(vector<int>& collection) 
+        : collection(collection), index(0) {}
+
+    bool hasNext() override {
+        return index < collection.size();
+    }
+
+    int next() override {
+        return hasNext() ? collection[index++] : -1;
+    }
+};
+
+// 具体集合
+class ConcreteAggregate : public Aggregate {
+private:
+    vector<int> collection; // 内部存储的集合
+public:
+    void addItem(int item) {
+        collection.push_back(item);
+    }
+
+    Iterator* createIterator() override {
+        return new ConcreteIterator(collection); // 返回具体迭代器
+    }
+};
+
+int main() {
+    // 创建集合
+    ConcreteAggregate aggregate;
+    aggregate.addItem(10);
+    aggregate.addItem(20);
+    aggregate.addItem(30);
+
+    // 创建迭代器
+    Iterator* iterator = aggregate.createIterator();
+
+    // 使用迭代器遍历集合
+    while (iterator->hasNext()) {
+        cout << iterator->next() << " ";
+    }
+    cout << endl;
+
+    delete iterator; // 清理迭代器
+    return 0;
+}
+```
+
+```shell
+10 20 30
+```
+
+代码解析：
+
+- 1.Iterator 接口:定义了遍历集合的方法：hasNext 和 next。
+- 2.ConcreteIterator 类:持有对集合的引用，记录当前的遍历状态（index）。
+- 3.Aggregate 接口:提供创建迭代器的抽象方法，保证集合可以生成迭代器。
+- 4.ConcreteAggregate 类:实现了集合的存储功能，并返回具体迭代器。
+- 5.客户端:客户端代码无需了解集合的内部结构，只通过迭代器访问集合的元素。
+
+优点与适用场景
+优点
+- 1.封装性：集合的遍历逻辑与集合本身的实现分离。
+- 2.一致性：客户端无需了解集合的结构，通过统一的接口操作集合。
+- 3.灵活性：可以为集合实现多种迭代方式（如顺序、逆序等）。
+
+适用场景
+- 需要访问一个集合对象的内容，但不想暴露其内部实现。
+- 想提供多种遍历集合的方式。
+- 需要遍历不同类型的集合。
+
+C++ 中的 STL（标准模板库）中的迭代器就是这一模式的一个实际应用。例如，```std::vector<int>::iterator``` 提供了一种标准化的遍历方式，这正是迭代器模式的典范实现。
+
+### 观察者模式简介
+
+**观察者模式**是一种行为型设计模式，它定义了一种一对多的依赖关系。当一个对象的状态发生改变时，它的所有依赖者（观察者）都会收到通知并自动更新。
+
+**核心思想**：发布-订阅机制
+
+观察者模式的组成
+- 1.主题（Subject）：被观察的对象，管理所有依赖它的观察者，并在自身状态改变时通知这些观察者。
+- 2.观察者（Observer）：接收主题的通知并做出响应的对象。
+- 3.具体主题（Concrete Subject）：主题的具体实现，存储状态并通知观察者。
+- 4.具体观察者（Concrete Observer）：实现了观察者接口，接收到通知后执行具体的更新操作。
+
+C++ 中的观察者模式实现
+
+下面的例子展示如何用 C++ 实现观察者模式：一个主题（如新闻发布者）有多个观察者（如订阅用户），当新闻更新时通知所有订阅者。
+
+```cpp
+#include <iostream>
+#include <string>
+#include <vector>
+using namespace std;
+
+// 观察者接口
+class Observer {
+public:
+    virtual void update(const string& message) = 0; // 接收通知的接口
+    virtual ~Observer() = default;
+};
+
+// 主题接口
+class Subject {
+public:
+    virtual void attach(Observer* observer) = 0;   // 添加观察者
+    virtual void detach(Observer* observer) = 0;   // 移除观察者
+    virtual void notify() = 0;                     // 通知所有观察者
+    virtual ~Subject() = default;
+};
+
+// 具体主题
+class NewsPublisher : public Subject {
+private:
+    vector<Observer*> observers;  // 存储观察者列表
+    string latestNews;            // 最新新闻内容
+public:
+    void attach(Observer* observer) override {
+        observers.push_back(observer);
+    }
+
+    void detach(Observer* observer) override {
+        observers.erase(remove(observers.begin(), observers.end(), observer), observers.end());
+    }
+
+    void notify() override {
+        for (Observer* observer : observers) {
+            observer->update(latestNews);
+        }
+    }
+
+    // 设置新闻并通知观察者
+    void setNews(const string& news) {
+        latestNews = news;
+        notify();
+    }
+};
+
+// 具体观察者
+class Subscriber : public Observer {
+private:
+    string name;  // 订阅者的名字
+public:
+    explicit Subscriber(const string& name) : name(name) {}
+
+    void update(const string& message) override {
+        cout << "Subscriber " << name << " received news: " << message << endl;
+    }
+};
+
+int main() {
+    // 创建主题
+    NewsPublisher publisher;
+
+    // 创建观察者
+    Subscriber subscriber1("Alice");
+    Subscriber subscriber2("Bob");
+    Subscriber subscriber3("Charlie");
+
+    // 注册观察者
+    publisher.attach(&subscriber1);
+    publisher.attach(&subscriber2);
+    publisher.attach(&subscriber3);
+
+    // 更新新闻并通知观察者
+    publisher.setNews("Breaking News: Design Patterns are awesome!");
+
+    // 移除观察者
+    publisher.detach(&subscriber2);
+
+    // 再次更新新闻并通知观察者
+    publisher.setNews("Update: C++ is powerful!");
+
+    return 0;
+}
+
+```
+
+运行结果
+
+```shell
+Subscriber Alice received news: Breaking News: Design Patterns are awesome!
+Subscriber Bob received news: Breaking News: Design Patterns are awesome!
+Subscriber Charlie received news: Breaking News: Design Patterns are awesome!
+Subscriber Alice received news: Update: C++ is powerful!
+Subscriber Charlie received news: Update: C++ is powerful!
+```
+
+代码解析
+
+- Observer 接口：定义了更新方法 update，由观察者实现。
+- Subject 接口：定义了管理观察者的方法（attach、detach）和通知观察者的方法 notify。
+- Concrete Subject（NewsPublisher）：
+  - 持有观察者列表并负责通知。
+  - 提供 setNews 方法，用于改变主题状态并触发通知。
+- Concrete Observer（Subscriber）：
+  - 实现 update 方法，当收到通知时执行具体操作。
+- 客户端：
+  - 创建主题和观察者，注册观察者到主题中，通过改变主题状态触发通知。
+
+优点与缺点
+优点
+- 1.解耦：观察者与主题分离，主题无需知道观察者的具体实现。
+- 2.灵活性：观察者可以动态添加或移除。
+- 3.一对多通知：一个主题可以通知多个观察者。
+
+缺点
+- 1.可能引起性能问题：观察者数量多时，通知的开销较大。
+- 2.通知顺序问题：观察者的通知顺序可能需要额外管理。
+- 3.循环依赖：观察者和主题可能相互依赖，需小心避免死循环。
+
+适用场景
+- 一个对象的状态改变需要通知其他对象，但对象之间是松耦合的。
+- 需要动态添加、移除依赖关系的场景。
+- 广泛用于 GUI 事件处理、MVC 框架中的 View 更新、消息队列系统等。
 
 ## 问题
 
