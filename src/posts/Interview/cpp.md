@@ -23,6 +23,9 @@ tag:
     - [c++中在一个类中使用using Base::add有什么用](#c中在一个类中使用using-baseadd有什么用)
     - [如何为private方法写UT](#如何为private方法写ut)
     - [std::move的作用是什么](#stdmove的作用是什么)
+    - [const 和 constexpr 的区别是什么？分别举例说明它们的适用场景。](#const-和-constexpr-的区别是什么分别举例说明它们的适用场景)
+    - [为什么建议使用 std::make\_shared 而不是直接调用 std::shared\_ptr 构造函数？](#为什么建议使用-stdmake_shared-而不是直接调用-stdshared_ptr-构造函数)
+    - [C++ 中的 type\_traits](#c-中的-type_traits)
   - [类和对象](#类和对象)
     - [什么是RTTI](#什么是rtti)
     - [带有虚函数的多重继承的内存分布](#带有虚函数的多重继承的内存分布)
@@ -1181,6 +1184,107 @@ move(T&& param)
 ```
 
 该函数返回类型的&&部分表明```std::move```函数返回的是一个右值引用，但是，正如Item28所解释的那样，如果类型T恰好是一个左值引用，那么T&&将会成为一个左值引用。为了避免如此，```type trait```（见Item9）```std::remove_reference```应用到了类型T上，因此确保了&&被正确的应用到了一个不是引用的类型上。这保证了```std::move```返回的真的是右值引用，这很重要，因为**函数返回的右值引用是右值**。因此，```std::move```将它的实参转换为一个右值，这就是它的全部作用。
+
+### const 和 constexpr 的区别是什么？分别举例说明它们的适用场景。
+
+**定义和作用范围**
+
+const (常量限定符)
+- 表示变量的值在初始化后不可更改。
+- const变量的值可以在运行时确定，也可以在编译时确定。
+
+constexpr (编译时常量)
+- 表示变量或函数的值必须在 编译时 计算并确定。
+- constexpr可以用来定义编译时的常量或常量表达式。
+
+**函数修饰**
+
+const
+- 不能修饰函数，只能修饰函数的返回值或参数，表示返回值或参数不可修改。
+
+constexpr
+- 可以修饰函数，表示函数的结果在满足条件时可以在编译时计算。
+
+举例说明
+
+const 示例
+
+运行时和编译时初始化
+
+```cpp
+int getValue() { return 42; }
+
+void example() {
+    const int runtimeConst = getValue(); // 值在运行时确定
+    const int compileTime = 10;          // 值在编译时确定
+}
+```
+
+```const int runtimeConst = getValue();```
+- getValue() 是一个普通的函数，在程序运行时被调用。
+- 编译器无法预先知道 getValue() 返回的值，因为它需要在程序运行时实际执行代码才能获取返回值。
+- 因此，runtimeConst 的值是在 运行时（Runtime） 被计算并赋值的。
+- 尽管 runtimeConst 是 const 类型，表明它的值在初始化后不能再被修改，但它的初始化是在运行时完成的。
+
+```const int compileTime = 10;```
+- 这里，10 是一个字面值（literal），它是一个 编译时常量（Compile-time constant）。
+- 编译器在编译阶段（Compile-time）已经知道 compileTime 的值，并可以直接将其嵌入到生成的机器代码中。
+- 因此，compileTime 的值在 编译时 就已经确定，无需等到程序运行。
+
+
+constexpr 示例
+
+编译时常量
+
+```cpp
+constexpr int compileTimeConst = 100;
+
+void example() {
+    int array[compileTimeConst]; // 必须是编译时常量
+}
+```
+
+```cpp
+constexpr int square(int x) { return x * x; }
+
+void example() {
+    constexpr int result = square(5); // 在编译时计算
+    int runtimeValue = 10;
+    // constexpr int invalid = square(runtimeValue); // 错误，runtimeValue 是运行时值
+}
+```
+
+### 为什么建议使用 std::make_shared 而不是直接调用 std::shared_ptr 构造函数？
+
+解析:
+- std::make_shared 具有以下优势：
+- 效率更高：内存分配一次完成（控制块和对象一起分配）。
+- 异常安全：如果在构造对象时抛出异常，不会发生资源泄漏。
+
+示例:
+
+```cpp
+std::shared_ptr<int> p = std::make_shared<int>(42); // 推荐
+std::shared_ptr<int> q(new int(42));               // 不推荐
+```
+
+### C++ 中的 type_traits
+
+type_traits 是 C++ 标准库中的一个头文件，提供了一系列模板类和函数，用于在编译期对类型进行操作和检查。它主要用于 类型特性检测 和 类型变换，是现代 C++ 中实现模板元编程的重要工具。
+
+常用类型特性检测
+以下是常用的类型特性检测工具，它们大部分返回一个布尔值（通过 ::value 访问结果），C++17 起可以直接用 _v 后缀形式。
+
+|功能	|类型特性	|示例|
+|是否是整型	|```std::is_integral```|	```std::is_integral<int>::value```|
+|是否是浮点型|	```std::is_floating_point```	|```std::is_floating_point<float>```|
+|是否是数组|	```std::is_array```|	```std::is_array<int[5]>::value```|
+|是否是指针|	```std::is_pointer```|	```std::is_pointer<int*>::value```|
+|是否是类类型|	```std::is_class```|	```std::is_class<std::string>```|
+|是否是可默认构造|	```std::is_default_constructible```|	```std::is_default_constructible<std::vector<int>>```|
+|是否是可拷贝构造|	```std::is_copy_constructible```|	```std::is_copy_constructible<std::vector<int>>```|
+|是否是可移动构造|	```std::is_move_constructible```|	```std::is_move_constructible<std::vector<int>>```|
+|是否为 const|	```std::is_const```|	```std::is_const<const int>```|
 
 ## 类和对象
 
