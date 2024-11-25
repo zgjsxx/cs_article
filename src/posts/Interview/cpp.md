@@ -26,6 +26,7 @@ tag:
     - [const 和 constexpr 的区别是什么？分别举例说明它们的适用场景。](#const-和-constexpr-的区别是什么分别举例说明它们的适用场景)
     - [为什么建议使用 std::make\_shared 而不是直接调用 std::shared\_ptr 构造函数？](#为什么建议使用-stdmake_shared-而不是直接调用-stdshared_ptr-构造函数)
     - [C++ 中的 type\_traits](#c-中的-type_traits)
+    - [什么是```std::enable_if```](#什么是stdenable_if)
   - [类和对象](#类和对象)
     - [什么是RTTI](#什么是rtti)
     - [带有虚函数的多重继承的内存分布](#带有虚函数的多重继承的内存分布)
@@ -1285,6 +1286,68 @@ type_traits 是 C++ 标准库中的一个头文件，提供了一系列模板类
 |是否是可拷贝构造|	```std::is_copy_constructible```|	```std::is_copy_constructible<std::vector<int>>```|
 |是否是可移动构造|	```std::is_move_constructible```|	```std::is_move_constructible<std::vector<int>>```|
 |是否为 const|	```std::is_const```|	```std::is_const<const int>```|
+
+### 什么是```std::enable_if```
+
+std::enable_if 是 C++ 模板元编程中的一种工具，定义在 ```<type_traits>``` 中，其核心原理依赖于模板的 SFINAE 机制（Substitution Failure Is Not An Error，替代失败不是错误）。通过 SFINAE，```std::enable_if``` 可以控制模板的启用或禁用。
+
+```std::enable_if``` 的定义
+
+```cpp
+template<bool B, typename T = void>
+struct enable_if {};
+
+// 当 B 为 true 时，定义 type 成员
+template<typename T>
+struct enable_if<true, T> {
+    using type = T;
+};
+```
+
+- 1.当条件为 true
+如果 B == true，std::enable_if 将生成有效的 ::type 成员。例如：
+```cpp
+std::enable_if<true, int>::type  // 有效，等价于 int
+```
+
+此时，模板代码可以正常编译，因为 ```enable_if<true, int>``` 有一个 type 成员，它被替换为 int。
+
+- 2.当条件为 false
+如果 B == false，std::enable_if 没有定义 type 成员：
+
+```cpp
+std::enable_if<false, int>::type  // 无效，没有 type 成员
+```
+
+此时，模板替换失败。由于 SFINAE 机制，编译器会继续尝试其他模板。
+
+通过一个简单的例子，可以展示 ```std::enable_if``` 的使用方法：
+
+```cpp
+#include <type_traits>
+#include <iostream>
+
+// 模板函数，仅当 T 是整数类型时启用
+template <typename T>
+typename std::enable_if<std::is_integral<T>::value, T>::type
+func(T x) {
+    return x + 1;
+}
+
+// 模板函数，仅当 T 是浮点数类型时启用
+template <typename T>
+typename std::enable_if<std::is_floating_point<T>::value, T>::type
+func(T x) {
+    return x + 0.5;
+}
+
+int main() {
+    std::cout << func(10) << std::endl;     // 输出: 11
+    std::cout << func(3.14) << std::endl;   // 输出: 3.64
+    // std::cout << func("Hello");          // 编译错误，"Hello" 不满足任何条件
+    return 0;
+}
+```
 
 ## 类和对象
 
