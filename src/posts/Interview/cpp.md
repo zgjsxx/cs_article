@@ -26,7 +26,6 @@ tag:
     - [const 和 constexpr 的区别是什么？分别举例说明它们的适用场景。](#const-和-constexpr-的区别是什么分别举例说明它们的适用场景)
     - [为什么建议使用 std::make\_shared 而不是直接调用 std::shared\_ptr 构造函数？](#为什么建议使用-stdmake_shared-而不是直接调用-stdshared_ptr-构造函数)
     - [C++ 中的 type\_traits](#c-中的-type_traits)
-    - [什么是```std::enable_if```](#什么是stdenable_if)
   - [类和对象](#类和对象)
     - [什么是RTTI](#什么是rtti)
     - [带有虚函数的多重继承的内存分布](#带有虚函数的多重继承的内存分布)
@@ -35,6 +34,9 @@ tag:
     - [委托构造和继承构造是什么？](#委托构造和继承构造是什么)
     - [const成员函数内部需要修改成员变量如何解决？](#const成员函数内部需要修改成员变量如何解决)
     - [虚函数的返回值可以不一样吗？](#虚函数的返回值可以不一样吗)
+  - [C++模板](#c模板)
+    - [什么是```std::enable_if```](#什么是stdenable_if)
+    - [什么是CRTP?有什么作用](#什么是crtp有什么作用)
   - [STL](#stl)
     - [map和unordered\_map的区别? 各自使用场景是什么？](#map和unordered_map的区别-各自使用场景是什么)
   - [参考](#参考)
@@ -1287,68 +1289,6 @@ type_traits 是 C++ 标准库中的一个头文件，提供了一系列模板类
 |是否是可移动构造|	```std::is_move_constructible```|	```std::is_move_constructible<std::vector<int>>```|
 |是否为 const|	```std::is_const```|	```std::is_const<const int>```|
 
-### 什么是```std::enable_if```
-
-std::enable_if 是 C++ 模板元编程中的一种工具，定义在 ```<type_traits>``` 中，其核心原理依赖于模板的 SFINAE 机制（Substitution Failure Is Not An Error，替代失败不是错误）。通过 SFINAE，```std::enable_if``` 可以控制模板的启用或禁用。
-
-```std::enable_if``` 的定义
-
-```cpp
-template<bool B, typename T = void>
-struct enable_if {};
-
-// 当 B 为 true 时，定义 type 成员
-template<typename T>
-struct enable_if<true, T> {
-    using type = T;
-};
-```
-
-- 1.当条件为 true
-如果 B == true，std::enable_if 将生成有效的 ::type 成员。例如：
-```cpp
-std::enable_if<true, int>::type  // 有效，等价于 int
-```
-
-此时，模板代码可以正常编译，因为 ```enable_if<true, int>``` 有一个 type 成员，它被替换为 int。
-
-- 2.当条件为 false
-如果 B == false，std::enable_if 没有定义 type 成员：
-
-```cpp
-std::enable_if<false, int>::type  // 无效，没有 type 成员
-```
-
-此时，模板替换失败。由于 SFINAE 机制，编译器会继续尝试其他模板。
-
-通过一个简单的例子，可以展示 ```std::enable_if``` 的使用方法：
-
-```cpp
-#include <type_traits>
-#include <iostream>
-
-// 模板函数，仅当 T 是整数类型时启用
-template <typename T>
-typename std::enable_if<std::is_integral<T>::value, T>::type
-func(T x) {
-    return x + 1;
-}
-
-// 模板函数，仅当 T 是浮点数类型时启用
-template <typename T>
-typename std::enable_if<std::is_floating_point<T>::value, T>::type
-func(T x) {
-    return x + 0.5;
-}
-
-int main() {
-    std::cout << func(10) << std::endl;     // 输出: 11
-    std::cout << func(3.14) << std::endl;   // 输出: 3.64
-    // std::cout << func("Hello");          // 编译错误，"Hello" 不满足任何条件
-    return 0;
-}
-```
-
 ## 类和对象
 
 ### 什么是RTTI
@@ -1781,6 +1721,242 @@ int main() {
 - 返回类型之间的关系必须是基类与派生类的关系，即派生类中的返回类型必须是基类返回类型的派生类。
 - 除了协变返回类型之外，虚函数在基类和派生类中的返回类型必须严格相同。
 - 使用协变返回类型可以在面向对象编程中实现更灵活的多态性，尤其是在需要返回派生类对象的场景中。
+
+
+## C++模板
+
+### 什么是```std::enable_if```
+
+std::enable_if 是 C++ 模板元编程中的一种工具，定义在 ```<type_traits>``` 中，其核心原理依赖于模板的 SFINAE 机制（Substitution Failure Is Not An Error，替代失败不是错误）。通过 SFINAE，```std::enable_if``` 可以控制模板的启用或禁用。
+
+```std::enable_if``` 的定义
+
+```cpp
+template<bool B, typename T = void>
+struct enable_if {};
+
+// 当 B 为 true 时，定义 type 成员
+template<typename T>
+struct enable_if<true, T> {
+    using type = T;
+};
+```
+
+- 1.当条件为 true， 例如```enable_if<true, int>::type``` 
+
+对于第一个模板，由于内部没有type，因此会匹配失败。
+
+```cpp
+template<bool B, typename T = void>
+struct enable_if {};
+```
+
+此时不会终止匹配，而是会尝试第二个模板。
+
+```cpp
+std::enable_if<true, int>::type  // 有效，等价于 int
+```
+
+此时，模板代码可以正常编译，因为 ```enable_if<true, int>``` 有一个 type 成员，它被替换为 int。
+
+- 2.当条件为 false
+
+对于第一个模板，由于内部没有type，因此会匹配失败。
+
+```cpp
+template<bool B, typename T = void>
+struct enable_if {};
+```
+
+而第二个模板要求第一个参数为true，因此也无法匹配上。导致所有模板匹配失败。
+
+因此，只有在第一个模板参数为true时，模板才能通过编译。
+
+下面通过一个简单的例子，可以展示 ```std::enable_if``` 的使用方法：
+
+```cpp
+#include <type_traits>
+#include <iostream>
+
+// 模板函数，仅当 T 是整数类型时启用
+template <typename T>
+typename std::enable_if<std::is_integral<T>::value, T>::type
+func(T x) {
+    return x + 1;
+}
+
+// 模板函数，仅当 T 是浮点数类型时启用
+template <typename T>
+typename std::enable_if<std::is_floating_point<T>::value, T>::type
+func(T x) {
+    return x + 0.5;
+}
+
+int main() {
+    std::cout << func(10) << std::endl;     // 输出: 11
+    std::cout << func(3.14) << std::endl;   // 输出: 3.64
+    // std::cout << func("Hello");          // 编译错误，"Hello" 不满足任何条件
+    return 0;
+}
+```
+
+### 什么是CRTP?有什么作用
+
+CRTP (Curiously Recurring Template Pattern，奇异递归模板模式) 是一种模板编程技术，基类模板中使用派生类作为模板参数，从而实现编译时多态。这种模式常用于避免运行时多态的开销，同时提高灵活性和类型安全性。
+
+CRTP 的基本结构如下：
+
+```cpp
+template <typename Derived>
+class Base {
+public:
+    void interface() {
+        // 调用派生类中的实现
+        static_cast<Derived*>(this)->implementation();
+    }
+};
+
+class Derived : public Base<Derived> {
+public:
+    void implementation() {
+        std::cout << "Derived implementation" << std::endl;
+    }
+};
+
+int main() {
+    Derived d;
+    d.interface(); // 输出：Derived implementation
+    return 0;
+}
+```
+
+工作原理
+- 基类模板：Base 是一个模板类，接受派生类 Derived 作为模板参数。
+- 静态多态：在 Base 类中，通过 static_cast<Derived*>(this) 将当前对象转换为派生类类型，并调用派生类的实现函数。
+- 无虚函数开销：因为调用的是静态绑定的方法，所以性能上优于运行时多态。
+
+下面以简单的策略模式为例，展现出CRTP的作用。
+
+在下面的例子中，利用模板机制实现了一个"简单"的策略模式。
+
+这个例子单纯依赖模板机制，上下文类``` Context<StrategyType>``` 直接持有一个策略类的实例，通过模板参数显式决定策略。每个策略类的接口必须显式匹配，StrategyA 和 StrategyB 的接口需要完全相同（否则代码编译失败）。
+
+这个例子没有基类的参与，StrategyA 和 StrategyB 是独立的，没有共享的父类或基类模板。如果需要为多个策略类增加通用逻辑，需要在上下文类中实现，而无法复用逻辑。
+
+```cpp
+#include <iostream>
+using namespace std;
+
+// 策略 1
+class StrategyA{
+public:
+    void execute() {
+        cout << "Executing Strategy A" << endl;
+    }
+};
+
+// 策略 2
+class StrategyB {
+public:
+    void execute() {
+        cout << "Executing Strategy B" << endl;
+    }
+};
+
+// 使用策略的上下文类
+template <typename StrategyType>
+class Context {
+public:
+    void executeStrategy() {
+        strategy.execute();
+    }
+
+private:
+    StrategyType strategy;
+};
+
+int main() {
+    Context<StrategyA> contextA; // 使用策略 A
+    Context<StrategyB> contextB; // 使用策略 B
+
+    contextA.executeStrategy(); // 输出：Executing Strategy A
+    contextB.executeStrategy(); // 输出：Executing Strategy B
+
+    return 0;
+} 
+```
+
+相较于简单模板，CRTP 的核心在于为策略模式和静态多态提供了以下额外能力：
+
+**1.提供默认实现**
+
+基类可以提供部分默认行为，派生类只需实现差异化逻辑。
+
+```cpp
+#include <iostream>
+using namespace std;
+
+// 基类模板
+template <typename Derived>
+class StrategyBase {
+public:
+    // 基类提供通用逻辑
+    void execute() {
+        // Common Logic
+        // ....
+        static_cast<Derived*>(this)->executeImpl(); // 派生类实现
+    }
+};
+
+// 策略 A
+class StrategyA : public StrategyBase<StrategyA> {
+public:
+    void executeImpl() {
+        cout << "Executing Strategy A" << endl;
+    }
+};
+
+// 策略 B
+class StrategyB : public StrategyBase<StrategyB> {
+public:
+    void executeImpl() {
+        cout << "Executing Strategy B" << endl;
+    }
+};
+
+int main() {
+    StrategyA a;
+    StrategyB b;
+
+    a.execute(); // 输出：Common Logic: Executing Strategy A
+    b.execute(); // 输出：Common Logic: Executing Strategy B
+
+    return 0;
+}
+```
+
+在这种情况下，StrategyBase 提供了公共逻辑（Common Logic），而具体的实现由派生类提供。你在模板直接实例化的方式中无法实现这样的功能。
+
+**2.约束派生类的接口**
+
+CRTP 可以用来约束派生类的接口。如果派生类没有实现所需的 executeImpl 方法，编译器会报错。
+
+```cpp
+template <typename Derived>
+class StrategyBase {
+public:
+    void execute() {
+        static_cast<Derived*>(this)->executeImpl(); // 如果Derived未实现此方法，编译失败
+    }
+};
+
+// 例如，如果派生类没有提供 executeImpl，编译时会报错
+class InvalidStrategy : public StrategyBase<InvalidStrategy> {
+    // 无 executeImpl 方法
+};
+```
+
+在你的模板实现中，没有任何机制可以强制要求 StrategyA 和 StrategyB 必须实现某些特定方法，这种约束能力是 CRTP 的重要优势。
 
 
 ## STL
