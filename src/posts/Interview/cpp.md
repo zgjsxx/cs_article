@@ -25,8 +25,9 @@ tag:
     - [std::move的作用是什么](#stdmove的作用是什么)
     - [const 和 constexpr 的区别是什么？分别举例说明它们的适用场景。](#const-和-constexpr-的区别是什么分别举例说明它们的适用场景)
     - [为什么建议使用 std::make\_shared 而不是直接调用 std::shared\_ptr 构造函数？](#为什么建议使用-stdmake_shared-而不是直接调用-stdshared_ptr-构造函数)
-    - [C++ 中的 type\_traits](#c-中的-type_traits)
+    - [从裸指针创建shared\_ptr存在的问题](#从裸指针创建shared_ptr存在的问题)
   - [类和对象](#类和对象)
+    - [重载、重写、隐藏的区别](#重载重写隐藏的区别)
     - [什么是RTTI](#什么是rtti)
     - [带有虚函数的多重继承的内存分布](#带有虚函数的多重继承的内存分布)
     - [const成员的初始化方法](#const成员的初始化方法)
@@ -37,6 +38,7 @@ tag:
   - [C++模板](#c模板)
     - [什么是```std::enable_if```](#什么是stdenable_if)
     - [什么是CRTP?有什么作用](#什么是crtp有什么作用)
+    - [C++ 中的 type\_traits](#c-中的-type_traits)
   - [STL](#stl)
     - [map和unordered\_map的区别? 各自使用场景是什么？](#map和unordered_map的区别-各自使用场景是什么)
   - [参考](#参考)
@@ -1270,26 +1272,186 @@ void example() {
 std::shared_ptr<int> p = std::make_shared<int>(42); // 推荐
 std::shared_ptr<int> q(new int(42));               // 不推荐
 ```
+### 从裸指针创建shared_ptr存在的问题
 
-### C++ 中的 type_traits
+裸指针创建 std::shared_ptr 的具体问题。
 
-type_traits 是 C++ 标准库中的一个头文件，提供了一系列模板类和函数，用于在编译期对类型进行操作和检查。它主要用于 类型特性检测 和 类型变换，是现代 C++ 中实现模板元编程的重要工具。
+- 1.引用计数分离：
+ - std::shared_ptr 是通过引用计数来管理动态对象的生命周期的。
+ - 当多个 std::shared_ptr 使用同一个裸指针初始化时，每个 std::shared_ptr 都会维护一个独立的引用计数。
+ - 这些引用计数互相独立，导致多个 std::shared_ptr 都以为自己是该对象的唯一管理者。
+- 当某个 std::shared_ptr 超出作用域时，会销毁对象。
+- 此时其他的 std::shared_ptr 仍然认为对象有效，后续访问会导致 未定义行为。
 
-常用类型特性检测
-以下是常用的类型特性检测工具，它们大部分返回一个布尔值（通过 ::value 访问结果），C++17 起可以直接用 _v 后缀形式。
+- 2.双重释放问题：
+ - 多个 std::shared_ptr 共同管理一个对象，意味着对象会被销毁多次。
+ - 双重释放（double free）会导致程序崩溃。
 
-|功能	|类型特性	|示例|
-|是否是整型	|```std::is_integral```|	```std::is_integral<int>::value```|
-|是否是浮点型|	```std::is_floating_point```	|```std::is_floating_point<float>```|
-|是否是数组|	```std::is_array```|	```std::is_array<int[5]>::value```|
-|是否是指针|	```std::is_pointer```|	```std::is_pointer<int*>::value```|
-|是否是类类型|	```std::is_class```|	```std::is_class<std::string>```|
-|是否是可默认构造|	```std::is_default_constructible```|	```std::is_default_constructible<std::vector<int>>```|
-|是否是可拷贝构造|	```std::is_copy_constructible```|	```std::is_copy_constructible<std::vector<int>>```|
-|是否是可移动构造|	```std::is_move_constructible```|	```std::is_move_constructible<std::vector<int>>```|
-|是否为 const|	```std::is_const```|	```std::is_const<const int>```|
+```cpp
+#include <iostream>
+#include <memory>
+
+class MyClass {
+public:
+    ~MyClass() {
+        std::cout << "MyClass destroyed\n";
+    }
+};
+
+int main() {
+    MyClass* rawPtr = new MyClass;
+
+    // 两个独立的 shared_ptr 用同一个裸指针初始化
+    std::shared_ptr<MyClass> shared1(rawPtr);
+    std::shared_ptr<MyClass> shared2(rawPtr); // 问题！
+
+    // shared1 和 shared2 各自以为自己管理对象的生命周期
+    return 0;
+}
+```
+
+输出结果（潜在问题示例）：
+
+```shell
+MyClass destroyed
+MyClass destroyed
+[程序崩溃]
+
+```
+
+具体的问题剖析
+- 裸指针的重复包装：
+  - std::shared_ptr<MyClass> shared1(rawPtr) 为对象创建了第一个 std::shared_ptr。
+  - std::shared_ptr<MyClass> shared2(rawPtr) 为同一个裸指针 rawPtr 创建了另一个独立的 std::shared_ptr。
+  - 这两个 std::shared_ptr 的引用计数是完全独立的，它们都认为自己负责管理该对象。
+- 生命周期管理冲突：
+  - 当 shared1 超出作用域时，shared1 的析构函数会销毁 rawPtr。
+  - 当 shared2 超出作用域时，它会尝试再次销毁 rawPtr，导致双重释放。
+
 
 ## 类和对象
+
+### 重载、重写、隐藏的区别
+
+**1.重载（Overloading）**
+
+定义：
+
+函数重载指的是在同一个作用域中，定义多个具有相同名字但参数列表不同（类型、数量或顺序）的函数。
+
+特点：
+- 同一个作用域：通常在同一个类中定义。
+- 参数列表必须不同：包括参数的类型、数量、顺序的任意组合。
+- 返回值无关：返回值类型不能用来区分重载函数。
+- 编译时多态（早绑定）：编译器根据调用时的参数类型选择正确的重载函数。
+
+示例：
+
+```cpp
+#include <iostream>
+
+class MyClass {
+public:
+    void display(int a) {
+        std::cout << "Integer: " << a << std::endl;
+    }
+    void display(double a) {
+        std::cout << "Double: " << a << std::endl;
+    }
+    void display(int a, double b) {
+        std::cout << "Integer and Double: " << a << ", " << b << std::endl;
+    }
+};
+
+int main() {
+    MyClass obj;
+    obj.display(10);          // 调用 void display(int)
+    obj.display(10.5);        // 调用 void display(double)
+    obj.display(10, 20.5);    // 调用 void display(int, double)
+    return 0;
+}
+```
+
+**2.重写（Overriding）**
+
+定义：
+
+函数重写（覆盖）指的是在派生类中重新定义基类中的虚函数。
+目的是通过多态机制，让基类的指针或引用调用派生类的实现。
+
+特点：
+- 继承体系内：发生在基类与派生类之间。
+- 虚函数：基类中的函数必须是 virtual，派生类才可以重写它。
+- 函数签名必须完全一致：包括函数名、参数列表和返回类型。
+- 运行时多态（晚绑定）：通过基类指针或引用调用时，会动态绑定到派生类的实现。
+
+示例：
+
+```cpp
+#include <iostream>
+
+class Base {
+public:
+    virtual void display() {
+        std::cout << "Base class display" << std::endl;
+    }
+};
+
+class Derived : public Base {
+public:
+    void display() override { // 重写基类的虚函数
+        std::cout << "Derived class display" << std::endl;
+    }
+};
+
+int main() {
+    Base* basePtr = new Derived();
+    basePtr->display();  // 调用 Derived::display()
+    delete basePtr;
+    return 0;
+}
+
+```
+
+**3. 隐藏（Hiding）**
+
+定义：
+
+函数隐藏指的是派生类中的函数与基类中的函数同名，但参数列表不同或没有 virtual 标识时，基类的同名函数在派生类中被隐藏。
+
+特点：
+- 继承体系内：发生在基类和派生类之间。
+- 函数签名不同或非虚函数：基类的同名函数与派生类的同名函数可以参数列表不同，也可以没有 virtual 修饰。
+- 隐藏而非重载：即使派生类函数与基类函数参数列表不同，也会隐藏基类的所有同名函数。
+- 如果需要使用基类中的隐藏函数，可以通过作用域解析运算符显式调用。
+
+示例：
+
+```cpp
+#include <iostream>
+
+class Base {
+public:
+    void display(int a) {
+        std::cout << "Base class display with int: " << a << std::endl;
+    }
+};
+
+class Derived : public Base {
+public:
+    void display(double a) {  // 隐藏了 Base 的 display
+        std::cout << "Derived class display with double: " << a << std::endl;
+    }
+};
+
+int main() {
+    Derived obj;
+    obj.display(10.5);        // 调用 Derived::display(double)
+    // obj.display(10);       // 错误：Base 的 display(int) 被隐藏
+    obj.Base::display(10);    // 显式调用 Base 的 display(int)
+    return 0;
+}
+```
 
 ### 什么是RTTI
 
@@ -1958,6 +2120,24 @@ class InvalidStrategy : public StrategyBase<InvalidStrategy> {
 
 在你的模板实现中，没有任何机制可以强制要求 StrategyA 和 StrategyB 必须实现某些特定方法，这种约束能力是 CRTP 的重要优势。
 
+
+### C++ 中的 type_traits
+
+type_traits 是 C++ 标准库中的一个头文件，提供了一系列模板类和函数，用于在编译期对类型进行操作和检查。它主要用于 类型特性检测 和 类型变换，是现代 C++ 中实现模板元编程的重要工具。
+
+常用类型特性检测
+以下是常用的类型特性检测工具，它们大部分返回一个布尔值（通过 ::value 访问结果），C++17 起可以直接用 _v 后缀形式。
+
+|功能	|类型特性	|示例|
+|是否是整型	|```std::is_integral```|	```std::is_integral<int>::value```|
+|是否是浮点型|	```std::is_floating_point```	|```std::is_floating_point<float>```|
+|是否是数组|	```std::is_array```|	```std::is_array<int[5]>::value```|
+|是否是指针|	```std::is_pointer```|	```std::is_pointer<int*>::value```|
+|是否是类类型|	```std::is_class```|	```std::is_class<std::string>```|
+|是否是可默认构造|	```std::is_default_constructible```|	```std::is_default_constructible<std::vector<int>>```|
+|是否是可拷贝构造|	```std::is_copy_constructible```|	```std::is_copy_constructible<std::vector<int>>```|
+|是否是可移动构造|	```std::is_move_constructible```|	```std::is_move_constructible<std::vector<int>>```|
+|是否为 const|	```std::is_const```|	```std::is_const<const int>```|
 
 ## STL
 
