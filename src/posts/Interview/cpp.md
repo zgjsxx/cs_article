@@ -1321,9 +1321,9 @@ MyClass destroyed
 
 具体的问题剖析
 - 裸指针的重复包装：
-  - std::shared_ptr<MyClass> shared1(rawPtr) 为对象创建了第一个 std::shared_ptr。
-  - std::shared_ptr<MyClass> shared2(rawPtr) 为同一个裸指针 rawPtr 创建了另一个独立的 std::shared_ptr。
-  - 这两个 std::shared_ptr 的引用计数是完全独立的，它们都认为自己负责管理该对象。
+  - ```std::shared_ptr<MyClass> shared1(rawPtr)``` 为对象创建了第一个 ```std::shared_ptr```。
+  - ```std::shared_ptr<MyClass> shared2(rawPtr)``` 为同一个裸指针 rawPtr 创建了另一个独立的 ```std::shared_ptr```。
+  - 这两个 ```std::shared_ptr``` 的引用计数是完全独立的，它们都认为自己负责管理该对象。
 - 生命周期管理冲突：
   - 当 shared1 超出作用域时，shared1 的析构函数会销毁 rawPtr。
   - 当 shared2 超出作用域时，它会尝试再次销毁 rawPtr，导致双重释放。
