@@ -15,6 +15,7 @@ tag:
     - [MySQL可重复读完全解决了幻读问题吗？](#mysql可重复读完全解决了幻读问题吗)
     - [MySQL的同步方式](#mysql的同步方式)
     - [mysql的where和having有什么区别](#mysql的where和having有什么区别)
+    - [MySQL的MVCC机制](#mysql的mvcc机制)
 
 
 # 数据库
@@ -507,3 +508,7 @@ HAVING total_amount > 200;
 - WHERE：先过滤掉 amount <= 100 的订单。
 - GROUP BY：对剩下的数据按客户分组。
 - HAVING：对分组后的聚合结果筛选出 total_amount > 200 的分组
+
+### MySQL的MVCC机制
+
+https://zgjsxx.github.io/posts/database/mysql/mysql_mvcc.html
