@@ -142,6 +142,76 @@ CAP 定理证明了一个共享数据系统如果具备可用性和分区容错�
 
 ## ps
 
-线性一致性 顺序一致性
+线性一致性 
+
+满足线性一致性的系统给我们这样一种感觉，这系统看着只有一个副本，这样我就可以放心地读取任何一个副本上的数据来继续我们的应用程序。
+
+- 读写交错的序列（按照实时时钟排序），如果对于任何一个变量x的读操作read(x)，读到的值都是在此读操作之前最后一次写操作write(x)更新的值。
+
+顺序一致性
+
+顺序一致性最早被Leslie Lamport 在1979年提出，其定义如下：
+
+> A multiprocessor is said to be sequentially consistent if the result of any execution is the same as if the operations of all the processors were executed in some sequential order, and the operations of each individual processor appear in this sequence in the order specified by its program.[How to Make a Multiprocessor Computer That Correctly Executes Multiprocess Programs by Leslie Lamport ,1979] 
+
+翻译如下：
+
+>一个多处理器系统被称为顺序一致，当且仅当其任何执行的结果都与以下情况一致：所有处理器的操作都按某种顺序顺序执行，且每个处理器的操作在该顺序中出现的次序与其程序中指定的次序相同。
+
+其有两点要求：
+- 1.单个节点的事件历史在全局历史上看符合程序顺序，即对于同一个节点发起的读写序列，对于任何一个变量x的读操作read(x)，读到的值都是在此读操作之前最后一次此进程发起的写操作write(x)更新的值；
+
+```shell
+// 顺序1
+A: W(x,1)      
+B:        W(x,2)   R(x,2)
+
+// 顺序2 错误
+A: W(x,1)      
+B:        W(x,2)   R(x,1)
+```
+
+- 2.对于整个读写交错序列， 所有节点看到的写操作序列必须一致，即错的话一起错，对的话一起对。
+
+例如这里，全局写顺序是先将x写为1，再将写为2，
+- 对于顺序1，C和D均先看到x=1，再看到x=2，是合法的。 
+- 对于顺序2，尽管全局写顺序是先将x写为1，再将写为2，但是C和D均先看到x=2，再看到x=1也是合法的。
+- 对于顺序3，C和D看到的顺序完全相反，这会导致无法找到一个全局的顺序。
+
+```shell
+// 顺序1
+A: W(x,1)
+B:        W(x,2)
+C:                  R(x,1)    R(x,2)
+D:               R(x,1)     R(x,2)
+
+// 顺序2
+A: W(x,1)
+B:        W(x,2)
+C:                  R(x,2)    R(x,1)
+D:               R(x,2)     R(x,1)
+
+// 顺序3(错误)
+A: W(x,1)
+B:        W(x,2)
+C:                  R(x,1)    R(x,2)
+D:               R(x,2)     R(x,1)
+```
+
+因果一致性：
+
+因果一致性是一种弱化的顺序一致性模型，它仅要求有因果关系的操作顺序是一致的，没有因果关系的操作顺序是随机的。如果事件B是由事件A引起的或受事件A的影响，那么这两个事件就具有因果关系。因果一致性适用于需要保持操作因果关系但又不需要严格一致性的应用场景。
+
+最终一致性（Eventual Consistency）:
+
+最终一致性是最弱的一致性模型，它保证只要没有新的更新，系统中的所有副本最终将达到一致状态。这种模型允许系统在短时间内出现数据不一致，以提高系统的可用性和性能。最终一致性适用于对实时一致性要求不高的应用场景，如社交网络中的状态更新、电子邮件系统等。
 
 https://www.codedump.info/post/20220710-weekly-22/#%E9%A1%BA%E5%BA%8F%E4%B8%80%E8%87%B4%E6%80%A7
+
+
+https://tech.meituan.com/2022/08/25/replication-in-meituan-02.html
+
+https://lotabout.me/2019/QQA-What-is-Sequential-Consistency/
+
+
+(google ppt)https://www.cs.princeton.edu/courses/archive/fall16/cos418/docs/L13-strong-cap.pdf
