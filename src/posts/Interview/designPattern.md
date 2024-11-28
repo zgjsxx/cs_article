@@ -38,6 +38,7 @@ tag:
     - [装饰器模式和代理模式的区别](#装饰器模式和代理模式的区别)
     - [外观模式和适配器模式的区别](#外观模式和适配器模式的区别)
     - [说说grpc中的建造者模式](#说说grpc中的建造者模式)
+    - [依赖反转原则是什么](#依赖反转原则是什么)
 
 # 设计模式面经
 
@@ -3282,3 +3283,115 @@ int main() {
 **总结**
 
 gRPC 中广泛使用了建造者模式，特别是在 Channel 和 Server 的构建过程中。通过这种模式，gRPC 简化了复杂对象的创建过程，提高了代码的可读性、可维护性和灵活性。使用建造者模式，开发者可以轻松配置和管理 gRPC 的各类组件，从而专注于服务的实现逻辑。
+
+### 依赖反转原则是什么
+
+**依赖反转原则**（Dependency Inversion Principle，DIP）是面向对象设计原则中的重要一环，它的核心思想是：
+
+高层模块不应该依赖于低层模块；两者都应该依赖于抽象。抽象不应该依赖于细节；细节应该依赖于抽象。
+
+这意味着我们在设计代码时，要通过接口或抽象类（抽象）来隔离高层模块和低层模块的直接依赖，从而实现灵活性和可维护性。
+
+**1.没有遵循依赖反转原则的设计**
+
+假设我们有一个场景：有一个高层模块 Notification（发送通知），它需要依赖具体的消息发送方式（比如 Email 类）。
+
+```cpp
+#include <iostream>
+using namespace std;
+
+// 低层模块：Email（发送邮件）
+class Email {
+public:
+    void sendEmail(const string& message) {
+        cout << "Sending Email: " << message << endl;
+    }
+};
+
+// 高层模块：Notification
+class Notification {
+private:
+    Email email;  // 直接依赖于具体的 Email 类
+public:
+    void notify(const string& message) {
+        email.sendEmail(message);  // 发送通知依赖于 Email 的实现
+    }
+};
+
+int main() {
+    Notification notification;
+    notification.notify("Hello, you have a new message!");
+    return 0;
+}
+```
+
+问题：
+- 1.高层模块直接依赖低层模块：Notification 类直接依赖 Email 类。如果未来要增加新的通知方式（如短信 SMS 或推送通知 PushNotification），我们就需要修改 Notification 类。
+- 2.**扩展性差：**这种紧耦合设计导致代码难以扩展和维护。
+
+
+- 2.遵循依赖反转原则的设计
+
+我们可以通过引入接口或抽象类，让高层模块依赖于抽象，而不是具体实现。这样，低层模块（如 Email 和 SMS）可以实现这个抽象，高层模块 Notification 则无需知道低层的具体细节。
+
+改进代码：
+
+```cpp
+#include <iostream>
+#include <memory>  // 用于智能指针
+using namespace std;
+
+// 抽象接口：MessageSender
+class MessageSender {
+public:
+    virtual void sendMessage(const string& message) = 0;  // 纯虚函数
+    virtual ~MessageSender() = default;  // 虚析构函数，保证子类的析构被调用
+};
+
+// 低层模块：Email
+class Email : public MessageSender {
+public:
+    void sendMessage(const string& message) override {
+        cout << "Sending Email: " << message << endl;
+    }
+};
+
+// 低层模块：SMS
+class SMS : public MessageSender {
+public:
+    void sendMessage(const string& message) override {
+        cout << "Sending SMS: " << message << endl;
+    }
+};
+
+// 高层模块：Notification
+class Notification {
+private:
+    shared_ptr<MessageSender> messageSender;  // 依赖于抽象，而不是具体实现
+public:
+    Notification(shared_ptr<MessageSender> sender) : messageSender(sender) {}
+
+    void notify(const string& message) {
+        messageSender->sendMessage(message);  // 调用抽象接口的方法
+    }
+};
+
+int main() {
+    // 使用 Email 发送通知
+    shared_ptr<MessageSender> emailSender = make_shared<Email>();
+    Notification emailNotification(emailSender);
+    emailNotification.notify("Hello, you have a new email!");
+
+    // 使用 SMS 发送通知
+    shared_ptr<MessageSender> smsSender = make_shared<SMS>();
+    Notification smsNotification(smsSender);
+    smsNotification.notify("Hello, you have a new SMS!");
+
+    return 0;
+}
+```
+
+改进后的好处：
+- 高层模块和低层模块解耦：Notification 类只依赖于 MessageSender 接口，不关心具体实现（如 Email 或 SMS）。
+- 扩展性增强：如果未来需要支持更多通知方式，比如 PushNotification，只需新增一个实现 MessageSender 的类，而无需修改 Notification 类。
+- 遵循开闭原则：系统对扩展开放（可以新增通知方式），对修改关闭（Notification 类无需修改）。
