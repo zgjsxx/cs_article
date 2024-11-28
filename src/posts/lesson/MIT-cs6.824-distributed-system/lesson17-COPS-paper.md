@@ -214,4 +214,4 @@ https://tech.meituan.com/2022/08/25/replication-in-meituan-02.html
 https://lotabout.me/2019/QQA-What-is-Sequential-Consistency/
 
 
-(google ppt)https://www.cs.princeton.edu/courses/archive/fall16/cos418/docs/L13-strong-cap.pdf
+(prinston ppt)https://www.cs.princeton.edu/courses/archive/fall16/cos418/docs/L13-strong-cap.pdf
