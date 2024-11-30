@@ -17,6 +17,8 @@ tag:
     - [MySQL的同步方式](#mysql的同步方式)
     - [mysql的where和having有什么区别](#mysql的where和having有什么区别)
     - [MySQL的MVCC机制](#mysql的mvcc机制)
+  - [Redis](#redis)
+    - [Redis 中常见的数据类型有哪些？](#redis-中常见的数据类型有哪些)
 
 
 # 数据库
@@ -163,16 +165,21 @@ B+ 树对比 B 树的主要优点
 - B+ 树需要维护叶子节点的链表结构，导致其实现比 B 树稍微复杂。
 
 为什么 MySQL 优先选择 B+ 树
+
 1. 读操作占主导
+
 数据库场景下，查询操作的频率通常远高于写操作。B+ 树的查询效率高且稳定，更适合高频查询场景。
 
 2. 范围查询需求高
+
 在数据库中，范围查询（如 WHERE age BETWEEN 20 AND 30）非常常见，B+ 树的叶子节点链表结构使得范围查询可以高效地连续扫描数据。
 
 3. 降低磁盘 I/O
+
 由于数据库处理的是海量数据，内存不足以完全容纳整个索引，索引查询往往涉及大量磁盘访问。B+ 树更小的内部节点和更低的树高有效减少了磁盘 I/O 次数。
 
 4. 更好的排序和批量访问支持
+
 B+ 树的叶子节点链表结构对排序、分页以及批量数据读取有天然的优势，而这些都是数据库的常见操作。
 
 ### MySQL索引有哪些？
@@ -572,3 +579,144 @@ HAVING total_amount > 200;
 ### MySQL的MVCC机制
 
 https://zgjsxx.github.io/posts/database/mysql/mysql_mvcc.html
+
+## Redis
+
+### Redis 中常见的数据类型有哪些？
+
+在 Redis 中，常见的数据类型主要有 6 种，每种类型都有其特定的用途和操作方式。理解这些数据类型的特性和如何使用它们，是高效使用 Redis 的基础。以下是 Redis 中常见的 6 种数据类型及其详细介绍：
+
+**1.字符串（String）**
+
+描述
+- Redis 中最基本的数据类型，类似于键值对中的值。一个字符串类型的值可以包含任何数据，例如字符串、整数、浮点数等，最大长度为 512MB。
+- 字符串 是 Redis 中最常见的数据类型，几乎所有的操作都支持字符串类型。
+
+操作
+- SET key value：设置一个字符串值。
+- GET key：获取一个字符串值。
+- INCR key：将字符串值按整数递增。
+- APPEND key value：将值追加到字符串末尾。
+示例
+
+```shell
+SET name "Redis"
+GET name
+INCR counter
+APPEND name " is awesome!"
+```
+
+使用场景
+- 缓存一些简单的数值、字符串。
+- 作为计数器（例如：访问量统计、订单号生成）。
+- 用于存储 JSON 字符串或其他结构化数据的序列化结果。
+
+**2.哈希（Hash）**
+
+描述
+- 哈希是一种键值对集合，可以用来表示对象。它类似于一个字典（或映射），每个哈希由多个字段和它们对应的值组成。
+- 适合存储对象数据，例如用户信息、商品信息等。
+
+操作
+- HSET key field value：为哈希表中的字段设置值。
+- HGET key field：获取哈希表中指定字段的值。
+- HGETALL key：获取哈希表中所有字段和值。
+- HDEL key field：删除哈希表中的字段。
+
+示例
+```
+HSET user:1000 name "Alice" age "30"
+HGET user:1000 name
+HGETALL user:1000
+```
+
+使用场景
+- 存储对象或结构化数据（例如：用户信息、商品详情）。
+- 用于存储频繁更新的字段，避免每次都对整个对象进行操作。
+
+**3.列表（List）**
+
+描述
+- 列表是一种简单的字符串列表，可以在头部或尾部推送元素，支持按顺序存储元素（类似于链表）。
+- 列表是有序的，可以用于实现消息队列、任务列表等场景。
+
+操作
+- LPUSH key value：将元素添加到列表的左端（头部）。
+- RPUSH key value：将元素添加到列表的右端（尾部）。
+- LPOP key：移除并返回列表的左端元素。
+- RPOP key：移除并返回列表的右端元素。
+- LRANGE key start stop：返回列表中指定范围的元素。
+
+示例
+
+```shell
+LPUSH queue "task1"
+RPUSH queue "task2"
+LPOP queue
+LRANGE queue 0 -1
+```
+
+使用场景
+- 消息队列：生产者将任务推送到列表，消费者从列表中取出任务。
+- 实现顺序处理任务、活动流、实时日志等场景。
+
+**4.集合（Set）**
+
+描述
+- 集合是一个无序的字符串集合，支持高效的集合操作，如求交集、并集和差集等。
+- 集合中的元素是唯一的，不允许重复。
+
+操作
+- SADD key member：向集合添加成员。
+- SREM key member：从集合中移除成员。
+- SMEMBERS key：返回集合中的所有成员。
+- SISMEMBER key member：判断元素是否是集合的成员。
+- SINTER key1 key2：返回两个集合的交集。
+- SUNION key1 key2：返回两个集合的并集。
+示例
+bash
+复制代码
+SADD fruits "apple" "banana" "cherry"
+SMEMBERS fruits
+SISMEMBER fruits "banana"
+SINTER fruits another_set
+使用场景
+实现社交网络中的好友关系、标签、推荐系统等。
+用于去重操作（例如：去重用户、IP 地址等）。
+1. 有序集合（Sorted Set）
+描述
+有序集合是一个类似于集合的数据结构，不同之处在于每个元素都关联一个 分数（score），并根据分数自动排序。
+支持按分数范围或排名查询，非常适合用于排行榜、排名、时间序列等应用。
+操作
+ZADD key score member：将成员添加到有序集合中。
+ZRANGE key start stop：返回有序集合中指定范围内的成员，按分数从低到高排序。
+ZREVRANGE key start stop：返回有序集合中指定范围内的成员，按分数从高到低排序。
+ZREM key member：从有序集合中移除成员。
+ZRANK key member：返回成员在有序集合中的排名（按分数排序）。
+示例
+bash
+复制代码
+ZADD leaderboard 100 "Alice" 200 "Bob" 150 "Charlie"
+ZRANGE leaderboard 0 -1
+ZREVRANGE leaderboard 0 1
+使用场景
+排行榜：比如游戏成绩、社交媒体中用户点赞数。
+事件排序：例如按时间戳排序的日志、任务的优先级排序等。
+1. 位图（Bitmap）
+描述
+位图实际上是一种特殊的字符串类型，可以用来存储位信息（每个值是 0 或 1），非常适合做 布尔值 的快速统计与查询。
+通过位操作（设置位、清除位、查询位等）来操作大量的布尔值数据，通常用于 位计数 和 布隆过滤器。
+操作
+SETBIT key offset value：设置位图指定偏移量的值。
+GETBIT key offset：获取位图指定偏移量的值。
+BITCOUNT key：计算位图中值为 1 的位数。
+BITOP AND key destkey key1 key2：对多个位图执行按位与操作。
+示例
+bash
+复制代码
+SETBIT users 1000 1
+GETBIT users 1000
+BITCOUNT users
+使用场景
+用户签到：记录用户是否签到。
+实现布隆过滤器，检查某个元素是否存在于集合中。

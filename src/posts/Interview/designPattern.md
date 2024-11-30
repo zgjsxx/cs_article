@@ -32,7 +32,8 @@ tag:
     - [备忘录模式](#备忘录模式)
     - [状态模式](#状态模式)
     - [迭代器模式](#迭代器模式)
-    - [观察者模式简介](#观察者模式简介)
+    - [观察者模式](#观察者模式)
+    - [解释器模式](#解释器模式)
   - [问题](#问题)
     - [工厂方法和抽象工厂方法的区别](#工厂方法和抽象工厂方法的区别)
     - [装饰器模式和代理模式的区别](#装饰器模式和代理模式的区别)
@@ -67,7 +68,7 @@ tag:
 - 目的：通过接口分离降低系统的复杂性，避免由于接口臃肿导致的实现类的复杂性。
 
 **6. 合成复用原则 (Composite Reuse Principle, CRP)**
-- 定义：优先使用对象组合（即“has-a”关系）而不是继承（即“is-a”关系）来达到代码复用的目的。
+- 定义：优先使用对象组合（即“has-a”关系）而不是继承（即"is-a"关系）来达到代码复用的目的。
 - 目的：通过组合来提高代码的复用性和灵活性，减少继承带来的紧耦合问题。
 
 **7. 迪米特法则 (Law of Demeter, LoD)**
@@ -2412,7 +2413,6 @@ int main() {
 
 使用模板方法模式后，代码的结构变得更加清晰，复用性和扩展性都得到了提升。这种模式特别适合那些需要定义一组操作步骤但在某些步骤上存在差异的场景。通过模板方法模式，可以在基类中定义通用的算法框架，并让子类实现具体的细节，从而达到了既复用代码又灵活定制的目的。
 
-
 ### 访问者模式
 
 访问者模式（Visitor Pattern） 是一种行为型设计模式，主要用于将操作从数据结构中分离出来，使得不改变数据结构的前提下，能够对其增加新的操作。
@@ -2498,6 +2498,18 @@ public:
     }
 };
 
+class LengthCalculator ： public Visitor {
+public:
+    void visit(Circle* circle) override {
+        int legnth = 2 * 3.14 * circle->radius();
+        std::cout << "Circle length: " << legnth << std::endl;
+    }
+    void visit(Rectangle* rectangle) override {
+        int legnth = 2 * (rectangle->width() + rectangle->height());
+        std::cout << "Rectangle length: " << legnth << std::endl;
+    }
+}
+
 // Client code
 int main() {
     std::vector<std::unique_ptr<Shape>> shapes;
@@ -2505,13 +2517,15 @@ int main() {
     shapes.push_back(std::make_unique<Rectangle>());
 
     AreaCalculator calculator;
+    LengthCalculator lengthCalculator;
     for (auto& shape : shapes) {
         shape->accept(&calculator);
     }
-
+    for (auto& shape : shapes) {
+        shape->accept(&lengthCalculator);
+    }
     return 0;
 }
-
 ```
 
 **代码解析**
@@ -2969,7 +2983,7 @@ int main() {
 
 C++ 中的 STL（标准模板库）中的迭代器就是这一模式的一个实际应用。例如，```std::vector<int>::iterator``` 提供了一种标准化的遍历方式，这正是迭代器模式的典范实现。
 
-### 观察者模式简介
+### 观察者模式
 
 **观察者模式**是一种行为型设计模式，它定义了一种一对多的依赖关系。当一个对象的状态发生改变时，它的所有依赖者（观察者）都会收到通知并自动更新。
 
@@ -3111,6 +3125,163 @@ Subscriber Charlie received news: Update: C++ is powerful!
 - 一个对象的状态改变需要通知其他对象，但对象之间是松耦合的。
 - 需要动态添加、移除依赖关系的场景。
 - 广泛用于 GUI 事件处理、MVC 框架中的 View 更新、消息队列系统等。
+
+### 解释器模式
+
+解释器模式（Interpreter Pattern）是行为型设计模式之一，用于定义某种语言的语法规则，并通过实现解释器来解析和执行该语言。它通常用于处理自定义语言、脚本语言或表达式求值等场景。
+
+简单来说，解释器模式解决的问题是：如何根据一套规则解释特定的文本或符号表达式并得出结果。
+
+C++ 中的解释器模式
+
+我们通过一个简单的示例来说明：实现一个解释器，用来计算基本的数学表达式，例如 5 + (10 - 3)。
+
+解释器模式的基本组成
+- 1.抽象表达式类（AbstractExpression）：定义解释操作的接口。
+- 2.终结符表达式类（TerminalExpression）：表示语法中的基本元素，如数字。
+- 3.非终结符表达式类（NonTerminalExpression）：表示由其他表达式组合而成的语法元素，如加法或减法。
+- 4.上下文类（Context）：提供解释器所需的全局信息，通常用来存储变量或其他辅助信息。
+- 5.客户端（Client）：负责构建表达式并调用解释器。
+
+我们假设需要支持带变量的表达式，例如 x + (y - 3)，这时就需要引入 Context 来存储变量的值。
+
+```cpp
+#include <iostream>
+#include <memory>
+#include <string>
+#include <unordered_map>
+
+// 上下文类：用于存储变量和它们的值
+class Context {
+private:
+    std::unordered_map<std::string, int> variables;
+public:
+    void setVariable(const std::string& name, int value) {
+        variables[name] = value;
+    }
+
+    int getVariable(const std::string& name) const {
+        auto it = variables.find(name);
+        if (it != variables.end()) {
+            return it->second;
+        }
+        throw std::runtime_error("Variable not found: " + name);
+    }
+};
+
+// 抽象表达式类
+class Expression {
+public:
+    virtual ~Expression() = default;
+    virtual int interpret(const Context& context) const = 0; // 定义解释操作接口
+};
+
+// 终结符表达式类：数字
+class Number : public Expression {
+private:
+    int value;
+public:
+    explicit Number(int value) : value(value) {}
+    int interpret(const Context& context) const override {
+        return value;
+    }
+};
+
+// 终结符表达式类：变量
+class Variable : public Expression {
+private:
+    std::string name;
+public:
+    explicit Variable(const std::string& name) : name(name) {}
+    int interpret(const Context& context) const override {
+        return context.getVariable(name); // 从上下文中获取变量的值
+    }
+};
+
+// 非终结符表达式类：加法
+class Add : public Expression {
+private:
+    std::unique_ptr<Expression> left;
+    std::unique_ptr<Expression> right;
+public:
+    Add(std::unique_ptr<Expression> left, std::unique_ptr<Expression> right)
+        : left(std::move(left)), right(std::move(right)) {}
+
+    int interpret(const Context& context) const override {
+        return left->interpret(context) + right->interpret(context);
+    }
+};
+
+// 非终结符表达式类：减法
+class Subtract : public Expression {
+private:
+    std::unique_ptr<Expression> left;
+    std::unique_ptr<Expression> right;
+public:
+    Subtract(std::unique_ptr<Expression> left, std::unique_ptr<Expression> right)
+        : left(std::move(left)), right(std::move(right)) {}
+
+    int interpret(const Context& context) const override {
+        return left->interpret(context) - right->interpret(context);
+    }
+};
+
+// 客户端代码
+int main() {
+    // 创建上下文并设置变量值
+    Context context;
+    context.setVariable("x", 5);
+    context.setVariable("y", 10);
+
+    // 构建表达式：x + (y - 3)
+    auto expression = std::make_unique<Add>(
+        std::make_unique<Variable>("x"),
+        std::make_unique<Subtract>(
+            std::make_unique<Variable>("y"),
+            std::make_unique<Number>(3)
+        )
+    );
+
+    // 解释表达式并输出结果
+    std::cout << "Result: " << expression->interpret(context) << std::endl; // 输出：Result: 12
+
+    return 0;
+}
+
+```
+
+代码详解
+- 1.上下文类 (Context)
+  - 用来存储变量和值的映射。
+  - 提供了 setVariable 和 getVariable 方法，分别用于设置和获取变量的值。
+
+- 2.终结符表达式类：变量 (Variable)
+  - 表示表达式中的变量，通过 Context 获取对应的值。
+
+- 3.非终结符表达式类：加法和减法
+  - 逻辑没有变化，依然是递归调用左右子表达式的 interpret 方法。
+  - 参数增加了 Context，以支持从上下文获取信息。
+
+- 4.客户端
+  - 先创建一个 Context 并初始化变量的值。
+  - 构建表达式树，表达式可以包含变量和常量。
+
+表达式的结构
+
+表达式 x + (y - 3) 被解析为：
+
+```shell
+           Add
+          /   \
+        x      Subtract
+              /      \
+            y         3
+```
+
+解释的过程：
+- 从 Context 中读取 x = 5 和 y = 10。
+- 计算 Subtract(y, 3) = 7。
+- 计算 Add(x, 7) = 12。
 
 ## 问题
 
