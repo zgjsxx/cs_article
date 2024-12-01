@@ -1911,7 +1911,7 @@ memory_order_acq_rel 提供了相对于**原子变量**的读和写排序，而 
 下面是一个正确使用 std::enable_shared_from_this 的例子，展示了如何在 C++ 中通过成员函数安全地生成指向当前对象的 std::shared_ptr。
 
 示例：
-假设我们有一个 MyClass 类，继承自 std::enable_shared_from_this<MyClass>，并且我们希望在 MyClass 的成员函数中获取一个指向自己的 shared_ptr。
+假设我们有一个 MyClass 类，继承自 ```std::enable_shared_from_this<MyClass>```，并且我们希望在 MyClass 的成员函数中获取一个指向自己的 shared_ptr。
 
 ```cpp
 #include <iostream>
@@ -1939,9 +1939,9 @@ int main() {
 ```
 
 解释：
-- MyClass 继承自 std::enable_shared_from_this<MyClass>：通过继承 std::enable_shared_from_this，MyClass 能够在其成员函数中调用 shared_from_this() 来获取指向当前对象的 std::shared_ptr。
+- MyClass 继承自 ```std::enable_shared_from_this<MyClass>```：通过继承 ```std::enable_shared_from_this<MyClass>``` 能够在其成员函数中调用 shared_from_this() 来获取指向当前对象的 std::shared_ptr。
 - show() 成员函数调用 shared_from_this()：在 show() 成员函数中，我们调用 shared_from_this()，它会返回一个 std::shared_ptr，这个 shared_ptr 管理着当前对象的生命周期。通过 shared_ptr，对象的引用计数会增加，直到所有的 shared_ptr 都销毁时，才会删除对象。
-- std::make_shared<MyClass>() 创建对象：在 main() 函数中，我们使用 std::make_shared<MyClass>() 创建了一个 MyClass 对象，并通过 std::shared_ptr<MyClass> 管理它的生命周期。然后，我们调用 obj->show()，在其中通过 shared_from_this() 获取了一个指向当前对象的 shared_ptr。
+- ```std::make_shared<MyClass>()``` 创建对象：在 main() 函数中，我们使用 ```std::make_shared<MyClass>()``` 创建了一个 MyClass 对象，并通过 ```std::shared_ptr<MyClass>``` 管理它的生命周期。然后，我们调用 obj->show()，在其中通过 shared_from_this() 获取了一个指向当前对象的 shared_ptr。
 
 输出：
 
