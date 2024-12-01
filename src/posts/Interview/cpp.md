@@ -36,6 +36,7 @@ tag:
     - [const成员函数内部需要修改成员变量如何解决？](#const成员函数内部需要修改成员变量如何解决)
     - [虚函数的返回值可以不一样吗？](#虚函数的返回值可以不一样吗)
     - [C++内存序(6种)](#c内存序6种)
+    - [enable\_share\_from\_this](#enable_share_from_this)
   - [C++模板](#c模板)
     - [什么是```std::enable_if```](#什么是stdenable_if)
     - [什么是CRTP?有什么作用](#什么是crtp有什么作用)
@@ -1904,6 +1905,94 @@ int main() {
 memory_order_acq_rel和memory_order_seq_cst的区别?
 
 memory_order_acq_rel 提供了相对于**原子变量**的读和写排序，而 memory_order_seq_cst 提供了**全局**的读和写排序。也就是说，顺序一致性（sequentially consistent）的操作在所有线程中以相同的顺序可见。
+
+### enable_share_from_this
+
+下面是一个正确使用 std::enable_shared_from_this 的例子，展示了如何在 C++ 中通过成员函数安全地生成指向当前对象的 std::shared_ptr。
+
+示例：
+假设我们有一个 MyClass 类，继承自 std::enable_shared_from_this<MyClass>，并且我们希望在 MyClass 的成员函数中获取一个指向自己的 shared_ptr。
+
+```cpp
+#include <iostream>
+#include <memory>
+
+class MyClass : public std::enable_shared_from_this<MyClass> {
+public:
+    void show() {
+        // 获取指向当前对象的 shared_ptr
+        std::shared_ptr<MyClass> ptr = shared_from_this();
+        std::cout << "Shared pointer address: " << ptr.get() << std::endl;
+        std::cout << "This object address: " << this << std::endl;
+    }
+};
+
+int main() {
+    // 使用 make_shared 创建一个 MyClass 对象
+    std::shared_ptr<MyClass> obj = std::make_shared<MyClass>();
+    
+    // 在成员函数中通过 shared_from_this 获取 shared_ptr
+    obj->show();  // 会输出 shared_ptr 和 this 指针的地址
+    
+    return 0;
+}
+```
+
+解释：
+- MyClass 继承自 std::enable_shared_from_this<MyClass>：通过继承 std::enable_shared_from_this，MyClass 能够在其成员函数中调用 shared_from_this() 来获取指向当前对象的 std::shared_ptr。
+- show() 成员函数调用 shared_from_this()：在 show() 成员函数中，我们调用 shared_from_this()，它会返回一个 std::shared_ptr，这个 shared_ptr 管理着当前对象的生命周期。通过 shared_ptr，对象的引用计数会增加，直到所有的 shared_ptr 都销毁时，才会删除对象。
+- std::make_shared<MyClass>() 创建对象：在 main() 函数中，我们使用 std::make_shared<MyClass>() 创建了一个 MyClass 对象，并通过 std::shared_ptr<MyClass> 管理它的生命周期。然后，我们调用 obj->show()，在其中通过 shared_from_this() 获取了一个指向当前对象的 shared_ptr。
+
+输出：
+
+```shell
+Shared pointer address: 0x55f2a6fe2e10
+This object address: 0x55f2a6fe2e10
+```
+
+分析：
+- shared_from_this() 返回的 shared_ptr：shared_from_this() 会返回一个指向当前对象的有效 std::shared_ptr。此时，shared_ptr 的引用计数会增加，确保对象不会在我们使用它时被销毁。
+- this 指针：this 指针是类成员函数中的隐式参数，它指向当前对象。通过输出 this 和 ptr.get()，可以看到它们指向同一个内存地址，意味着 shared_from_this() 返回的 shared_ptr 和 this 指向的是同一个对象。
+
+使用 shared_from_this() 的重要事项：
+- 对象必须由 std::shared_ptr 管理：必须通过 std::shared_ptr 来管理 MyClass 对象，否则调用 shared_from_this() 会抛出 std::bad_weak_ptr 异常。
+- 不要在构造函数或析构函数中调用 shared_from_this()：在 MyClass 的构造函数或析构函数中，不应使用 shared_from_this()，因为对象在构造函数中尚未完全构建，而在析构函数中，shared_ptr 已经会销毁对象。任何时候都需要确保对象的生命周期由 shared_ptr 管理，才能安全地调用 shared_from_this()。
+
+避免常见错误：
+
+- 错误的用法示例（在构造函数或析构函数中调用 shared_from_this()）：
+
+```cpp
+#include <iostream>
+#include <memory>
+
+class MyClass : public std::enable_shared_from_this<MyClass> {
+public:
+    MyClass() {
+        // 错误：构造函数中不应调用 shared_from_this()
+        std::shared_ptr<MyClass> ptr = shared_from_this();  // 会抛出 std::bad_weak_ptr
+    }
+
+    ~MyClass() {
+        // 错误：析构函数中不应调用 shared_from_this()
+        std::shared_ptr<MyClass> ptr = shared_from_this();  // 行为未定义
+    }
+
+    void show() {
+        std::shared_ptr<MyClass> ptr = shared_from_this();  // 正确
+        std::cout << "Shared pointer address: " << ptr.get() << std::endl;
+    }
+};
+
+int main() {
+    std::shared_ptr<MyClass> obj = std::make_shared<MyClass>();  // 会抛出异常
+    obj->show();
+    return 0;
+}
+```
+
+结论：
+- 使用 std::enable_shared_from_this 和 shared_from_this() 可以在对象的成员函数中安全地生成指向自己的 std::shared_ptr，从而确保对象的生命周期正确管理。你必须确保对象已经由 std::shared_ptr 管理，并且避免在构造函数和析构函数中使用 shared_from_this()。这样可以避免常见的错误，并确保对象生命周期的正确性和线程安全。
 
 ## C++模板
 

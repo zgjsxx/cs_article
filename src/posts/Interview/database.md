@@ -17,6 +17,7 @@ tag:
     - [MySQL的同步方式](#mysql的同步方式)
     - [mysql的where和having有什么区别](#mysql的where和having有什么区别)
     - [MySQL的MVCC机制](#mysql的mvcc机制)
+    - [MySQL回表是什么？](#mysql回表是什么)
   - [Redis](#redis)
     - [Redis 中常见的数据类型有哪些？](#redis-中常见的数据类型有哪些)
 
@@ -579,6 +580,88 @@ HAVING total_amount > 200;
 ### MySQL的MVCC机制
 
 https://zgjsxx.github.io/posts/database/mysql/mysql_mvcc.html
+
+### MySQL回表是什么？
+
+在MySQL中，回表（Covering Index 或 Index Lookup）指的是查询在执行过程中，通过索引来查找数据，若索引本身不包含查询所需的所有列的数据时，需要回到表中去读取完整的记录。换句话说，回表是指通过索引查找记录时，如果索引中的数据不完全，MySQL需要通过索引中的主键（或聚簇索引）再次去查询数据表，来获取缺失的信息。
+
+**1.回表的过程**
+
+当查询涉及到的列不完全由索引覆盖时，MySQL会：
+- 1.首先通过索引找到满足查询条件的记录位置（如行号、主键值）。
+- 2.然后再通过这些位置或主键值去数据表中查询完整的行数据。
+
+这种操作就是**回表**，因为MySQL通过索引找到了数据行的“指针”，然后再去回到数据表中获取完整的记录。
+
+**2.为什么会发生回表**
+- 查询的列不在索引中：当索引只包含查询的部分列时，查询需要的数据列不在索引中，因此需要去数据表中查找。
+- 查询的列超出了索引的覆盖范围：有时候索引的前缀可以覆盖查询条件，但不包括所有查询列，因此仍然需要访问表来获取完整数据。
+
+**3.回表的例子**
+
+假设有以下数据表 employees：
+
+```sql
+CREATE TABLE employees (
+    id INT PRIMARY KEY,
+    name VARCHAR(100),
+    age INT,
+    salary DECIMAL(10, 2)
+);
+```
+
+创建了一个非唯一的索引：
+
+```sql
+CREATE INDEX idx_name_age ON employees (name, age);
+```
+
+查询1：只涉及索引列
+
+```sql
+SELECT name, age FROM employees WHERE name = 'John';
+```
+
+这个查询会使用 idx_name_age 索引，因为查询的列 name 和 age 都在索引中，索引本身就能包含查询所需的所有数据，因此不会回表。
+
+查询2：涉及非索引列
+```sql
+SELECT name, age, salary FROM employees WHERE name = 'John';
+```
+
+这个查询也会使用 idx_name_age 索引来查找满足条件的记录，但因为 salary 不在索引中，所以查询的结果需要通过回表去表中查找 salary 列的数据。也就是说，MySQL会先通过 idx_name_age 索引找到符合 name = 'John' 的记录，然后再根据主键值去回表查询 salary 列。
+
+**4.如何避免回表**
+
+覆盖索引（Covering Index）：如果索引包含查询所需的所有列，那么查询就不需要回表。可以通过在索引中包含更多列来避免回表。
+
+比如，如果创建一个包括 name、age 和 salary 的复合索引，就可以避免回表：
+
+```sql
+CREATE INDEX idx_name_age_salary ON employees (name, age, salary);
+```
+
+使用合适的索引：在设计索引时，如果知道某些查询会频繁执行，可以根据查询的字段来设计合适的复合索引，使得查询所需要的列都包含在索引中，从而避免回表。
+
+**5.回表的性能影响**
+
+- 回表增加I/O：回表意味着MySQL在执行查询时，除了读取索引，还需要再访问表中的数据，这会导致额外的磁盘I/O。对于大表和复杂查询，回表可能会显著影响查询性能。
+- 避免回表：通过合理的索引设计，避免不必要的回表操作，能显著提高查询效率，尤其是当查询涉及多个列时。
+
+**6. 解释回表**
+
+使用 EXPLAIN 命令可以查看MySQL在查询中是否使用了回表：
+
+```sql
+EXPLAIN SELECT name, age, salary FROM employees WHERE name = 'John';
+```
+
+如果查询需要回表，EXPLAIN 的输出中会显示 Using index（表示使用了索引），但是也可能会看到 Extra 列中标注有 Using index 和 Using where，表示索引没有覆盖所有查询列，因此需要回表。
+
+**7.回表的总结**
+- 回表是指通过索引查询时，若索引不包含查询列的数据，MySQL会再回到数据表中获取这些列的值。
+- 避免回表的方法之一是设计覆盖索引，使索引包含所有查询所需的列。
+- 回表会增加额外的I/O操作，影响查询性能，因此合理设计索引非常重要。
 
 ## Redis
 
