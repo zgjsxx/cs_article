@@ -625,6 +625,7 @@ SELECT name, age FROM employees WHERE name = 'John';
 这个查询会使用 idx_name_age 索引，因为查询的列 name 和 age 都在索引中，索引本身就能包含查询所需的所有数据，因此不会回表。
 
 查询2：涉及非索引列
+
 ```sql
 SELECT name, age, salary FROM employees WHERE name = 'John';
 ```
