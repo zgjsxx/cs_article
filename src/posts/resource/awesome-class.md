@@ -24,3 +24,10 @@ Linux 工具： 计算机教育中缺失的一课 https://missing-semester-cn.gi
 6.824
 
 https://pdos.csail.mit.edu/6.824/
+
+
+**计算机安全**
+
+cs161
+
+https://www.bilibili.com/video/BV1ktt3ehEiR?spm_id_from=333.788.videopod.sections&vd_source=f174cbb16fb929c791f935fabe0ad300&p=13
