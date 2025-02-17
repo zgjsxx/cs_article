@@ -70,7 +70,6 @@ qemu-system-aarch64 -m 4096 -cpu cortex-a72 -smp 4,cores=4,threads=1,sockets=1 -
 
 此问题可能是windows网络共享的问题，在宿主机种右键物理网卡，点击“属性”按钮，在弹出的界面中选择“共享”选项，先取消共享，点击确定后，再次选择共享即可。
 
-
 ## 参考文章
 
 - https://www.cnblogs.com/miracle-luna/p/17929667.html
